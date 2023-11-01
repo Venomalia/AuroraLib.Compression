@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Title>AuroraLib.Compression</Title>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Venomalia/AuroraLib.Compression</PackageProjectUrl>
+    <Copyright>Venomalia</Copyright>
+    <Description>Supports a wide range of compression algorithms mainly used in video games,
+like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS and more.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\icon.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AuroraLib.Core" Version="1.2.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="AuroraLib.Core" />
+    <Using Include="AuroraLib.Core.Interfaces" />
+    <Using Include="AuroraLib.Core.IO" />
+    <Using Include="System.IO.Compression" />
+  </ItemGroup>
+
+</Project>

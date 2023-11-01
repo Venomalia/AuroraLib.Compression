@@ -1,0 +1,120 @@
+﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.IO;
+using AuroraLib.Compression.MatchFinder;
+using System.Runtime.CompilerServices;
+
+namespace AuroraLib.Compression.Algorithms
+{
+    /// <summary>
+    /// LZ02 compression algorithm used in Mario Golf: Toadstool Tour.
+    /// </summary>
+    public sealed class LZ02 : ICompressionAlgorithm, ILzSettings
+    {
+        internal static readonly LzProperties _lz = new(0xFFF, 272, 3);
+
+        public bool LookAhead { get; set; } = true;
+
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
+            => stream.Position + 0x8 < stream.Length && Enum.IsDefined(stream.Read<DataType>()) && stream.Read<UInt24>(Endian.Big) != 0;
+
+        private enum DataType : byte
+        {
+            Default = 0x01,
+            Extended = 0x02,
+        }
+
+        public void Decompress(Stream source, Stream destination)
+        {
+            DataType type = source.Read<DataType>();
+            int uncompressedSize = source.Read<UInt24>(Endian.Big);
+            DecompressHeaderless(source, destination, uncompressedSize);
+        }
+
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+            => Compress(source, ReadOnlySpan<byte>.Empty, destination, level);
+
+        public void Compress(ReadOnlySpan<byte> source, ReadOnlySpan<byte> extendData, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        {
+            destination.Write(extendData.IsEmpty ? DataType.Default : DataType.Extended);
+            destination.Write((UInt24)source.Length, Endian.Big);
+            CompressHeaderless(source, destination, LookAhead, level);
+            destination.Write(extendData);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength = 0)
+        {
+            long endPosition = destination.Position + decomLength;
+            destination.SetLength(endPosition);
+            FlagReader flag = new(source, Endian.Big);
+            using LzWindows buffer = new(destination, _lz.WindowsSize);
+
+            while (source.Position < source.Length)
+            {
+                if (flag.Readbit()) // Compressed
+                {
+                    // DDDDLLLL DDDDDDDD
+                    byte b1 = source.ReadUInt8();
+                    byte b2 = source.ReadUInt8();
+                    int distance = (b1 & 0xF0) << 4 | b2;
+                    int length = (b1 & 0xF) + 1; // 1-16 length
+
+                    if (length == 1)
+                    {
+                        if (distance == 0)
+                        {
+                            if (destination.Position + buffer.Position > endPosition)
+                            {
+                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                            }
+                            return;
+                        }
+                        length = source.ReadUInt8() + 17; // 17-272 length
+                    }
+
+                    buffer.BackCopy(distance, length);
+                }
+                else // Not compressed
+                {
+                    buffer.WriteByte(source.ReadUInt8());
+                }
+            }
+            throw new EndOfStreamException();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        {
+            int sourcePointer = 0x0;
+            LzMatchFinder dictionary = new(_lz, lookAhead, level);
+            using FlagWriter flag = new(destination, Endian.Big);
+
+            while (sourcePointer < source.Length)
+            {
+                if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                {
+                    int length = match.Length > 16 ? 0 : match.Length - 1;
+                    flag.Buffer.Write((byte)((match.Distance >> 8 << 4) | length));
+                    flag.Buffer.Write((byte)(match.Distance & 0xFF));
+                    if (length == 0)
+                    {
+                        flag.Buffer.Write((byte)(match.Length - 17));
+                    }
+
+                    sourcePointer += match.Length;
+                    flag.WriteBit(true);
+                }
+                else
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(false);
+                }
+            }
+            flag.Buffer.Write(0);
+            flag.Buffer.Write(0);
+            flag.WriteBit(true);
+            flag.Flush();
+        }
+    }
+}
