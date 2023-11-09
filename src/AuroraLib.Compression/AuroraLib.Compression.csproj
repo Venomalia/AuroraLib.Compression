@@ -15,6 +15,7 @@
     <Copyright>Venomalia</Copyright>
     <Description>Supports a wide range of compression algorithms mainly used in video games,
 like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS and more.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
