@@ -37,25 +37,31 @@ Supports a wide range of compression algorithms mainly used in video games.
 | ZLib           | ZLib based on DEFLATE compression algorithm.                               |
 | AsuraZlb       | AsuraZlb based on ZLib compression algorithm used in Simpsons The Game.    |
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
+| ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
 
  `*` Big-endian and little-endian version are supported.
  
 ## How To Use
 
-Decompress a file.
+Decompress a file with a specific algorithm.
 ``` csharp
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     using FileStream destination = new("output.dat", FileMode.Create, FileAccess.ReadWrite, FileShare.None);
     new LZSS().Decompress(source, destination);
 ```
 
-Compress a file.
+Compress a file with a specific algorithm.
 ``` csharp
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     using FileStream destination = new("output.dat", FileMode.Create, FileAccess.ReadWrite, FileShare.None);
     new LZSS().Compress(source, destination);
 ```
 
+Check if the file can be decompressed with a specific algorithm.
+``` csharp
+    using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
+    bool canDecompressed = new LZSS().IsMatch(source);
+```
 # Credits
 
 - [Nickworonekin](https://github.com/nickworonekin/puyotools) Puyo Tools inspired the LZ Decode and Encode code and reference for CNX2, LZ00, LZ01, LZ10, LZ11, PRS algorithms.
@@ -65,3 +71,4 @@ Compress a file.
 - [Sukharah](https://github.com/sukharah/CLZ-Compression) reference for CLZ0 algorithm.
 - [Gamemasterplc](https://github.com/gamemasterplc/mpbintools/blob/master/bindump.c#L240C6-L240C21) reference for LZHudson algorithm.
 - [KirbyUK](https://github.com/ShrekBoards/shrek-superslam/blob/master/src/compression.rs#L66) reference for LZShrek algorithm.
+- [Brolijah](https://github.com/Brolijah/Aqualead_LZSS) reference for ALLZ algorithm.
