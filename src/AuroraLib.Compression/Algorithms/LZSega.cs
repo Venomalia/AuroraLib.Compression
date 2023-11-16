@@ -7,10 +7,12 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class LZSega : ICompressionAlgorithm, ILzSettings
     {
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = new((byte)12, 4, 2);
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
         {
             if (stream.Length < 0x12)
@@ -21,6 +23,7 @@ namespace AuroraLib.Compression.Algorithms
             return (compressedSize == stream.Length - 8 || compressedSize == stream.Length) && decompressedSize != compressedSize && decompressedSize >= 0x20;
         }
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint compressedSize = source.ReadUInt32();
@@ -28,6 +31,7 @@ namespace AuroraLib.Compression.Algorithms
             LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             long destinationStartPosition = destination.Position;

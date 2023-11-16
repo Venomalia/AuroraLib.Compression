@@ -12,19 +12,23 @@ namespace AuroraLib.Compression.Algorithms
     public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
 
+        /// <inheritdoc/>
         public virtual IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new("Yaz0");
 
         internal static readonly LzProperties _lz = new(0x1000, 0xff + 0x12, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         public Endian EndianOrder = Endian.Big;
 
+        /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -36,6 +40,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
+        /// <inheritdoc/>
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);

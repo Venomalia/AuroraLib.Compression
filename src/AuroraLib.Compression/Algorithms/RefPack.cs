@@ -12,13 +12,16 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class RefPack : ICompressionAlgorithm, ILzSettings
     {
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = new(0x20000, 1028, 3);
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && stream.Read<Header>().IsValid && stream.ReadInt24(Endian.Big) != 0;
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             Header header = source.Read<Header>();
@@ -32,6 +35,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)uncompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(new Header(true, false));

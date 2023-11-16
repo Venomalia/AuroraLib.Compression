@@ -5,6 +5,7 @@
     /// </summary>
     public sealed class Yaz1 : Yaz0
     {
+        /// <inheritdoc/>
         public override IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new("Yaz1");

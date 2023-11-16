@@ -12,12 +12,14 @@ namespace AuroraLib.Compression.Algorithms
     public class LZSS : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
 
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new("LZSS");
 
-        public readonly LzProperties LZ;
+        protected readonly LzProperties LZ;
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         public LZSS() : this(new((byte)12, 4, 2))
@@ -26,9 +28,11 @@ namespace AuroraLib.Compression.Algorithms
         public LZSS(LzProperties lz)
             => LZ = lz;
 
+        /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -39,6 +43,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)destinationSize, LZ);
         }
 
+        /// <inheritdoc/>
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             long destinationStartPosition = destination.Position;

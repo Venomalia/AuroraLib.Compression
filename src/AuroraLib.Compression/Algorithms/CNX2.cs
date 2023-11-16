@@ -11,6 +11,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class CNX2 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new((byte)'C', (byte)'N', (byte)'X', 0x2);
@@ -22,11 +23,14 @@ namespace AuroraLib.Compression.Algorithms
         /// </summary>
         string Extension { get; set; } = "DEC";
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -36,6 +40,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             long StartPosition = destination.Position;

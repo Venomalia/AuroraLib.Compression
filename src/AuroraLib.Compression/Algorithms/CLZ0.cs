@@ -11,17 +11,21 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new((byte)'C', (byte)'L', (byte)'Z', 0);
 
         internal static readonly LzProperties _lz = new(12, 4, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -31,6 +35,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);

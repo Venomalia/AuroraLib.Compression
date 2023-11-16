@@ -11,19 +11,23 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new("MIO0");
 
         internal static readonly LzProperties _lz = new(0x1000, 18, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         public Endian EndianOrder = Endian.Big;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint startPosition = (uint)source.Position;
@@ -35,6 +39,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, uncompressedSize, compressedDataPointer, uncompressedDataPointer);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             using MemoryPoolStream compressedData = new(1024), uncompressedData = new(1024), flagData = new(512);

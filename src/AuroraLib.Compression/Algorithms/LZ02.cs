@@ -13,8 +13,10 @@ namespace AuroraLib.Compression.Algorithms
     {
         internal static readonly LzProperties _lz = new(0xFFF, 272, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && Enum.IsDefined(stream.Read<DataType>()) && stream.Read<UInt24>(Endian.Big) != 0;
 
@@ -24,6 +26,7 @@ namespace AuroraLib.Compression.Algorithms
             Extended = 0x02,
         }
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             DataType type = source.Read<DataType>();
@@ -31,9 +34,11 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, uncompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
             => Compress(source, ReadOnlySpan<byte>.Empty, destination, level);
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, ReadOnlySpan<byte> extendData, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(extendData.IsEmpty ? DataType.Default : DataType.Extended);

@@ -12,16 +12,20 @@ namespace AuroraLib.Compression.Algorithms
     {
         public Endian EndianOrder = Endian.Little;
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = new(0x1FFF, 0x100, 2);
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && GetByteOrder(stream).HasValue;
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
             => DecompressHeaderless(source, destination);
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
             => CompressHeaderless(source, destination, EndianOrder, LookAhead, level);
 

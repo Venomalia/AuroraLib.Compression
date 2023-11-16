@@ -7,9 +7,11 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class GZip : ICompressionAlgorithm
     {
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && stream.ReadByte() == 31 && stream.ReadByte() == 139;
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             using GZipStream algo = new(source, CompressionMode.Decompress, true);
@@ -17,6 +19,7 @@ namespace AuroraLib.Compression.Algorithms
             source.Position = source.Length;
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             using GZipStream algo = new(destination, level, true);

@@ -30,7 +30,7 @@ like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS and more.</Description>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AuroraLib.Core" Version="1.2.5.1" />
+    <PackageReference Include="AuroraLib.Core" Version="1.3.0.1" />
   </ItemGroup>
 
   <ItemGroup>

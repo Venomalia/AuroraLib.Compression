@@ -7,9 +7,11 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class ZLib : ICompressionAlgorithm
     {
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && stream.Read<Header>().Validate();
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             using ZLibStream algo = new(source, CompressionMode.Decompress, true);
@@ -20,6 +22,7 @@ namespace AuroraLib.Compression.Algorithms
         public void Decompress(Stream source, Stream destination, int sourceSize)
             => Decompress(new SubStream(source, sourceSize), destination);
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             using ZLibStream algo = new(destination, level, true);

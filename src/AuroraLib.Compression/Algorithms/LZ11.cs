@@ -13,11 +13,14 @@ namespace AuroraLib.Compression.Algorithms
     {
         private static readonly LzProperties _lz = new(0x1000, 0x4000, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && stream.ReadByte() == 0x11 && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0) && (stream.ReadUInt8() & 0x80) == 0;
 
+        /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.Position += 1;
@@ -29,6 +32,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, uncompressedSize);
         }
 
+        /// <inheritdoc/>
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             if (source.Length <= 0xFFFFFF)

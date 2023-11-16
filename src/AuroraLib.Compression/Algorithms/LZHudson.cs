@@ -11,17 +11,21 @@ namespace AuroraLib.Compression.Algorithms
     {
         private static readonly LzProperties _lz = new(0x1000, 0xFF + 18, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x8 < stream.Length && extension.Contains(".LZHudson", StringComparison.InvariantCultureIgnoreCase) && stream.ReadUInt32(Endian.Big) != 0;
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint uncompressedSize = source.ReadUInt32(Endian.Big);
             DecompressHeaderless(source, destination, (int)uncompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(source.Length, Endian.Big);

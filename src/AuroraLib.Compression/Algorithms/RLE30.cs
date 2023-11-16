@@ -11,9 +11,11 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x30;
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.ReadByte() == Identifier && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0) && stream.ReadUInt8() != 0;
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.Position += 1;
@@ -25,6 +27,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)uncompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(Identifier);

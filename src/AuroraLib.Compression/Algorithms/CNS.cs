@@ -11,12 +11,14 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class CNS : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new("@CNS");
 
         internal static readonly LzProperties _lz = new(0x100, 130, 3);
 
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <summary>
@@ -24,9 +26,11 @@ namespace AuroraLib.Compression.Algorithms
         /// </summary>
         public string Extension = "PAK";
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -36,6 +40,7 @@ namespace AuroraLib.Compression.Algorithms
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);
@@ -53,6 +58,7 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+        /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
@@ -89,6 +95,7 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
+        /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {

@@ -8,15 +8,18 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class AsuraZlb : ICompressionAlgorithm, IHasIdentifier
     {
+        /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier64 _identifier = new("AsuraZlb");
 
         private static readonly ZLib zLib = new();
 
+        /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x14 < stream.Length && stream.Match(_identifier);
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long start = destination.Position;
@@ -32,6 +35,7 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
+        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             long start = destination.Position;
