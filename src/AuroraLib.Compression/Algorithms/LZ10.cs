@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public class LZ10 : ICompressionAlgorithm, ILzSettings
     {
-        internal static readonly LzProperties _lz = new(12, 4, 3);
+        internal static readonly LzProperties _lz = new(0x1000, 18, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
