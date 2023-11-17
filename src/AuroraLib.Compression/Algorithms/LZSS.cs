@@ -60,12 +60,13 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength, LzProperties lz)
+        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength, LzProperties lz, byte initialFill = 0x0)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             FlagReader flag = new(source, Endian.Little);
             using LzWindows buffer = new(destination, lz.WindowsSize);
+            buffer.UnsaveAsSpan().Fill(initialFill);
 
             int f = lz.GetLengthBitsFlag();
 
