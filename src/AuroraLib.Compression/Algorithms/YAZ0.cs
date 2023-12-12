@@ -32,12 +32,23 @@ namespace AuroraLib.Compression.Algorithms
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            Endian endian = source.DetectByteOrder<uint>(3);
-            uint decompressedSize = source.ReadUInt32(endian);
-            uint compressedDataOffset = source.ReadUInt32(endian);
-            uint uncompressedDataOffset = source.ReadUInt32(endian);
+            uint decompressedSize = source.ReadUInt32(EndianOrder);
+            _ = source.ReadUInt32(EndianOrder);
+            _ = source.ReadUInt32(EndianOrder);
 
-            DecompressHeaderless(source, destination, (int)decompressedSize);
+            long sourceDataStartPosition = source.Position;
+            long destinationStartPosition = destination.Position;
+            try
+            {
+                DecompressHeaderless(source, destination, (int)decompressedSize);
+            }
+            catch (Exception) // try other order
+            {
+                source.Seek(sourceDataStartPosition, SeekOrigin.Begin);
+                destination.Seek(destinationStartPosition, SeekOrigin.Begin);
+                decompressedSize = BitConverterX.Swap(decompressedSize);
+                DecompressHeaderless(source, destination, (int)decompressedSize);
+            }
         }
 
         /// <inheritdoc/>
