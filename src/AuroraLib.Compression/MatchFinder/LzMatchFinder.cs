@@ -103,13 +103,14 @@ namespace AuroraLib.Compression.MatchFinder
             if (windowStart > 0)
             {
                 List<int> offsetList = offsetLists[index];
-                while (0 < offsetList.Count)
+
+                int i = 0;
+                for (; i < offsetList.Count; i++)
                 {
-                    if (offsetList[0] >= windowStart)
+                    if (offsetList[i] >= windowStart)
                         break;
-                    else
-                        offsetList.RemoveAt(0);
                 }
+                offsetList.RemoveRange(0, i);
             }
         }
 
