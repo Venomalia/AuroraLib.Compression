@@ -2,6 +2,8 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core.Buffers;
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -36,7 +38,7 @@ namespace AuroraLib.Compression.Algorithms
             uint uncompressedSize = source.ReadUInt32(endian);
             uint compressedDataPointer = source.ReadUInt32(endian) + startPosition;
             uint uncompressedDataPointer = source.ReadUInt32(endian) + startPosition;
-            DecompressHeaderless(source, destination, uncompressedSize, compressedDataPointer, uncompressedDataPointer);
+            DecompressHeaderless(source, destination, uncompressedSize, (int)compressedDataPointer, (int)uncompressedDataPointer);
         }
 
         /// <inheritdoc/>
@@ -56,35 +58,37 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, uint compressedDataPointer, uint uncompressedDataPointer)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
+            const int flagDataStart = 0x10;
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             using LzWindows buffer = new(destination, _lz.WindowsSize);
 
-            uint flagDataPointer = (uint)source.Position;
-            uint maskBitCounter = 0, currentMask = 0;
+            using SpanBuffer<byte> data = new((int)(source.Length - source.Position));
+            Span<byte> sData = data;
+            source.Read(sData);
+            int flagDataPointer = 0;
+            compressedDataPointer -= flagDataStart;
+            uncompressedDataPointer -= flagDataStart;
+            nint maskBitCounter = 0, currentMask = 0;
 
             while (destination.Position + buffer.Position < endPosition)
             {
                 // If we're out of bits, get the next mask.
                 if (maskBitCounter == 0)
                 {
-                    source.Position = flagDataPointer;
-                    currentMask = source.ReadUInt8();
+                    currentMask = sData[flagDataPointer++];
                     maskBitCounter = 8;
-                    flagDataPointer += 1;
                 }
 
                 if ((currentMask & 0x80) == 0x80)
                 {
-                    source.Position = uncompressedDataPointer++;
-                    buffer.WriteByte(source.ReadUInt8());
+                    buffer.WriteByte(sData[uncompressedDataPointer++]);
                 }
                 else
                 {
-                    source.Position = compressedDataPointer;
-                    ushort link = source.ReadUInt16(Endian.Big);
+                    ushort link = BinaryPrimitives.ReadUInt16BigEndian(sData[compressedDataPointer..]);
                     compressedDataPointer += 2;
 
                     // Calculate the match distance & length
@@ -99,7 +103,7 @@ namespace AuroraLib.Compression.Algorithms
                 maskBitCounter--;
             }
 
-            source.Position = uncompressedDataPointer;
+            source.Position -= (Math.Max(compressedDataPointer, uncompressedDataPointer) - sData.Length);
             if (destination.Position + buffer.Position > endPosition)
             {
                 throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
