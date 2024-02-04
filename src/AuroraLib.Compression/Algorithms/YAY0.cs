@@ -88,22 +88,16 @@ namespace AuroraLib.Compression.Algorithms
                 }
                 else
                 {
-                    ushort link = BinaryPrimitives.ReadUInt16BigEndian(sData[compressedDataPointer..]);
-                    compressedDataPointer += 2;
-
+                    byte b1 = sData[compressedDataPointer++];
+                    byte b2 = sData[compressedDataPointer++];
                     // Calculate the match distance & length
-                    int distance = (link & 0xfff) + 1;
-                    int length = link >> 12;
+                    int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
+                    int length = b1 >> 4;
 
                     if (length == 0)
-                    {
-                        length = sData[uncompressedDataPointer++];
-                        length += 18;
-                    }
+                        length = sData[uncompressedDataPointer++] + 0x12;
                     else
-                    {
                         length += 2;
-                    }
 
                     buffer.BackCopy(distance, length);
                 }

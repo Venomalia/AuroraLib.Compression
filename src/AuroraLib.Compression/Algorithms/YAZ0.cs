@@ -81,7 +81,13 @@ namespace AuroraLib.Compression.Algorithms
                     byte b2 = source.ReadUInt8();
                     // Calculate the match distance & length
                     int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
-                    int length = (b1 & 0xF0) == 0 ? source.ReadByte() + 0x12 : (byte)((b1 & 0xF0) >> 4) + 0x2;
+                    int length = b1 >> 4;
+
+                    if (length == 0)
+                        length = source.ReadByte() + 0x12;
+                    else
+                        length += 2;
+
                     buffer.BackCopy(distance, length);
                 }
             }
