@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo LZ11 compression algorithm
+    /// Nintendo LZ11 compression algorithm extension of the <see cref="LZ10"/> algorithm, mainly used in GBA, DS and WII games.
     /// </summary>
     public class LZ11 : ICompressionAlgorithm, ILzSettings
     {

@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo Yay0 compression algorithm
+    /// Nintendo Yay0 compression algorithm successor to the <see cref="MIO0"/> algorithm with increased match length, used in some Nintendo 64 and GameCube games.
     /// </summary>
     public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {

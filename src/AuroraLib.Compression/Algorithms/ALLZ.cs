@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Aqualead LZ compression algorithm.
+    /// Aqualead LZ compression algorithm, used in games that utilize the Aqualead framework.
     /// </summary>
     public sealed class ALLZ : ICompressionAlgorithm, IHasIdentifier
     {

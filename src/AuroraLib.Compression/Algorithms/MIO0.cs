@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo MIO0 compression algorithm
+    /// Nintendo MIO0 compression algorithm, mainly used in early Nintendo 64 games.
     /// </summary>
     public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {

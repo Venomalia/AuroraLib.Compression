@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo Yaz0 compression algorithm
+    /// Nintendo Yaz0 compression algorithm successor to the <see cref="Yay0"/> algorithm, used in numerous Nintendo titles from the N64 era to Switch.
     /// </summary>
     public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
