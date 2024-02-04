@@ -3,7 +3,6 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
-using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -103,7 +102,7 @@ namespace AuroraLib.Compression.Algorithms
                 maskBitCounter--;
             }
 
-            source.Position -= (Math.Max(compressedDataPointer, uncompressedDataPointer) - sData.Length);
+            source.Position -= (sData.Length - Math.Max(compressedDataPointer, uncompressedDataPointer));
             if (destination.Position + buffer.Position > endPosition)
             {
                 throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
