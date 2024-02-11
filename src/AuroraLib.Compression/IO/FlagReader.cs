@@ -31,17 +31,9 @@ namespace AuroraLib.Compression.IO
                 BitsLeft = 8;
             }
 
-            bool flag;
-            if (BitOrder == Endian.Little)
-            {
-                flag = (CurrentFlag & 1) == 1;
-                CurrentFlag >>= 1;
-            }
-            else
-            {
-                flag = (CurrentFlag & 128) == 128;
-                CurrentFlag <<= 1;
-            }
+            int bitindex = BitOrder == Endian.Little ? 8 - BitsLeft : BitsLeft - 1;
+            bool flag = (CurrentFlag & (1 << bitindex)) != 0;
+
             BitsLeft--;
             return flag;
         }
