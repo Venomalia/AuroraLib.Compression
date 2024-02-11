@@ -63,7 +63,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.SetLength(endPosition);
             FlagReader flag = new(source, Endian.Little);
             using LzWindows buffer = new(destination, _lz.WindowsSize);
-            Span<byte> bytes = stackalloc byte[0xFF];
 
             while (destination.Position + buffer.Position < endPosition)
             {
@@ -94,8 +93,7 @@ namespace AuroraLib.Compression.Algorithms
                     // Not compressed, multiple bytes
                     case 3:
                         length = source.ReadUInt8();
-                        source.Read(bytes[..length]);
-                        buffer.Write(bytes[..length]);
+                        buffer.CopyFrom(source, length);
                         break;
                 }
             }

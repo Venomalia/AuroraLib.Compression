@@ -39,6 +39,28 @@ namespace AuroraLib.Compression.IO
             }
         }
 
+        /// <summary>
+        /// Copies data from a <paramref name="source"/> <see cref="Stream"/> to this <see cref="LzWindows"/>.
+        /// </summary>
+        /// <param name="source">The source stream containing data to copy.</param>
+        /// <param name="length">The number of bytes to copy.</param>
+        [DebuggerStepThrough]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public void CopyFrom(Stream source, int length)
+        {
+            while (length != 0)
+            {
+                int l = Math.Min(length, (int)(Length - Position));
+                Span<byte> buffer = _Buffer.AsSpan((int)Position, l);
+                source.Read(buffer);
+                Position += l;
+                length -= l;
+                if (Position == 0)
+                    FlushToDestination((int)Length);
+            }
+        }
+
+        /// <inheritdoc/>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public override void Write(ReadOnlySpan<byte> buffer)

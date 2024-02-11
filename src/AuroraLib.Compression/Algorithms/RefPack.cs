@@ -49,7 +49,6 @@ namespace AuroraLib.Compression.Algorithms
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             using LzWindows buffer = new(destination, _lz.WindowsSize);
-            Span<byte> bytes = stackalloc byte[128];
 
             while (source.Position < source.Length)
             {
@@ -93,8 +92,7 @@ namespace AuroraLib.Compression.Algorithms
                     {
                         // 111111PP
                         plainSize = prefix & 3;
-                        source.Read(bytes[..plainSize]);
-                        buffer.Write(bytes[..plainSize]);
+                        buffer.CopyFrom(source, plainSize);
 
                         if (destination.Position + buffer.Position > endPosition)
                         {
@@ -104,16 +102,8 @@ namespace AuroraLib.Compression.Algorithms
                     }
                 }
 
-                if (plainSize > 0)
-                {
-                    source.Read(bytes[..plainSize]);
-                    buffer.Write(bytes[..plainSize]);
-                }
-
-                if (length > 0)
-                {
-                    buffer.BackCopy(distance, length);
-                }
+                buffer.CopyFrom(source, plainSize);
+                buffer.BackCopy(distance, length);
             }
             throw new EndOfStreamException();
         }
