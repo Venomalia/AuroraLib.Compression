@@ -9,7 +9,7 @@ namespace AuroraLib.Compression.IO
     /// </summary>
     public sealed class LzWindows : CircularBuffer
     {
-        public readonly Stream destination;
+        private readonly Stream destination;
 
         public LzWindows(Stream destination, int capacity) : base(capacity)
             => this.destination = destination;
@@ -22,13 +22,7 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void BackCopy(int distance, int length)
-        {
-            distance = (int)(Length - distance);
-            for (int i = 0; i < length; i++)
-            {
-                WriteByte(_Buffer[(distance + Position) % Length]);
-            }
-        }
+            => OffsetCopy((int)(Length - distance + Position), length);
 
         /// <summary>
         /// Copies data from an offset position within the circular buffer to the current position.
@@ -36,7 +30,7 @@ namespace AuroraLib.Compression.IO
         /// <param name="Offset">The offset position from which data will be copied.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void OffsetCopy(int Offset, int length)
         {
             for (int i = 0; i < length; i++)
@@ -65,24 +59,25 @@ namespace AuroraLib.Compression.IO
             }
         }
 
+        /// <inheritdoc/>
         [DebuggerStepThrough]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void WriteByte(byte value)
         {
             _Buffer[Position++] = value;
             if (Position == 0)
-            {
-                destination.Write(_Buffer.AsSpan(0, (int)Length));
-            }
+                FlushToDestination((int)Length);
         }
 
+        private void FlushToDestination(int length)
+                => destination.Write(_Buffer.AsSpan(0, length));
+
+        /// <inheritdoc/>
         [DebuggerStepThrough]
         protected override void Dispose(bool disposing)
         {
             if (_Buffer.Length != 0 && Position != 0)
-            {
-                destination.Write(_Buffer.AsSpan(0, (int)Position));
-            }
+                FlushToDestination((int)Position);
             base.Dispose(disposing);
         }
     }
