@@ -31,13 +31,14 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            const int flagDataStart = 0x10;
             uint startPosition = (uint)source.Position;
             source.MatchThrow(_identifier);
             Endian endian = source.DetectByteOrder<uint>(3);
             uint uncompressedSize = source.ReadUInt32(endian);
             uint compressedDataPointer = source.ReadUInt32(endian) + startPosition;
             uint uncompressedDataPointer = source.ReadUInt32(endian) + startPosition;
-            DecompressHeaderless(source, destination, uncompressedSize, (int)compressedDataPointer, (int)uncompressedDataPointer);
+            DecompressHeaderless(source, destination, uncompressedSize, (int)compressedDataPointer - flagDataStart, (int)uncompressedDataPointer - flagDataStart);
         }
 
         /// <inheritdoc/>
@@ -56,20 +57,23 @@ namespace AuroraLib.Compression.Algorithms
             uncompressedData.WriteTo(destination);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
-            const int flagDataStart = 0x10;
+            using SpanBuffer<byte> data = new((int)(source.Length - source.Position));
+            source.Read(data);
+
+            int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
+            if (source.CanSeek)
+                source.Position -= data.Length - read;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public static int DecompressHeaderless(ReadOnlySpan<byte> source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
+        {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             using LzWindows buffer = new(destination, _lz.WindowsSize);
-
-            using SpanBuffer<byte> data = new((int)(source.Length - source.Position));
-            Span<byte> sData = data;
-            source.Read(sData);
             int flagDataPointer = 0;
-            compressedDataPointer -= flagDataStart;
-            uncompressedDataPointer -= flagDataStart;
             nint maskBitCounter = 0, currentMask = 0;
 
             while (destination.Position + buffer.Position < endPosition)
@@ -77,24 +81,24 @@ namespace AuroraLib.Compression.Algorithms
                 // If we're out of bits, get the next mask.
                 if (maskBitCounter == 0)
                 {
-                    currentMask = sData[flagDataPointer++];
+                    currentMask = source[flagDataPointer++];
                     maskBitCounter = 8;
                 }
 
                 if ((currentMask & 0x80) == 0x80)
                 {
-                    buffer.WriteByte(sData[uncompressedDataPointer++]);
+                    buffer.WriteByte(source[uncompressedDataPointer++]);
                 }
                 else
                 {
-                    byte b1 = sData[compressedDataPointer++];
-                    byte b2 = sData[compressedDataPointer++];
+                    byte b1 = source[compressedDataPointer++];
+                    byte b2 = source[compressedDataPointer++];
                     // Calculate the match distance & length
                     int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
                     int length = b1 >> 4;
 
                     if (length == 0)
-                        length = sData[uncompressedDataPointer++] + 0x12;
+                        length = source[uncompressedDataPointer++] + 0x12;
                     else
                         length += 2;
 
@@ -106,11 +110,11 @@ namespace AuroraLib.Compression.Algorithms
                 maskBitCounter--;
             }
 
-            source.Position -= (sData.Length - Math.Max(compressedDataPointer, uncompressedDataPointer));
             if (destination.Position + buffer.Position > endPosition)
             {
                 throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
             }
+            return Math.Max(compressedDataPointer, uncompressedDataPointer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
