@@ -5,11 +5,14 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Run-Length Encoding compression algorithm was used in nintendo games.
+    /// Nintendos Run-Length Encoding algorithm mainly used in GBA, DS games.
     /// </summary>
     public sealed class RLE30 : ICompressionAlgorithm
     {
         private const byte Identifier = 0x30;
+        private const int FlagMask = 0x80;
+        private const int MinLength = 1;
+        private const int MaxLength = 0x7F;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -49,21 +52,22 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            Span<byte> bytes = stackalloc byte[0x7F];
+            Span<byte> bytes = stackalloc byte[0xFF];
 
             while (destination.Position < endPosition)
             {
-                byte b1 = source.ReadUInt8();
-                int length = b1 & 0x7F;
+                int flag = source.ReadByte();
+                int length = (flag & MaxLength) + MinLength;
                 Span<byte> section = bytes[..length];
-                if (b1 >> 7 == 1)
+                if (flag >= FlagMask)
                 {
-                    if (source.Read(section) != length)
-                        throw new EndOfStreamException();
+                    section = bytes[..(length + 2)];
+                    section.Fill(source.ReadUInt8());
                 }
                 else
                 {
-                    section.Fill(source.ReadUInt8());
+                    if (source.Read(section) != length)
+                        throw new EndOfStreamException();
                 }
                 destination.Write(section);
             }
@@ -78,18 +82,18 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination)
         {
             int sourcePointer = 0x0;
-            RleMatchFinder matchFinder = new(3, 0x7F);
+            RleMatchFinder matchFinder = new(3, MaxLength);
 
             while (sourcePointer < source.Length)
             {
                 if (matchFinder.TryToFindMatch(source, sourcePointer, out int duration))
                 {
-                    destination.WriteByte((byte)duration);
+                    destination.WriteByte((byte)(duration - 3 | FlagMask));
                     destination.Write(source[sourcePointer]);
                 }
                 else
                 {
-                    destination.WriteByte((byte)(duration | 0x80));
+                    destination.WriteByte((byte)(duration - MinLength));
                     destination.Write(source.Slice(sourcePointer, duration));
                 }
                 sourcePointer += duration;
