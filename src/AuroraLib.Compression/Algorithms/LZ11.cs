@@ -7,10 +7,12 @@ using System.Runtime.CompilerServices;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo LZ11 compression algorithm extension of the <see cref="LZ10"/> algorithm, mainly used in GBA, DS and WII games.
+    /// Nintendo LZ11 compression algorithm extension of the <see cref="LZ10"/> algorithm, mainly used in DS and WII games.
     /// </summary>
     public class LZ11 : ICompressionAlgorithm, ILzSettings
     {
+        private const byte Identifier = 0x11;
+
         private static readonly LzProperties _lz = new(0x1000, 0x4000, 3);
 
         /// <inheritdoc/>
@@ -18,7 +20,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && stream.ReadByte() == 0x11 && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0) && (stream.ReadUInt8() & 0x80) == 0;
+            => stream.Position + 0x8 < stream.Length && stream.ReadByte() == Identifier && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0) && (stream.ReadUInt8() & 0x80) == 0;
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
@@ -37,11 +39,11 @@ namespace AuroraLib.Compression.Algorithms
         {
             if (source.Length <= 0xFFFFFF)
             {
-                destination.Write(0x11 | (source.Length << 8));
+                destination.Write(Identifier | (source.Length << 8));
             }
             else
             {
-                destination.Write(0x11);
+                destination.Write(Identifier | 0);
                 destination.Write(source.Length);
             }
 
