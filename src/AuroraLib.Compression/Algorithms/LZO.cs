@@ -38,105 +38,87 @@ namespace AuroraLib.Compression.Algorithms
 
             using LzWindows buffer = new(destination, _lz.WindowsSize);
 
-            flag = source.ReadByte();
-            if (flag > 17)
+            // Read the first flage.
+            if ((flag = source.ReadByte()) != -1)
             {
-                length = flag - 17;
-                buffer.CopyFrom(source, length);
-            }
-            else
-            {
-                source.Position--;
-            }
-
-            while (true)
-            {
-                if ((flag = source.ReadByte()) == -1)
-                    throw new EndOfStreamException();
-
-                switch (flag >> 4)
+                // special case if the first flag is greater than 17
+                if (flag > 17)
                 {
-                    case 0:
-                        // Depending on the number of plain bytes last read.   
-                        switch (plain)
-                        {
-                            case 0: //plain copy L = 4-18 or 18+
-                                // 0000 LLLL
-                                length = 3 + flag;
-                                if (length == 3)
-                                    length = 18 + ReadExtendedInt(source);
-
-                                plain = 4;
-                                buffer.CopyFrom(source, length);
-                                continue;
-                            case 1:
-                            case 2:
-                            case 3: //P = 0-3 D = 1-1024 L = 2
-                                // 0000 DDPP DDDD DDDD
-                                distance = source.ReadByte();
-                                distance = (distance << 2) + (flag >> 2) + 1;
-                                length = 2;
-                                plain = flag & 0x3;
-                                break;
-                            default://P = 0-3 D = 2049-3072 L = 3
-                                // 0000 DDPP DDDD DDDD
-                                distance = source.ReadByte();
-                                distance = (distance << 2) + (flag >> 2) + (2048 + 1);
-                                length = 3;
-                                plain = flag & 0x3;
-                                break;
-                        }
-                        break;
-                    case 1: //P = 0-3 D = 16385-49151 L = 3-9 or 9+
-                        // 0001 HLLL ... DDDD DDPP DDDD DDDD
-                        length = 2 + (flag & 0x7);
-                        if (length == 2)
-                            length = 9 + ReadExtendedInt(source);
-
-                        plain = source.ReadByte();
-                        distance = source.ReadByte();
-                        distance = 16384 + ((flag & 0x8) << 11) | (distance << 6 | plain >> 2);
-                        plain &= 0x3;
-
-                        // End flag
-                        if (distance == 16384)
-                            return;
-
-                        break;
-                    case 2:
-                    case 3: //P = 0-3 D = 1-16384 L = 3-33 or 33+
-                        // 001L LLLL ... DDDD DDPP DDDD DDDD
-                        length = 2 + (flag & 0x1f);
-                        if (length == 2)
-                            length = 33 + ReadExtendedInt(source);
-
-                        plain = source.ReadByte();
-                        distance = source.ReadByte();
-                        distance = (distance << 6 | plain >> 2) + 1;
-                        plain &= 0x3;
-                        break;
-                    case 4:
-                    case 5:
-                    case 6:
-                    case 7: //P = 0-3 D = 1-2048 L = 3-4
-                        // 01LD DDPP DDDD DDDD
-                        length = 3 + ((flag >> 5) & 0x1);
-                        distance = source.ReadByte();
-                        distance = (distance << 3) + ((flag >> 2) & 0x7) + 1;
-                        plain = flag & 0x3;
-                        break;
-                    default: //P = 0-3 D = 1-2048 L = 5-8
-                        // 1LLD DDPP DDDD DDDD
-                        length = 5 + ((flag >> 5) & 0x3);
-                        distance = source.ReadByte();
-                        distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
-                        plain = flag & 0x3;
-                        break;
+                    length = flag - 17;
+                    buffer.CopyFrom(source, length);
+                    flag = source.ReadByte();
                 }
 
-                buffer.BackCopy(distance, length);
-                buffer.CopyFrom(source, plain);
+                do // We read a new flag at the end.
+                {
+                    switch (flag >> 4)
+                    {
+                        case 0:
+                            // Plain copy or special case depending on the number of plain bytes last read.   
+                            switch (plain)
+                            {
+                                case 0: // 0000 LLLL | plain copy L = 4-18 or 18+
+                                    length = 3 + flag;
+                                    if (length == 3)
+                                        length = 18 + ReadExtendedInt(source);
+
+                                    plain = 4;
+                                    buffer.CopyFrom(source, length);
+                                    // Continue & read a new flag.
+                                    continue;
+                                case <= 3: // 0000 DDPP DDDD DDDD | P = 0-3 D = 1-1024 L = 2
+                                    distance = source.ReadByte();
+                                    distance = (distance << 2) + (flag >> 2) + 1;
+                                    length = 2;
+                                    break;
+                                default:// 0000 DDPP DDDD DDDD | P = 0-3 D = 2049-3072 L = 3
+                                    distance = source.ReadByte();
+                                    distance = (distance << 2) + (flag >> 2) + (2048 + 1);
+                                    length = 3;
+                                    break;
+                            }
+                            break;
+                        case 1: // 0001 HLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 16385-49151 L = 3-9 or 9+
+                            length = 2 + (flag & 0x7);
+                            if (length == 2)
+                                length = 9 + ReadExtendedInt(source);
+
+                            distance = 16384 + ((flag & 0x8) << 11);
+                            flag = source.ReadByte();
+                            distance |= (source.ReadByte() << 6 | flag >> 2);
+
+                            // End flag
+                            if (distance == 16384)
+                                return;
+
+                            break;
+                        case <= 3: // 001L LLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 1-16384 L = 3-33 or 33+
+                            length = 2 + (flag & 0x1f);
+                            if (length == 2)
+                                length = 33 + ReadExtendedInt(source);
+
+                            flag = source.ReadByte();
+                            distance = source.ReadByte();
+                            distance = (distance << 6 | flag >> 2) + 1;
+                            break;
+                        case <= 7: // 01LD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 3-4
+                            length = 3 + ((flag >> 5) & 0x1);
+                            distance = source.ReadByte();
+                            distance = (distance << 3) + ((flag >> 2) & 0x7) + 1;
+                            break;
+                        default: // 1LLD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 5-8
+                            length = 5 + ((flag >> 5) & 0x3);
+                            distance = source.ReadByte();
+                            distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
+                            break;
+                    }
+                    plain = flag & 0x3;
+                    buffer.BackCopy(distance, length);
+                    buffer.CopyFrom(source, plain);
+
+                } while ((flag = source.ReadByte()) != -1);
             }
+            throw new EndOfStreamException();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
