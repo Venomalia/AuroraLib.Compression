@@ -8,16 +8,18 @@ Supports a wide range of compression algorithms mainly used in video games.
 
 | Algorithm      | Description                                                                |
 |----------------|----------------------------------------------------------------------------|
-| LZ10           | Nintendo LZ10 compression algorithm used in various games.                 |
-| LZ11           | Nintendo LZ11 compression algorithm used in various games.                 |
-| LZ77           | Nintendo LZ77 based on LZ10 algorithm used in some games.                  |
-| MIO0*          | Nintendo MIO0 compression algorithm used in some Nintendo games.           |
-| Yaz0*          | Nintendo Yaz0 compression algorithm used in various games.                 |
-| Yaz1*          | Identical to Yaz0 only with a different identifier.                        |
-| Yay0*          | Nintendo YAY0 compression algorithm used in some Nintendo games.           |
-| RLE30          | Nintendo RLE30 compression algorithm used in GameBoy games.                |
+| LZ10           | Nintendo LZ10 compression used in various GBA, DS and WII games.           |
+| LZ11           | Nintendo LZ11 compression used in various DS and WII games.                |
+| LZ40           | Nintendo LZ40 compression mainly used in DS games.                         |
+| LZ77           | Nintendo LZ77 based on LZ10 used in WII games and data.                    |
+| MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
+| Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
+| Yaz0*          | Nintendo Yaz0 compression used in games from the N64 to Switch era.        |
+| Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
+| RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
+| LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
-| LZSega         | LZSega based on LZSS compression used in some GameCube Sega games.         |
+| LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
 | COMP           | Sega COMP based on LZ11 algorithm, used in some Puyo Puyo.                 |
 | CXLZ           | Sega CXLZ based on LZ10 algorithm, used in some Puyo Puyo.                 |
@@ -29,15 +31,17 @@ Supports a wide range of compression algorithms mainly used in video games.
 | FCMP           | FCMP based on LZSS algorithm, used in Muramasa The Demon Blade.            |
 | GCLZ           | GCLZ based on LZ10 algorithm, used in Pandora's Tower.                     |
 | LZ02           | LZ02 compression algorithm used in Mario Golf: Toadstool Tour.             |
-| LZHudson       | LZHudson based on LZSS compression algorithm used in Mario Party 4.        |
+| LZHudson       | A LZSS based compression algorithm used in Mario Party 4-7.                |
+| RLHudson       | A RLE based compression algorithm used in Mario Party 4-7.                 |
 | LZShrek        | LZShrek compression algorithm used in Shrek Super Slam.                    |
 | LZSS           | LZSS compression algorithm used in many games.                             |
-| RefPack        | RefPack compression algorithm used in EA games.                            |
+| RefPack        | RefPack compression algorithm used in some EA games.                       |
 | GZip           | GZip based on DEFLATE compression algorithm.                               |
 | ZLib           | ZLib based on DEFLATE compression algorithm.                               |
 | AsuraZlb       | AsuraZlb based on ZLib compression algorithm used in Simpsons The Game.    |
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
 | ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
+| LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
 
  `*` Big-endian and little-endian version are supported.
  
@@ -71,4 +75,5 @@ Check if the file can be decompressed with a specific algorithm.
 - [Sukharah](https://github.com/sukharah/CLZ-Compression) reference for CLZ0 algorithm.
 - [Gamemasterplc](https://github.com/gamemasterplc/mpbintools/blob/master/bindump.c#L240C6-L240C21) reference for LZHudson algorithm.
 - [KirbyUK](https://github.com/ShrekBoards/shrek-superslam/blob/master/src/compression.rs#L66) reference for LZShrek algorithm.
-- [Brolijah](https://github.com/Brolijah/Aqualead_LZSS) reference for ALLZ algorithm.
+- [Brolijah](https://github.com/Brolijah/Aqualead_LZSS) reference for ALLZ algorithm.thm.
+- [CUE](https://www.romhacking.net/utilities/826/) reference for LZ40 algorithm.
