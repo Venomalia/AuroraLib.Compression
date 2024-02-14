@@ -20,9 +20,18 @@ namespace AuroraLib.Compression.IO
         /// <param name="distance">The distance from the current position to the source data.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void BackCopy(int distance, int length)
-            => OffsetCopy((int)(Length - distance + Position), length);
+        {
+            // optimization
+            if (distance - length >= 0 && Position - distance >= 0)
+            {
+                Write(_Buffer.AsSpan((int)(Position - distance), length));
+                return;
+            }
+
+            OffsetCopy((int)(Length + Position - distance), length);
+        }
 
         /// <summary>
         /// Copies data from an offset position within the circular buffer to the current position.
