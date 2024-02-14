@@ -1,8 +1,11 @@
 # AuroraLib.Compression
 
-Supports a wide range of compression algorithms mainly used in video games.
+Provides support for a wide range of compression algorithms primarily used in video games, it offers fast decompression/compression and efficient memory usage.
+It is written entirely in managed C# and does not rely on external C++ libraries.
 
 [Nuget Package](https://www.nuget.org/packages/AuroraLib.Compression)
+
+[Benchmarks](https://github.com/Venomalia/AuroraLib.Compression/blob/main/Benchmarks.md)
 
 ## Supported Algorithms
 

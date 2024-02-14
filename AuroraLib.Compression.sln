@@ -6,6 +6,7 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuroraLib.Compression", "src\AuroraLib.Compression\AuroraLib.Compression.csproj", "{90CFBCD7-EE97-46B1-A4E1-21521BACFC77}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompressionUnitTest", "CompressionTest\CompressionUnitTest.csproj", "{D9D66680-45F4-4DBD-9965-350E98160329}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{AEF632EF-EF3F-4314-B9DB-A70354AF214F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +22,10 @@ Global
 		{D9D66680-45F4-4DBD-9965-350E98160329}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D9D66680-45F4-4DBD-9965-350E98160329}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D9D66680-45F4-4DBD-9965-350E98160329}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEF632EF-EF3F-4314-B9DB-A70354AF214F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEF632EF-EF3F-4314-B9DB-A70354AF214F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEF632EF-EF3F-4314-B9DB-A70354AF214F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEF632EF-EF3F-4314-B9DB-A70354AF214F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
