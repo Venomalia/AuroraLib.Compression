@@ -22,11 +22,11 @@ namespace AuroraLib.Compression.MatchFinder
             lz = level switch
             {
                 CompressionLevel.NoCompression => new(0, 0, byte.MaxValue, lzProperties.WindowsStart),
-                CompressionLevel.Optimal => lzProperties,
-                CompressionLevel.Fastest => new(lzProperties.WindowsSize >> 1, lzProperties.MaxLength, (byte)(lzProperties.MinLength+1), lzProperties.WindowsStart),
+                CompressionLevel.Optimal => lzProperties.WindowsSize > 0x10000 ? new(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
+                CompressionLevel.Fastest => lzProperties.WindowsSize > 0x4000 ? new(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
                 CompressionLevel.SmallestSize => lzProperties,
                 _ => throw new NotImplementedException(),
-            };
+            }; ;
             this.lookAhead = lookAhead;
         }
 
