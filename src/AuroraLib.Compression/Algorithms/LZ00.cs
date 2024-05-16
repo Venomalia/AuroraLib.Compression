@@ -4,7 +4,7 @@ using AuroraLib.Core.Buffers;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// LZ01 implementation based on LZSS algorithm used in Skies of Arcadia Legends.
+    /// Sega LZ00 based on LZSS algorithm with encryption
     /// </summary>
     public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
@@ -22,6 +22,10 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
+            => IsMatchStatic(stream, extension);
+
+        /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x40 < stream.Length && stream.Match(_identifier);
 
         /// <inheritdoc/>

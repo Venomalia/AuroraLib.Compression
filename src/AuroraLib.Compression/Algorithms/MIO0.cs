@@ -26,6 +26,10 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
+            => IsMatchStatic(stream, extension);
+
+        /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
             => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
 
         /// <inheritdoc/>

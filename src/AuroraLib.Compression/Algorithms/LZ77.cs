@@ -12,7 +12,11 @@
 
         /// <inheritdoc/>
         public override bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Match(_identifier) && base.IsMatch(stream, extension);
+            => IsMatchStatic(stream, extension);
+
+        /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+            => stream.Position + 0x8 < stream.Length && stream.Match(_identifier) && LZ10.IsMatchStatic(stream, extension);
 
         /// <inheritdoc/>
         public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)

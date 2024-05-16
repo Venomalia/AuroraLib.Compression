@@ -17,6 +17,10 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
+            => IsMatchStatic(stream, extension);
+
+        /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
         {
             // Has no header, recognition is inaccurate!
             int flag = stream.ReadByte();
