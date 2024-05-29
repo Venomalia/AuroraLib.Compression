@@ -22,7 +22,8 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        public Endian EndianOrder = Endian.Big;
+        /// <inheritdoc/>
+        public Endian ExplicitOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -36,9 +37,9 @@ namespace AuroraLib.Compression.Algorithms
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            uint decompressedSize = source.ReadUInt32(EndianOrder);
-            _ = source.ReadUInt32(EndianOrder);
-            _ = source.ReadUInt32(EndianOrder);
+            uint decompressedSize = source.ReadUInt32(ExplicitOrder);
+            _ = source.ReadUInt32(ExplicitOrder);
+            _ = source.ReadUInt32(ExplicitOrder);
 
             long sourceDataStartPosition = source.Position;
             long destinationStartPosition = destination.Position;
@@ -59,7 +60,7 @@ namespace AuroraLib.Compression.Algorithms
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);
-            destination.Write(source.Length, EndianOrder);
+            destination.Write(source.Length, ExplicitOrder);
             destination.Write(0);
             destination.Write(0);
             CompressHeaderless(source, destination, LookAhead, level);

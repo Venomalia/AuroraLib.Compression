@@ -22,7 +22,8 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        public Endian EndianOrder = Endian.Big;
+        /// <inheritdoc/>
+        public Endian ExplicitOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -53,9 +54,9 @@ namespace AuroraLib.Compression.Algorithms
 
             uint startPosition = (uint)destination.Position;
             destination.Write(_identifier);
-            destination.Write(source.Length, EndianOrder);
-            destination.Write((uint)(0x10 + flagData.Length - startPosition), EndianOrder);
-            destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), EndianOrder);
+            destination.Write(source.Length, ExplicitOrder);
+            destination.Write((uint)(0x10 + flagData.Length - startPosition), ExplicitOrder);
+            destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), ExplicitOrder);
             flagData.WriteTo(destination);
             compressedData.WriteTo(destination);
             uncompressedData.WriteTo(destination);

@@ -10,12 +10,13 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class PRS : ICompressionAlgorithm, ILzSettings
     {
-        public Endian EndianOrder = Endian.Little;
+        private static readonly LzProperties _lz = new(0x1FFF, 0x100, 2);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = new(0x1FFF, 0x100, 2);
+        /// <inheritdoc/>
+        public Endian ExplicitOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -31,7 +32,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, EndianOrder, LookAhead, level);
+            => CompressHeaderless(source, destination, ExplicitOrder, LookAhead, level);
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public static void DecompressHeaderless(Stream source, Stream destination, Endian? order = null)
