@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression;
+﻿using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.IO;
 using BenchmarkDotNet.Attributes;

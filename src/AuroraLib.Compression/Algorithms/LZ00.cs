@@ -62,7 +62,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0);
             destination.Write(0);
 
-            destination.WriteString(Name, 32);
+            destination.WriteString(Name, 32, 0);
 
             destination.Write(source.Length); // Decompressed length
             destination.Write(key); // Encryption key

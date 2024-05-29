@@ -1,32 +1,44 @@
 ﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Extensions;
 
-namespace AuroraLib.Compression
+namespace AuroraLib.Compression.Algorithms
 {
-    public static class CompressionEX
+    /// <summary>
+    /// A extension class that provides extension methods for compression and decompression.
+    /// </summary>
+    public static class CompressionExtension
     {
         #region Decompress
 
         /// <summary>
-        /// Decompresses a byte array using the specified compression algorithm and returns the decompressed data as a new byte array.
+        /// Decompresses data using the specified compression algorithm and writes the result to a <see cref="Stream"/>.
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for decompression.</param>
-        /// <param name="source">The byte array containing compressed data to be decompressed.</param>
-        /// <returns>A new byte array containing the decompressed data.</returns>
-        public static byte[] Decompress(this ICompressionDecoder algorithm, byte[] source)
+        /// <param name="source">The ReadOnlySpan containing compressed data to be decompressed.</param>
+        /// <param name="destination">The <see cref="Stream"/> to write the decompressed data to.</param>
+        public static void Decompress(this ICompressionDecoder algorithm, ReadOnlySpan<byte> source, Stream destination)
+            => algorithm.Decompress(source.AsReadOnlyStream(), destination);
+
+        /// <summary>
+        /// Decompresses data using the specified compression algorithm and returns the decompressed data as a new <see cref="byte"/> array.
+        /// </summary>
+        /// <param name="algorithm">The compression algorithm to use for decompression.</param>
+        /// <param name="source">The ReadOnlySpan containing compressed data to be decompressed.</param>
+        /// <returns>A new <see cref="byte"/> array containing the decompressed data.</returns>
+        public static byte[] Decompress(this ICompressionDecoder algorithm, ReadOnlySpan<byte> source)
         {
             using MemoryPoolStream destination = new();
-            using MemoryStream sourceStream = new(source);
-            algorithm.Decompress(sourceStream, destination);
+            algorithm.Decompress(source, destination);
             return destination.ToArray();
         }
 
         /// <summary>
-        /// Decompresses data from the input stream using the specified compression algorithm and returns the decompressed data as a MemoryPoolStream.
+        /// Decompresses data from the input <see cref="Stream"/> using the specified compression algorithm and returns the decompressed data as a <see cref="MemoryPoolStream"/>.
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for decompression.</param>
-        /// <param name="source">The input stream containing compressed data to be decompressed.</param>
-        /// <returns>A MemoryPoolStream containing the decompressed data.</returns>
+        /// <param name="source">The input <see cref="Stream"/> containing compressed data to be decompressed.</param>
+        /// <returns>A <see cref="MemoryPoolStream"/> containing the decompressed data.</returns>
         public static MemoryPoolStream Decompress(this ICompressionDecoder algorithm, Stream source)
         {
             MemoryPoolStream destination = new();
@@ -52,12 +64,12 @@ namespace AuroraLib.Compression
         #region Compress
 
         /// <summary>
-        /// Compresses data from the input stream using the specified compression algorithm and returns the compressed data as a MemoryPoolStream.
+        /// Compresses data from the input <see cref="Stream"/> using the specified compression algorithm and returns the compressed data as a <see cref="MemoryPoolStream"/>.
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
-        /// <param name="source">The input stream containing data to be compressed.</param>
+        /// <param name="source">The input <see cref="Stream"/> containing data to be compressed.</param>
         /// <param name="level">The compression level to use (optional, default is CompressionLevel.Optimal).</param>
-        /// <returns>A MemoryPoolStream containing the compressed data.</returns>
+        /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
         public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, Stream source, CompressionLevel level = CompressionLevel.Optimal)
         {
             MemoryPoolStream destination = new();
@@ -67,11 +79,11 @@ namespace AuroraLib.Compression
         }
 
         /// <summary>
-        /// Compresses data from the source stream using the specified compression algorithm and writes the compressed data to the destination stream.
+        /// Compresses data from the source <see cref="Stream"/> using the specified compression algorithm and writes the compressed data to the destination <see cref="Stream"/>.
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
-        /// <param name="source">The input stream containing data to be compressed.</param>
-        /// <param name="destination">The output stream where the compressed data will be written.</param>
+        /// <param name="source">The input <see cref="Stream"/> containing data to be compressed.</param>
+        /// <param name="destination">The output <see cref="Stream"/> where the compressed data will be written.</param>
         /// <param name="level">The compression level to use (optional, default is CompressionLevel.Optimal).</param>
         public static void Compress(this ICompressionEncoder algorithm, Stream source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
@@ -81,12 +93,12 @@ namespace AuroraLib.Compression
         }
 
         /// <summary>
-        /// Compresses data from the input ReadOnlySpan using the specified compression algorithm and returns the compressed data as a MemoryPoolStream.
+        /// Compresses data from the input ReadOnlySpan using the specified compression algorithm and returns the compressed data as a <see cref="MemoryPoolStream"/>.
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
         /// <param name="source">The input ReadOnlySpan containing data to be compressed.</param>
         /// <param name="level">The compression level to use (optional, default is CompressionLevel.Optimal).</param>
-        /// <returns>A MemoryPoolStream containing the compressed data.</returns>
+        /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
         public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, CompressionLevel level = CompressionLevel.Optimal)
         {
             MemoryPoolStream destination = new();

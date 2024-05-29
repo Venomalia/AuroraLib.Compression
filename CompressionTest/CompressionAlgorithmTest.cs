@@ -1,9 +1,8 @@
-using AuroraLib.Compression;
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Buffers;
-using AuroraLib.Core.Cryptography;
 using AuroraLib.Core.IO;
+using HashDepot;
 using System.IO.Compression;
 
 namespace CompressionTest
@@ -19,7 +18,7 @@ namespace CompressionTest
 
             using MemoryPoolStream decompressData = lz.Decompress(compressData);
 
-            ulong decompressDataHash = XXHash64.Generate(decompressData.UnsaveAsSpan());
+            ulong decompressDataHash = XXHash.Hash64(decompressData.UnsaveAsSpan());
             Assert.AreEqual(11520079745250749767, decompressDataHash);
         }
 
@@ -47,12 +46,12 @@ namespace CompressionTest
             using FileStream testData = new("Test.bmp", FileMode.Open, FileAccess.Read);
             using SpanBuffer<byte> testDataBytes = new((int)testData.Length);
             testData.Read(testDataBytes);
-            ulong expectedHash = XXHash64.Generate(testDataBytes);
+            ulong expectedHash = XXHash.Hash64(testDataBytes);
 
             using MemoryPoolStream compressData = algorithm.Compress(testDataBytes);
             using MemoryPoolStream decompressData = algorithm.Decompress(compressData);
 
-            ulong decompressDataHash = XXHash64.Generate(decompressData.UnsaveAsSpan());
+            ulong decompressDataHash = XXHash.Hash64(decompressData.UnsaveAsSpan());
             Assert.AreEqual(expectedHash, decompressDataHash);
         }
 

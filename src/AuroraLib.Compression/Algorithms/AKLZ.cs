@@ -1,4 +1,5 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core.IO;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -36,7 +37,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            destination.Write(_identifier.Bytes);
+            destination.Write(_identifier.AsSpan());
             destination.Write(source.Length, Endian.Big);
             LZSS.CompressHeaderless(source, destination, _lz, LookAhead, level);
         }
