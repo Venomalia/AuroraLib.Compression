@@ -1,6 +1,10 @@
 ﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -10,7 +14,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class LZO : ICompressionAlgorithm, ILzSettings
     {
-        private static readonly LzProperties _lz = new(0xBFFF, int.MaxValue, 3);
+        private static readonly LzProperties _lz = new LzProperties(0xBFFF, int.MaxValue, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -35,54 +39,60 @@ namespace AuroraLib.Compression.Algorithms
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
             => CompressHeaderless(source, destination, LookAhead, level);
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
             int flag, length, distance, plain = 0;
 
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-
-            // Read the first flage.
-            if ((flag = source.ReadByte()) != -1)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                // special case if the first flag is greater than 17
-                if (flag > 17)
-                {
-                    length = flag - 17;
-                    buffer.CopyFrom(source, length);
-                    flag = source.ReadByte();
-                }
 
-                do // We read a new flag at the end.
+                // Read the first flage.
+                if ((flag = source.ReadByte()) != -1)
                 {
-                    switch (flag >> 4)
+                    // special case if the first flag is greater than 17
+                    if (flag > 17)
                     {
-                        case 0:
-                            // Plain copy or special case depending on the number of plain bytes last read.   
-                            switch (plain)
-                            {
-                                case 0: // 0000 LLLL | plain copy L = 4-18 or 18+
-                                    length = 3 + flag;
-                                    if (length == 3)
-                                        length = 18 + ReadExtendedInt(source);
+                        length = flag - 17;
+                        buffer.CopyFrom(source, length);
+                        flag = source.ReadByte();
+                    }
 
-                                    plain = 4;
-                                    buffer.CopyFrom(source, length);
-                                    // Continue & read a new flag.
-                                    continue;
-                                case <= 3: // 0000 DDPP DDDD DDDD | P = 0-3 D = 1-1024 L = 2
-                                    distance = source.ReadByte();
-                                    distance = (distance << 2) + (flag >> 2) + 1;
-                                    length = 2;
-                                    break;
-                                default:// 0000 DDPP DDDD DDDD | P = 0-3 D = 2049-3072 L = 3
-                                    distance = source.ReadByte();
-                                    distance = (distance << 2) + (flag >> 2) + (2048 + 1);
-                                    length = 3;
-                                    break;
+                    do // We read a new flag at the end.
+                    {
+                        int flagcode = flag >> 4;
+                        if (flagcode == 0)
+                        {
+                            // Plain copy or special case depending on the number of plain bytes last read.   
+                            if (plain == 0) // 0000 LLLL | plain copy L = 4-18 or 18+
+                            {
+                                length = 3 + flag;
+                                if (length == 3)
+                                    length = 18 + ReadExtendedInt(source);
+
+                                plain = 4;
+                                buffer.CopyFrom(source, length);
+                                // Continue & read a new flag.
+                                continue;
+                            }
+                            else if (plain <= 3) // 0000 DDPP DDDD DDDD | P = 0-3 D = 1-1024 L = 2
+                            {
+                                distance = source.ReadByte();
+                                distance = (distance << 2) + (flag >> 2) + 1;
+                                length = 2;
+                            }
+                            else // 0000 DDPP DDDD DDDD | P = 0-3 D = 2049-3072 L = 3
+                            {
+                                distance = source.ReadByte();
+                                distance = (distance << 2) + (flag >> 2) + (2048 + 1);
+                                length = 3;
                             }
                             break;
-                        case 1: // 0001 HLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 16385-49151 L = 3-9 or 9+
+                        }
+                        else if (flagcode == 1) // 0001 HLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 16385-49151 L = 3-9 or 9+
+                        {
                             length = 2 + (flag & 0x7);
                             if (length == 2)
                                 length = 9 + ReadExtendedInt(source);
@@ -94,9 +104,9 @@ namespace AuroraLib.Compression.Algorithms
                             // End flag
                             if (distance == 16384)
                                 return;
-
-                            break;
-                        case <= 3: // 001L LLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 1-16384 L = 3-33 or 33+
+                        }
+                        else if (flagcode <= 3) // 001L LLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 1-16384 L = 3-33 or 33+
+                        {
                             length = 2 + (flag & 0x1f);
                             if (length == 2)
                                 length = 33 + ReadExtendedInt(source);
@@ -104,32 +114,37 @@ namespace AuroraLib.Compression.Algorithms
                             flag = source.ReadByte();
                             distance = source.ReadByte();
                             distance = (distance << 6 | flag >> 2) + 1;
-                            break;
-                        case <= 7: // 01LD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 3-4
+                        }
+                        else if (flagcode <= 7) // 01LD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 3-4
+                        {
                             length = 3 + ((flag >> 5) & 0x1);
                             distance = source.ReadByte();
                             distance = (distance << 3) + ((flag >> 2) & 0x7) + 1;
-                            break;
-                        default: // 1LLD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 5-8
+                        }
+                        else // 1LLD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 5-8
+                        {
                             length = 5 + ((flag >> 5) & 0x3);
                             distance = source.ReadByte();
                             distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
-                            break;
-                    }
-                    plain = flag & 0x3;
-                    buffer.BackCopy(distance, length);
-                    buffer.CopyFrom(source, plain);
+                        }
+                        plain = flag & 0x3;
+                        buffer.BackCopy(distance, length);
+                        buffer.CopyFrom(source, plain);
 
-                } while ((flag = source.ReadByte()) != -1);
+                    } while ((flag = source.ReadByte()) != -1);
+                }
             }
+
             throw new EndOfStreamException();
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
 
             LzMatch match, next = default;
             while (sourcePointer < source.Length)

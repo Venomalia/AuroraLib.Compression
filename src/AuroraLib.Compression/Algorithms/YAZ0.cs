@@ -2,6 +2,12 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -15,9 +21,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public virtual IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("Yaz0");
+        private static readonly Identifier32 _identifier = new Identifier32("Yaz0".AsSpan());
 
-        internal static readonly LzProperties _lz = new(0x1000, 0xff + 0x12, 3);
+        internal static readonly LzProperties _lz = new LzProperties(0x1000, 0xff + 0x12, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -66,72 +72,78 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            FlagReader flag = new(source, Endian.Big);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-
-            while (destination.Position + buffer.Position < endPosition)
+            FlagReader flag = new FlagReader(source, Endian.Big);
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                if (flag.Readbit())
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    buffer.WriteByte(source.ReadUInt8());
-                }
-                else
-                {
-                    byte b1 = source.ReadUInt8();
-                    byte b2 = source.ReadUInt8();
-                    // Calculate the match distance & length
-                    int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
-                    int length = b1 >> 4;
-
-                    if (length == 0)
-                        length = source.ReadByte() + 0x12;
+                    if (flag.Readbit())
+                    {
+                        buffer.WriteByte(source.ReadUInt8());
+                    }
                     else
-                        length += 2;
+                    {
+                        byte b1 = source.ReadUInt8();
+                        byte b2 = source.ReadUInt8();
+                        // Calculate the match distance & length
+                        int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
+                        int length = b1 >> 4;
 
-                    buffer.BackCopy(distance, length);
+                        if (length == 0)
+                            length = source.ReadByte() + 0x12;
+                        else
+                            length += 2;
+
+                        buffer.BackCopy(distance, length);
+                    }
                 }
-            }
 
-            if (destination.Position + buffer.Position > endPosition)
-            {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                if (destination.Position + buffer.Position > endPosition)
+                {
+                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                }
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using FlagWriter flag = new(destination, Endian.Big);
-
-            while (sourcePointer < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
             {
-                // Search for a match
-                if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                while (sourcePointer < source.Length)
                 {
-                    // 2 byte match.Length 3-17
-                    if (match.Length < 18)
+                    // Search for a match
+                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
-                        flag.Buffer.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x2) << 12)), Endian.Big);
+                        // 2 byte match.Length 3-17
+                        if (match.Length < 18)
+                        {
+                            flag.Buffer.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x2) << 12)), Endian.Big);
+                        }
+                        else //3 byte match.Length 18-273
+                        {
+                            flag.Buffer.Write((ushort)((match.Distance - 0x1) & 0xFFF), Endian.Big); ;
+                            flag.Buffer.WriteByte((byte)(match.Length - 0x12));
+                        }
+                        sourcePointer += match.Length;
+                        flag.WriteBit(false);
                     }
-                    else //3 byte match.Length 18-273
+                    else
                     {
-                        flag.Buffer.Write((ushort)((match.Distance - 0x1) & 0xFFF), Endian.Big); ;
-                        flag.Buffer.Write((byte)(match.Length - 0x12));
+                        flag.Buffer.WriteByte(source[sourcePointer++]);
+                        flag.WriteBit(true);
                     }
-                    sourcePointer += match.Length;
-                    flag.WriteBit(false);
-                }
-                else
-                {
-                    flag.Buffer.WriteByte(source[sourcePointer++]);
-                    flag.WriteBit(true);
                 }
             }
         }

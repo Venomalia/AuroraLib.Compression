@@ -2,6 +2,12 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -14,9 +20,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("@CNS");
+        private static readonly Identifier32 _identifier = new Identifier32("@CNS".AsSpan());
 
-        internal static readonly LzProperties _lz = new(0x100, 130, 3);
+        internal static readonly LzProperties _lz = new LzProperties(0x100, 130, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -50,11 +56,11 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(_identifier);
             if (source[0] == 0x0 && source[1] == 0x20 && source[2] == 0xAF && source[3] == 0x30)
             {
-                destination.WriteString("TPL", 4);
+                destination.WriteString("TPL".AsSpan(), 4);
             }
             else
             {
-                destination.WriteString(Extension, 4);
+                destination.WriteString(Extension.AsSpan(), 4);
             }
             destination.Write(source.Length, Endian.Little);
             destination.Write(0);
@@ -62,49 +68,54 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-        /// <inheritdoc/>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-            Span<byte> bytes = stackalloc byte[128];
-
-            while (destination.Position + buffer.Position < endPosition)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                int length = source.ReadUInt8();
 
-                // The first bit is the flag.
-                if ((length & 0x80) == 0) // Uncompressed 1-127
+                Span<byte> bytes = stackalloc byte[128];
+
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    if (source.Read(bytes[..length]) != length)
+                    int length = source.ReadUInt8();
+
+                    // The first bit is the flag.
+                    if ((length & 0x80) == 0) // Uncompressed 1-127
                     {
-                        throw new EndOfStreamException();
+                        if (source.Read(bytes.Slice(0, length)) != length)
+                        {
+                            throw new EndOfStreamException();
+                        }
+                        buffer.Write(bytes.Slice(0, length));
                     }
-                    buffer.Write(bytes[..length]);
+                    else // Compressed 3-130
+                    {
+                        int distance = source.ReadUInt8() + 1;
+                        length = (length & 0x7F) + 3;
+
+                        buffer.BackCopy(distance, length);
+                    }
                 }
-                else // Compressed 3-130
+
+                if (destination.Position + buffer.Position > endPosition)
                 {
-                    int distance = source.ReadUInt8() + 1;
-                    length = (length & 0x7F) + 3;
-
-                    buffer.BackCopy(distance, length);
+                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
                 }
-            }
-
-            if (destination.Position + buffer.Position > endPosition)
-            {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
             }
         }
 
-        /// <inheritdoc/>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
 
             while (sourcePointer < source.Length)
             {

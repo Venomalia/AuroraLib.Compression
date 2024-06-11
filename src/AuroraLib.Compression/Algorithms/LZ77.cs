@@ -1,4 +1,11 @@
-﻿namespace AuroraLib.Compression.Algorithms
+﻿using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
+
+namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
     /// Nintendo LZ77 extension Header from LZ10 algorithm
@@ -8,7 +15,7 @@
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("LZ77");
+        private static readonly Identifier32 _identifier = new Identifier32("LZ77".AsSpan());
 
         /// <inheritdoc/>
         public override bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)

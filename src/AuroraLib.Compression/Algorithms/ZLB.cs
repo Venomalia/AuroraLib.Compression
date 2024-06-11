@@ -1,5 +1,11 @@
 ﻿using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -11,9 +17,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new((byte)'Z', (byte)'L', (byte)'B', 0x0);
+        private static readonly Identifier32 _identifier = new Identifier32((byte)'Z', (byte)'L', (byte)'B', 0x0);
 
-        private static readonly ZLib zLib = new();
+        private static readonly ZLib zLib = new ZLib();
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)

@@ -2,6 +2,11 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -15,7 +20,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = new(0x20000, 1028, 3);
+        private static readonly LzProperties _lz = new LzProperties(0x20000, 1028, 3);
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -47,76 +52,83 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-
-            while (source.Position < source.Length)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                int plainSize, length = 0, distance = 0;
 
-                byte prefix = source.ReadUInt8();
-                if ((prefix & 0x80) == 0) // P = 0-3 D = 1-1024 L = 3-10
-                {
-                    // 0DDLLLPP DDDDDDDD
-                    byte data0 = source.ReadUInt8(); // DDDDDDDD
-                    plainSize = prefix & 0x03;
-                    length = ((prefix & 0x1C) >> 2) + 3;
-                    distance = (((prefix & 0x60) << 3) | data0) + 1;
-                }
-                else if ((prefix & 0x40) == 0) //P = 0-3 D = 1-16384 L = 4-67
-                {
-                    //10LLLLLL PPDDDDDD DDDDDDDD
-                    byte data0 = source.ReadUInt8(); // PPDDDDDD
-                    byte data1 = source.ReadUInt8(); // DDDDDDDD
 
-                    plainSize = data0 >> 6;
-                    length = (prefix & 0x3F) + 4;
-                    distance = (((data0 & 0x3F) << 8) | data1) + 1;
-                }
-                else if ((prefix & 0x20) == 0) //P = 0-3 D = 1-131072 L = 5-1028
+                while (source.Position < source.Length)
                 {
-                    //110DLLPP DDDDDDDD DDDDDDDD LLLLLLLL
-                    byte data0 = source.ReadUInt8(); // DDDDDDDD
-                    byte data1 = source.ReadUInt8(); // DDDDDDDD
-                    byte data2 = source.ReadUInt8(); // LLLLLLLL
+                    int plainSize, length = 0, distance = 0;
 
-                    plainSize = prefix & 3;
-                    length = (((prefix & 0x0C) << 6) | data2) + 5;
-                    distance = (((((prefix & 0x10) << 4) | data0) << 8) | data1) + 1;
-                }
-                else // P = 4-112
-                {
-                    // 111PPPPP
-                    plainSize = (prefix & 0x1F) * 4 + 4;
-                    if (plainSize > 0x70) // P = 0-3
+                    byte prefix = source.ReadUInt8();
+                    if ((prefix & 0x80) == 0) // P = 0-3 D = 1-1024 L = 3-10
                     {
-                        // 111111PP
-                        plainSize = prefix & 3;
-                        buffer.CopyFrom(source, plainSize);
-
-                        if (destination.Position + buffer.Position > endPosition)
-                        {
-                            throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                        }
-                        return; // end
+                        // 0DDLLLPP DDDDDDDD
+                        byte data0 = source.ReadUInt8(); // DDDDDDDD
+                        plainSize = prefix & 0x03;
+                        length = ((prefix & 0x1C) >> 2) + 3;
+                        distance = (((prefix & 0x60) << 3) | data0) + 1;
                     }
-                }
+                    else if ((prefix & 0x40) == 0) //P = 0-3 D = 1-16384 L = 4-67
+                    {
+                        //10LLLLLL PPDDDDDD DDDDDDDD
+                        byte data0 = source.ReadUInt8(); // PPDDDDDD
+                        byte data1 = source.ReadUInt8(); // DDDDDDDD
 
-                buffer.CopyFrom(source, plainSize);
-                buffer.BackCopy(distance, length);
+                        plainSize = data0 >> 6;
+                        length = (prefix & 0x3F) + 4;
+                        distance = (((data0 & 0x3F) << 8) | data1) + 1;
+                    }
+                    else if ((prefix & 0x20) == 0) //P = 0-3 D = 1-131072 L = 5-1028
+                    {
+                        //110DLLPP DDDDDDDD DDDDDDDD LLLLLLLL
+                        byte data0 = source.ReadUInt8(); // DDDDDDDD
+                        byte data1 = source.ReadUInt8(); // DDDDDDDD
+                        byte data2 = source.ReadUInt8(); // LLLLLLLL
+
+                        plainSize = prefix & 3;
+                        length = (((prefix & 0x0C) << 6) | data2) + 5;
+                        distance = (((((prefix & 0x10) << 4) | data0) << 8) | data1) + 1;
+                    }
+                    else // P = 4-112
+                    {
+                        // 111PPPPP
+                        plainSize = (prefix & 0x1F) * 4 + 4;
+                        if (plainSize > 0x70) // P = 0-3
+                        {
+                            // 111111PP
+                            plainSize = prefix & 3;
+                            buffer.CopyFrom(source, plainSize);
+
+                            if (destination.Position + buffer.Position > endPosition)
+                            {
+                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                            }
+                            return; // end
+                        }
+                    }
+
+                    buffer.CopyFrom(source, plainSize);
+                    buffer.BackCopy(distance, length);
+                }
             }
             throw new EndOfStreamException();
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
 
             int plainSize = 0;
             while (sourcePointer < source.Length)
@@ -187,10 +199,10 @@ namespace AuroraLib.Compression.Algorithms
                 value2 = 0xFB;
             }
 
-            public readonly bool HasCompressedSize => (value1 & 0x1) != 0;
-            public readonly bool UnkFlag => (value1 & 0x40) != 0;
-            public readonly bool IsInt32 => (value1 & 0x80) != 0;
-            public readonly bool IsValid => (value1 & 0x3E) == 0x10 || (value2 == 0xFB);
+            public bool HasCompressedSize => (value1 & 0x1) != 0;
+            public bool UnkFlag => (value1 & 0x40) != 0;
+            public bool IsInt32 => (value1 & 0x80) != 0;
+            public bool IsValid => (value1 & 0x3E) == 0x10 || (value2 == 0xFB);
         }
     }
 }

@@ -1,5 +1,10 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -11,12 +16,12 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier _identifier = new("AKLZ~?Qd=ÌÌÍ");
+        private static readonly Identifier _identifier = new Identifier("AKLZ~?Qd=ÌÌÍ");
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = new((byte)12, (byte)4, 2);
+        private static readonly LzProperties _lz = new LzProperties((byte)12, (byte)4, 2);
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)

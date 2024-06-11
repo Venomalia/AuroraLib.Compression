@@ -1,4 +1,10 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System;
+using System.Buffers;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -18,10 +24,17 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+#if NET6_0_OR_GREATER
             using ZLibStream algo = new(source, CompressionMode.Decompress, true);
             algo.CopyTo(destination);
+#else
+            Header header = source.Read<Header>();
+            using (DeflateStream dflStream = new DeflateStream(source, CompressionMode.Decompress, true))
+                dflStream.CopyTo(destination);
+#endif
             source.Position = source.Length;
         }
+
 
         public void Decompress(Stream source, Stream destination, int sourceSize)
             => Decompress(new SubStream(source, sourceSize), destination);
@@ -29,19 +42,54 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+#if NET6_0_OR_GREATER
             using ZLibStream algo = new(destination, level, true);
             algo.Write(source);
         }
+#else
+            destination.Write(new Header(level));
+            using (DeflateStream dflStream = new DeflateStream(destination, level, true))
+                dflStream.Write(source);
+
+            destination.Write(ComputeAdler32(source), Endian.Big);
+        }
+
+        private static uint ComputeAdler32(ReadOnlySpan<byte> source)
+        {
+            const uint MOD_ADLER = 65521;
+            uint a = 1, b = 0;
+
+            foreach (byte byteValue in source)
+            {
+                a = (a + byteValue) % MOD_ADLER;
+                b = (b + a) % MOD_ADLER;
+            }
+
+            return (b << 16) | a;
+        }
+#endif
 
         public readonly struct Header
         {
             private readonly byte cmf;
             private readonly byte flg;
 
-            public Header(byte cmf, byte flg)
+            public Header(CompressionLevel level)
             {
-                this.cmf = cmf;
-                this.flg = flg;
+                cmf = 0x78;
+                switch (level)
+                {
+                    case System.IO.Compression.CompressionLevel.NoCompression:
+                    case System.IO.Compression.CompressionLevel.Fastest:
+                        flg = 0x01;
+                        break;
+                    case System.IO.Compression.CompressionLevel.Optimal:
+                        flg = 0xDA;
+                        break;
+                    default:
+                        flg = 0x9C;
+                        break;
+                }
             }
 
             public enum CompressionMethod : byte

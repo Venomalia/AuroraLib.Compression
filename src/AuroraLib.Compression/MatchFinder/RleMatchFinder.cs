@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression
 {
@@ -23,7 +24,9 @@ namespace AuroraLib.Compression
         /// <param name="offset">The offset in the source data to start searching for a match.</param>
         /// <param name="match">The best match found at the specified offset.</param>
         /// <returns>True if a match is found; otherwise, false.</returns>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public bool TryToFindMatch(ReadOnlySpan<byte> source, int offset, out int duration)
         {
             ReadOnlySpan<byte> dataToMatch = source.Slice(offset, Math.Min(maxMatch, source.Length - offset));

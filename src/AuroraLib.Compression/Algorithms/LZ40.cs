@@ -2,6 +2,10 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -13,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x40;
 
-        private static readonly LzProperties _lz = new(0x1000, 0x4000, 3);
+        private static readonly LzProperties _lz = new LzProperties(0x1000, 0x4000, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -51,105 +55,112 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-
-            int flag = 0, flagbits = 0;
-            while (destination.Position + buffer.Position < endPosition)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                if (flagbits == 0)
+                int flag = 0, flagbits = 0;
+
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    // The flag value must be reversed.
-                    flag = (byte)-source.ReadByte();
-                    flagbits = 8;
-                }
-                if ((flag & 0x80) != 0) // Compressed
-                {
-                    //DDDDDDDD DDDDLLLL
-                    int distance = source.ReadUInt16();
-                    int length = distance & 0xF;
-                    distance >>= 4;
-                    if (length <= 1)
+                    if (flagbits == 0)
                     {
-                        if (length == 0) // match.Length 16-271
-                        {
-                            //DDDDDDDD DDDD0000 LLLLLLLL
-                            length = source.ReadUInt8() + 16;
-                        }
-                        else // match.Length 272-65808
-                        {
-                            //DDDDDDDD DDDD0001 LLLLLLLL LLLLLLLL
-                            length = source.ReadUInt16() + 272;
-                        }
+                        // The flag value must be reversed.
+                        flag = (byte)-source.ReadByte();
+                        flagbits = 8;
                     }
-                    buffer.BackCopy(distance, length);
+                    if ((flag & 0x80) != 0) // Compressed
+                    {
+                        //DDDDDDDD DDDDLLLL
+                        int distance = source.ReadUInt16();
+                        int length = distance & 0xF;
+                        distance >>= 4;
+                        if (length <= 1)
+                        {
+                            if (length == 0) // match.Length 16-271
+                            {
+                                //DDDDDDDD DDDD0000 LLLLLLLL
+                                length = source.ReadUInt8() + 16;
+                            }
+                            else // match.Length 272-65808
+                            {
+                                //DDDDDDDD DDDD0001 LLLLLLLL LLLLLLLL
+                                length = source.ReadUInt16() + 272;
+                            }
+                        }
+                        buffer.BackCopy(distance, length);
+                    }
+                    else // Not compressed
+                    {
+                        buffer.WriteByte(source.ReadUInt8());
+                    }
+                    flag <<= 1;
+                    flagbits--;
                 }
-                else // Not compressed
-                {
-                    buffer.WriteByte(source.ReadUInt8());
-                }
-                flag <<= 1;
-                flagbits--;
-            }
 
-            if (destination.Position + buffer.Position > endPosition)
-            {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                if (destination.Position + buffer.Position > endPosition)
+                {
+                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                }
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0, flag = 0, flagbits = 0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using MemoryPoolStream buffer = new();
-
-            while (sourcePointer < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (MemoryPoolStream buffer = new MemoryPoolStream())
             {
-                if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                while (sourcePointer < source.Length)
                 {
-                    if (match.Length < 16) // match.Length 3-15
+                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
-                        buffer.Write((ushort)(match.Distance << 4 | match.Length));
+                        if (match.Length < 16) // match.Length 3-15
+                        {
+                            buffer.Write((ushort)(match.Distance << 4 | match.Length));
+                        }
+                        else if (match.Length < 272) // match.Length 16-271
+                        {
+                            buffer.Write((ushort)(match.Distance << 4));
+                            buffer.Write((byte)(match.Length - 16));
+                        }
+                        else // match.Length 272-65808
+                        {
+                            buffer.Write((ushort)(match.Distance << 4 | 1));
+                            buffer.Write((ushort)(match.Length - 272));
+                        }
+
+                        sourcePointer += match.Length;
+                        flag |= (0x80 >> flagbits);
                     }
-                    else if (match.Length < 272) // match.Length 16-271
+                    else
                     {
-                        buffer.Write((ushort)(match.Distance << 4));
-                        buffer.Write((byte)(match.Length - 16));
-                    }
-                    else // match.Length 272-65808
-                    {
-                        buffer.Write((ushort)(match.Distance << 4 | 1));
-                        buffer.Write((ushort)(match.Length - 272));
+                        buffer.WriteByte(source[sourcePointer++]);
                     }
 
-                    sourcePointer += match.Length;
-                    flag |= (0x80 >> flagbits);
-                }
-                else
-                {
-                    buffer.WriteByte(source[sourcePointer++]);
+                    flagbits++;
+                    if (flagbits == 8)
+                    {
+                        destination.WriteByte((byte)-flag);
+                        buffer.WriteTo(destination);
+                        buffer.SetLength(0);
+                        flag = flagbits = 0;
+                    }
                 }
 
-                flagbits++;
-                if (flagbits == 8)
+                if (flagbits != 0)
                 {
                     destination.WriteByte((byte)-flag);
                     buffer.WriteTo(destination);
-                    buffer.SetLength(0);
-                    flag = flagbits = 0;
                 }
-            }
-
-            if (flagbits != 0)
-            {
-                destination.WriteByte((byte)-flag);
-                buffer.WriteTo(destination);
             }
         }
     }

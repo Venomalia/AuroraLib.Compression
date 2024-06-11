@@ -1,4 +1,10 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -10,9 +16,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("LZ01");
+        private static readonly Identifier32 _identifier = new Identifier32("LZ01".AsSpan());
 
-        private static readonly LzProperties _lz = new(0x1000, 0xF + 3, 3, 0xFEE);
+        private static readonly LzProperties _lz = new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;

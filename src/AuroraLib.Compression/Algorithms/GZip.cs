@@ -1,4 +1,8 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -18,16 +22,16 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            using GZipStream algo = new(source, CompressionMode.Decompress, true);
-            algo.CopyTo(destination);
+            using (GZipStream algo = new GZipStream(source, CompressionMode.Decompress, true))
+                algo.CopyTo(destination);
             source.Position = source.Length;
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using GZipStream algo = new(destination, level, true);
-            algo.Write(source);
+            using (GZipStream algo = new GZipStream(destination, level, true))
+                algo.Write(source);
         }
     }
 }

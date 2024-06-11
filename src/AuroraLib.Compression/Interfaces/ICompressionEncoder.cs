@@ -1,4 +1,8 @@
-﻿namespace AuroraLib.Compression.Interfaces
+﻿using System;
+using System.IO;
+using System.IO.Compression;
+
+namespace AuroraLib.Compression.Interfaces
 {
     /// <summary>
     /// Defines an interface for file compression.

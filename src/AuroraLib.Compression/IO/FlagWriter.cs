@@ -1,4 +1,8 @@
-﻿using System.Runtime.CompilerServices;
+﻿using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.IO
 {
@@ -17,7 +21,7 @@ namespace AuroraLib.Compression.IO
         {
             Base = destination;
             BitOrder = bitOrder;
-            Buffer = new(bufferCapacity);
+            Buffer = new MemoryPoolStream(bufferCapacity);
             CurrentFlag = 0;
             BitsLeft = 8;
         }
@@ -26,7 +30,9 @@ namespace AuroraLib.Compression.IO
         /// Writes a single bit as a flag. The bits are accumulated in a byte and flushed to the destination stream when necessary.
         /// </summary>
         /// <param name="bit">The bit value to write (true for 1, false for 0).</param>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void WriteBit(bool bit)
         {
             if (bit)
@@ -50,7 +56,9 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         /// <param name="value">The integer value to write.</param>
         /// <param name="bits">The number of bits to write (default is 1).</param>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void WriteInt(int value, int bits, bool reverseOrder = false)
         {
             if (!reverseOrder)

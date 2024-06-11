@@ -1,4 +1,7 @@
-﻿using System.Runtime.CompilerServices;
+﻿using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.IO
 {
@@ -22,7 +25,6 @@ namespace AuroraLib.Compression.IO
         /// Reads a single bit from the stream.
         /// </summary>
         /// <returns>The value of the read bit.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public bool Readbit()
         {
             if (BitsLeft == 0)
@@ -43,7 +45,9 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         /// <param name="bits">The number of bits to read.</param>
         /// <returns>The integer value read from the stream.</returns>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public int ReadInt(int bits, bool reverseOrder = false)
         {
             int vaule = 0;

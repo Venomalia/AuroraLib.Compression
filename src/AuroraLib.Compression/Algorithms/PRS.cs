@@ -1,6 +1,11 @@
 ﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -10,7 +15,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class PRS : ICompressionAlgorithm, ILzSettings
     {
-        private static readonly LzProperties _lz = new(0x1FFF, 0x100, 2);
+        private static readonly LzProperties _lz = new LzProperties(0x1FFF, 0x100, 2);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -34,104 +39,126 @@ namespace AuroraLib.Compression.Algorithms
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
             => CompressHeaderless(source, destination, ExplicitOrder, LookAhead, level);
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public static void DecompressHeaderless(Stream source, Stream destination, Endian? order = null)
+        public static void DecompressHeaderless(Stream source, Stream destination)
         {
-            order ??= GetByteOrder(source) == Endian.Big ? Endian.Big : Endian.Little;
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-            FlagReader Flag = new(source, order.Value);
-
-            while (source.Position < source.Length)
+            Endian detected = GetByteOrder(source) == Endian.Big ? Endian.Big : Endian.Little;
+            long sourcePos = source.Position;
+            long destinationPos = destination.Position;
+            try
             {
-                if (Flag.Readbit())  // Uncompressed value
-                {
-                    buffer.WriteByte(source.ReadUInt8());
-                }
-                else
-                {
-                    int distance, length;
-                    if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
-                    {
-                        distance = source.ReadUInt16(order.Value);
+                DecompressHeaderless(source, destination, detected);
+            }
+            catch (Exception)
+            {
+                source.Seek(sourcePos, SeekOrigin.Begin);
+                destination.Seek(destinationPos, SeekOrigin.Begin);
+                DecompressHeaderless(source, destination, detected == Endian.Big ? Endian.Little : Endian.Big);
+            }
+        }
+#if !(NETSTANDARD || NET20_OR_GREATER)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
+        public static void DecompressHeaderless(Stream source, Stream destination, Endian order)
+        {
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            {
+                FlagReader Flag = new FlagReader(source, order);
 
-                        if (distance == 0)
-                        {
-                            return;
-                        }
-
-                        length = distance & 7;
-                        distance = 0x2000 - (distance >> 3);
-                        if (length == 0) // L 1-0x100
-                        {
-                            length = source.ReadUInt8() + 1;
-                        }
-                        else // L 3-9
-                        {
-                            length += 2;
-                        }
-                    }
-                    else // Compressed value D 1-0x100 L 2-5
+                while (source.Position < source.Length)
+                {
+                    if (Flag.Readbit())  // Uncompressed value
                     {
-                        length = Flag.ReadInt(2, true) + 2;
-                        distance = 0x100 - source.ReadUInt8();
+                        buffer.WriteByte(source.ReadUInt8());
                     }
-                    buffer.BackCopy(distance, length);
+                    else
+                    {
+                        int distance, length;
+                        if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
+                        {
+                            distance = source.ReadUInt16(order);
+
+                            if (distance == 0)
+                            {
+                                return;
+                            }
+
+                            length = distance & 7;
+                            distance = 0x2000 - (distance >> 3);
+                            if (length == 0) // L 1-0x100
+                            {
+                                length = source.ReadUInt8() + 1;
+                            }
+                            else // L 3-9
+                            {
+                                length += 2;
+                            }
+                        }
+                        else // Compressed value D 1-0x100 L 2-5
+                        {
+                            length = Flag.ReadInt(2, true) + 2;
+                            distance = 0x100 - source.ReadUInt8();
+                        }
+                        buffer.BackCopy(distance, length);
+                    }
                 }
             }
             throw new EndOfStreamException();
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int position = 0;
 
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using FlagWriter flag = new(destination, order);
-
-            while (position < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (FlagWriter flag = new FlagWriter(destination, order))
             {
-                dictionary.FindMatch(source, position, out LzMatch match);
-                if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
+                while (position < source.Length)
                 {
-                    dictionary.AddEntry(source, position);
-                    flag.Buffer.WriteByte(source[position++]);
-                    flag.WriteBit(true);
-                }
-                else
-                {
-                    dictionary.AddEntryRange(source, position, match.Length);
-                    position += match.Length;
-                    int distance = match.Distance * -1;
-                    int length = match.Length;
-
-                    flag.WriteBit(false);
-                    if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
+                    dictionary.FindMatch(source, position, out LzMatch match);
+                    if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
                     {
-                        flag.WriteBit(false);
-                        flag.WriteInt(length - 2, 2, true);
-                        flag.Buffer.WriteByte((byte)distance);
-                        flag.FlushIfNecessary();
+                        dictionary.AddEntry(source, position);
+                        flag.Buffer.WriteByte(source[position++]);
+                        flag.WriteBit(true);
                     }
                     else
                     {
-                        if (length > 9) // L 1-0x100
+                        dictionary.AddEntryRange(source, position, match.Length);
+                        position += match.Length;
+                        int distance = match.Distance * -1;
+                        int length = match.Length;
+
+                        flag.WriteBit(false);
+                        if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
                         {
-                            flag.Buffer.Write((ushort)(distance << 3), order);
-                            flag.Buffer.WriteByte((byte)(length - 1));
+                            flag.WriteBit(false);
+                            flag.WriteInt(length - 2, 2, true);
+                            flag.Buffer.WriteByte((byte)distance);
+                            flag.FlushIfNecessary();
                         }
-                        else // L 3-9
+                        else
                         {
-                            flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
+                            if (length > 9) // L 1-0x100
+                            {
+                                flag.Buffer.Write((ushort)(distance << 3), order);
+                                flag.Buffer.WriteByte((byte)(length - 1));
+                            }
+                            else // L 3-9
+                            {
+                                flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
+                            }
+                            flag.WriteBit(true);
                         }
-                        flag.WriteBit(true);
                     }
                 }
+                flag.WriteBit(false);
+                flag.Buffer.WriteByte(0);
+                flag.Buffer.WriteByte(0);
+                flag.WriteBit(true);
             }
-            flag.WriteBit(false);
-            flag.Buffer.WriteByte(0);
-            flag.Buffer.WriteByte(0);
-            flag.WriteBit(true);
         }
 
         internal static Endian? GetByteOrder(Stream stream)
@@ -148,7 +175,7 @@ namespace AuroraLib.Compression.Algorithms
         internal static bool ValidateByteOrder(Stream stream, Endian order)
         {
             long startPos = stream.Position;
-            FlagReader Flag = new(stream, order);
+            FlagReader Flag = new FlagReader(stream, order);
             int Buffer = 0;
             while (stream.Position < stream.Length)
             {

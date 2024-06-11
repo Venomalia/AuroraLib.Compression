@@ -1,5 +1,8 @@
 ﻿using AuroraLib.Core.Buffers;
+using AuroraLib.Core.IO;
+using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.IO
@@ -20,7 +23,6 @@ namespace AuroraLib.Compression.IO
         /// <param name="distance">The distance from the current position to the source data.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void BackCopy(int distance, int length)
         {
             // optimization
@@ -39,7 +41,6 @@ namespace AuroraLib.Compression.IO
         /// <param name="Offset">The offset position from which data will be copied.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void OffsetCopy(int Offset, int length)
         {
             for (int i = 0; i < length; i++)
@@ -54,14 +55,20 @@ namespace AuroraLib.Compression.IO
         /// <param name="source">The source stream containing data to copy.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void CopyFrom(Stream source, int length)
         {
             while (length != 0)
             {
                 int l = Math.Min(length, (int)(Length - Position));
+#if NET20_OR_GREATER
+                source.Read(_Buffer, (int)Position,l);
+#else
                 Span<byte> buffer = _Buffer.AsSpan((int)Position, l);
                 source.Read(buffer);
+#endif
                 Position += l;
                 length -= l;
                 if (Position == 0)
@@ -71,7 +78,9 @@ namespace AuroraLib.Compression.IO
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public override void Write(ReadOnlySpan<byte> buffer)
         {
             if (Length > Position + buffer.Length)
@@ -85,7 +94,7 @@ namespace AuroraLib.Compression.IO
                 // Partially write and wrap around.
                 int left = (int)(Length - (Position));
                 destination.Write(_Buffer.AsSpan(0, (int)Position));
-                destination.Write(buffer[..left]);
+                destination.Write(buffer.Slice(0,left));
                 base.Write(buffer);
             }
         }

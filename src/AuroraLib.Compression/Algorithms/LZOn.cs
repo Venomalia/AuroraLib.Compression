@@ -1,5 +1,11 @@
 ﻿using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -11,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier64 _identifier = new(new("LZOn"), new(0x00, 0x2F, 0xF1, 0x71));
+        private static readonly Identifier64 _identifier = new Identifier64(new Identifier32("LZOn".AsSpan()), new Identifier32(0x00, 0x2F, 0xF1, 0x71));
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;

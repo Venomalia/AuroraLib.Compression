@@ -2,7 +2,13 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -15,9 +21,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("MIO0");
+        private static readonly Identifier32 _identifier = new Identifier32("MIO0".AsSpan());
 
-        internal static readonly LzProperties _lz = new(0x1000, 18, 3);
+        internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -49,96 +55,117 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using MemoryPoolStream compressedData = new(1024), uncompressedData = new(1024), flagData = new(512);
-            CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, level);
+            using (MemoryPoolStream compressedData = new MemoryPoolStream(1024),
+                uncompressedData = new MemoryPoolStream(1024),
+                flagData = new MemoryPoolStream(512))
+            {
 
-            uint startPosition = (uint)destination.Position;
-            destination.Write(_identifier);
-            destination.Write(source.Length, ExplicitOrder);
-            destination.Write((uint)(0x10 + flagData.Length - startPosition), ExplicitOrder);
-            destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), ExplicitOrder);
-            flagData.WriteTo(destination);
-            compressedData.WriteTo(destination);
-            uncompressedData.WriteTo(destination);
+                CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, level);
+
+                uint startPosition = (uint)destination.Position;
+                destination.Write(_identifier);
+                destination.Write(source.Length, ExplicitOrder);
+                destination.Write((uint)(0x10 + flagData.Length - startPosition), ExplicitOrder);
+                destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), ExplicitOrder);
+                flagData.WriteTo(destination);
+                compressedData.WriteTo(destination);
+                uncompressedData.WriteTo(destination);
+            }
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
-            using SpanBuffer<byte> data = new((int)(source.Length - source.Position));
-            source.Read(data);
+            using (SpanBuffer<byte> data = new SpanBuffer<byte>((int)(source.Length - source.Position)))
+            {
+#if NET20_OR_GREATER
+                source.Read(data.GetBuffer(), 0, data.Length);
+#else
+                source.Read(data);
+#endif
 
-            int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
-            if (source.CanSeek)
-                source.Position -= data.Length - read;
+                int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
+                if (source.CanSeek)
+                    source.Position -= data.Length - read;
+            }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static int DecompressHeaderless(ReadOnlySpan<byte> source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-            int flagDataPointer = 0;
-            nint maskBitCounter = 0, currentMask = 0;
-
-            while (destination.Position + buffer.Position < endPosition)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                // If we're out of bits, get the next mask.
-                if (maskBitCounter == 0)
+
+                int flagDataPointer = 0;
+                int maskBitCounter = 0, currentMask = 0;
+
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    currentMask = source[flagDataPointer++];
-                    maskBitCounter = 8;
+                    // If we're out of bits, get the next mask.
+                    if (maskBitCounter == 0)
+                    {
+                        currentMask = source[flagDataPointer++];
+                        maskBitCounter = 8;
+                    }
+
+                    if ((currentMask & 0x80) == 0x80)
+                    {
+                        buffer.WriteByte(source[uncompressedDataPointer++]);
+                    }
+                    else
+                    {
+                        byte b1 = source[compressedDataPointer++];
+                        byte b2 = source[compressedDataPointer++];
+
+                        // Calculate the match distance & length
+                        int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
+                        int length = (b1 >> 4) + 3;
+
+                        buffer.BackCopy(distance, length);
+                    }
+
+                    // Get the next bit in the mask.
+                    currentMask <<= 1;
+                    maskBitCounter--;
                 }
 
-                if ((currentMask & 0x80) == 0x80)
+                if (destination.Position + buffer.Position > endPosition)
                 {
-                    buffer.WriteByte(source[uncompressedDataPointer++]);
+                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
                 }
-                else
-                {
-                    byte b1 = source[compressedDataPointer++];
-                    byte b2 = source[compressedDataPointer++];
-
-                    // Calculate the match distance & length
-                    int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
-                    int length = (b1 >> 4) + 3;
-
-                    buffer.BackCopy(distance, length);
-                }
-
-                // Get the next bit in the mask.
-                currentMask <<= 1;
-                maskBitCounter--;
-            }
-
-            if (destination.Position + buffer.Position > endPosition)
-            {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
             }
             return Math.Max(compressedDataPointer, uncompressedDataPointer);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            using FlagWriter flag = new(flagData, Endian.Big);
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-
-            while (sourcePointer < source.Length)
+            using (FlagWriter flag = new FlagWriter(flagData, Endian.Big))
             {
-                // Search for a match
-                if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+
+                LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+
+                while (sourcePointer < source.Length)
                 {
-                    // 2 byte match.Length 3-18
-                    compressedData.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x3) << 12)), Endian.Big);
-                    sourcePointer += match.Length;
-                    flag.WriteBit(false);
-                }
-                else
-                {
-                    uncompressedData.Write(source[sourcePointer++]);
-                    flag.WriteBit(true);
+                    // Search for a match
+                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                    {
+                        // 2 byte match.Length 3-18
+                        compressedData.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x3) << 12)), Endian.Big);
+                        sourcePointer += match.Length;
+                        flag.WriteBit(false);
+                    }
+                    else
+                    {
+                        uncompressedData.Write(source[sourcePointer++]);
+                        flag.WriteBit(true);
+                    }
                 }
             }
         }

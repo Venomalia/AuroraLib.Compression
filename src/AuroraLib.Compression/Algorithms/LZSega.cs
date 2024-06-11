@@ -1,4 +1,8 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -10,7 +14,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = new((byte)12, 4, 2);
+        private static readonly LzProperties _lz = new LzProperties((byte)12, 4, 2);
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)

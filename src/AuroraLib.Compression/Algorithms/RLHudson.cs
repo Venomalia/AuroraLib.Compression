@@ -1,6 +1,11 @@
 ﻿using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using System.Runtime.CompilerServices;
+using System;
+using System.IO;
+using AuroraLib.Core.IO;
+using AuroraLib.Core;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -39,7 +44,9 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -50,7 +57,7 @@ namespace AuroraLib.Compression.Algorithms
             {
                 int flag = source.ReadByte();
                 int length = flag & MaxLength;
-                Span<byte> section = bytes[..length];
+                Span<byte> section = bytes.Slice(0, length);
                 if (flag < FlagMask)
                 {
                     section.Fill(source.ReadUInt8());
@@ -69,11 +76,13 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination)
         {
             int sourcePointer = 0x0;
-            RleMatchFinder matchFinder = new(3, MaxLength);
+            RleMatchFinder matchFinder = new RleMatchFinder(3, MaxLength);
 
             while (sourcePointer < source.Length)
             {

@@ -1,5 +1,11 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -11,9 +17,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("LZ00");
+        private static readonly Identifier32 _identifier = new Identifier32("LZ00".AsSpan());
 
-        private static readonly LzProperties _lz = new(0x1000, 0xF + 3, 3, 0xFEE);
+        private static readonly LzProperties _lz = new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -41,7 +47,7 @@ namespace AuroraLib.Compression.Algorithms
             uint key = source.ReadUInt32();
             source.Position += 8;
 
-            StreamTransformer transformSource = new(source, key);
+            StreamTransformer transformSource = new StreamTransformer(source, key);
             LZSS.DecompressHeaderless(transformSource, destination, (int)decompressedSize, _lz);
         }
 
@@ -62,14 +68,14 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0);
             destination.Write(0);
 
-            destination.WriteString(Name, 32, 0);
+            destination.WriteString(Name.AsSpan(), 32, 0);
 
             destination.Write(source.Length); // Decompressed length
             destination.Write(key); // Encryption key
             destination.Write(0);
             destination.Write(0);
 
-            StreamTransformer transformDestination = new(destination, key);
+            StreamTransformer transformDestination = new StreamTransformer(destination, key);
             LZSS.CompressHeaderless(source, transformDestination, _lz, LookAhead, level);
 
             // Go back to the beginning of the file and write out the compressed length
@@ -90,8 +96,6 @@ namespace AuroraLib.Compression.Algorithms
             public override void Flush() => Base.Flush();
             public override long Seek(long offset, SeekOrigin origin) => Base.Seek(offset, origin);
             public override void SetLength(long value) => Base.SetLength(value);
-            public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
-            public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
 
             public StreamTransformer(Stream baseStream, uint key = 0)
             {
@@ -122,19 +126,43 @@ namespace AuroraLib.Compression.Algorithms
                 }
             }
 
+            public override int Read(byte[] buffer, int offset, int count)
+#if !NET20_OR_GREATER
+                => Read(buffer.AsSpan(offset, count));
+
             public override int Read(Span<byte> buffer)
             {
                 int read = Base.Read(buffer);
                 Transform(buffer);
                 return read;
             }
+#else
+            {
+                int read = Base.Read(buffer, offset, count);
+                Transform(buffer.AsSpan(offset, count));
+                return read;
+            }
+#endif
+            public override void Write(byte[] buffer, int offset, int count)
+
+#if !NET20_OR_GREATER
+                => Write(buffer.AsSpan(offset, count));
 
             public override void Write(ReadOnlySpan<byte> buffer)
             {
-                using SpanBuffer<byte> bytes = new(buffer);
+                using SpanBuffer<byte> bytes = new SpanBuffer<byte>(buffer);
                 Transform(bytes);
                 Base.Write(bytes);
             }
+#else
+            {
+                using (SpanBuffer<byte> bytes = new SpanBuffer<byte>(buffer))
+                {
+                    Transform(bytes.Span.Slice(offset, count));
+                    Base.Write(bytes.GetBuffer(), offset, count);
+                }
+            }
+#endif
         }
     }
 }

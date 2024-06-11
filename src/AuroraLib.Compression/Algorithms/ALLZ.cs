@@ -1,7 +1,13 @@
 ﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -14,9 +20,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new("ALLZ");
+        private static readonly Identifier32 _identifier = new Identifier32("ALLZ".AsSpan());
 
-        internal static readonly LzProperties _lz = new(0x20000, 0x40000, 3); //A larger window is possible but will take a lot longer.
+        internal static readonly LzProperties _lz = new LzProperties(0x20000, 0x40000, 3); //A larger window is possible but will take a lot longer.
 
         public byte LzCopyBits = 0;
         public byte LzDistanceBits = 14;
@@ -38,9 +44,11 @@ namespace AuroraLib.Compression.Algorithms
             source.Read(flags);
             uint decomLength = source.ReadUInt32();
 
-            using SpanBuffer<byte> buffer = new(decomLength);
-            DecompressHeaderless(source, buffer, flags);
-            destination.Write(buffer);
+            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>(decomLength))
+            {
+                DecompressHeaderless(source, buffer, flags);
+                destination.Write(buffer);
+            }
         }
 
         /// <inheritdoc/>
@@ -53,11 +61,13 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, flags, true, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
         {
             int length, distance, destinationPointer = 0;
-            FlagReader flag = new(source, Endian.Little);
+            FlagReader flag = new FlagReader(source, Endian.Little);
 
             while (destinationPointer < destination.Length)
             {
@@ -93,53 +103,57 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
             LzMatch match = default;
 
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using FlagWriter flag = new(destination, Endian.Little);
-
-            while (sourcePointer < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
             {
-                int uncompressedLength = 0;
-                while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
-                    uncompressedLength++;
-
-                if (uncompressedLength > 0)
+                while (sourcePointer < source.Length)
                 {
+                    int uncompressedLength = 0;
+                    while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
+                        uncompressedLength++;
+
+                    if (uncompressedLength > 0)
+                    {
+                        flag.WriteBit(false);
+                        WriteALFlag(flags[3], uncompressedLength - 1);
+                        flag.Buffer.Write(source.Slice(sourcePointer, uncompressedLength));
+                        sourcePointer += uncompressedLength;
+                        flag.FlushIfNecessary();
+                    }
+                    else
+                    {
+                        flag.WriteBit(true);
+                    }
+
+                    WriteALFlag(flags[2], match.Distance - 1);
+                    WriteALFlag(flags[1], match.Length - 3);
+                    sourcePointer += match.Length;
+                }
+
+                return;
+
+                void WriteALFlag(int startBits, int value)
+                {
+                    int bitMask = 0, bits = startBits;
+
+                    while (bitMask + ((1 << bits) - 1) < value)
+                    {
+                        bits++;
+                        bitMask = ((1 << (bits - startBits)) - 1) << startBits;
+                        flag.WriteBit(true);
+                    }
                     flag.WriteBit(false);
-                    WriteALFlag(flags[3], uncompressedLength - 1);
-                    flag.Buffer.Write(source.Slice(sourcePointer, uncompressedLength));
-                    sourcePointer += uncompressedLength;
-                    flag.FlushIfNecessary();
+                    value -= bitMask;
+                    flag.WriteInt(value, bits);
                 }
-                else
-                {
-                    flag.WriteBit(true);
-                }
-
-                WriteALFlag(flags[2], match.Distance - 1);
-                WriteALFlag(flags[1], match.Length - 3);
-                sourcePointer += match.Length;
-            }
-            return;
-
-            void WriteALFlag(int startBits, int value)
-            {
-                int bitMask = 0, bits = startBits;
-
-                while (bitMask + ((1 << bits) - 1) < value)
-                {
-                    bits++;
-                    bitMask = ((1 << (bits - startBits)) - 1) << startBits;
-                    flag.WriteBit(true);
-                }
-                flag.WriteBit(false);
-                value -= bitMask;
-                flag.WriteInt(value, bits);
             }
         }
     }

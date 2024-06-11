@@ -3,6 +3,10 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -12,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class LZShrek : ICompressionAlgorithm, ILzSettings
     {
-        private static readonly LzProperties _lz = new(0x1000, 262, 3);
+        private static readonly LzProperties _lz = new LzProperties(0x1000, 262, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -33,9 +37,15 @@ namespace AuroraLib.Compression.Algorithms
             uint compLength = source.ReadUInt32();
             source.Seek(offset, SeekOrigin.Begin);
 
-            using SpanBuffer<byte> sourceBuffer = new(compLength);
-            source.Read(sourceBuffer);
-            DecompressHeaderless(sourceBuffer, destination, (int)decomLength);
+            using (SpanBuffer<byte> sourceBuffer = new SpanBuffer<byte>(compLength))
+            {
+#if NET20_OR_GREATER
+                source.Read(sourceBuffer.GetBuffer(), 0, sourceBuffer.Length);
+#else
+                source.Read(sourceBuffer);
+#endif
+                DecompressHeaderless(sourceBuffer, destination, (int)decomLength);
+            }
         }
 
         /// <inheritdoc/>
@@ -52,131 +62,139 @@ namespace AuroraLib.Compression.Algorithms
             destination.At(start - 8, s => s.Write(compLength));
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(ReadOnlySpan<byte> source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-            int sourcePointer = 0;
-
-            while (sourcePointer < source.Length)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                byte flag = source[sourcePointer++];
-                int compressed = (flag & 7) + 1; // 1-8
-                int uncompressed = ReadDistance(flag, source, ref sourcePointer);
+                int sourcePointer = 0;
 
-                if (uncompressed != 0)
+                while (sourcePointer < source.Length)
                 {
-                    buffer.Write(source.Slice(sourcePointer, uncompressed));
-                    sourcePointer += uncompressed;
-                }
+                    byte flag = source[sourcePointer++];
+                    int compressed = (flag & 7) + 1; // 1-8
+                    int uncompressed = ReadDistance(flag, source, ref sourcePointer);
 
-                for (int i = 0; i < compressed; i++)
-                {
-                    flag = source[sourcePointer++];
-                    int length = flag & 7; // 1-7 | 0 flag
-
-                    if (length == 0)
+                    if (uncompressed != 0)
                     {
-                        length = source[sourcePointer++];
-                        if (length == 0)
-                        {
-                            if (destination.Position + buffer.Position > endPosition)
-                            {
-                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                            }
-                            return; // end~
-                        }
-                        length += 7; // 7-262
+                        buffer.Write(source.Slice(sourcePointer, uncompressed));
+                        sourcePointer += uncompressed;
                     }
 
-                    int distance = ReadDistance(flag, source, ref sourcePointer) + 1;
+                    for (int i = 0; i < compressed; i++)
+                    {
+                        flag = source[sourcePointer++];
+                        int length = flag & 7; // 1-7 | 0 flag
 
-                    buffer.BackCopy(distance, length);
+                        if (length == 0)
+                        {
+                            length = source[sourcePointer++];
+                            if (length == 0)
+                            {
+                                if (destination.Position + buffer.Position > endPosition)
+                                {
+                                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                                }
+                                return; // end~
+                            }
+                            length += 7; // 7-262
+                        }
+
+                        int distance = ReadDistance(flag, source, ref sourcePointer) + 1;
+
+                        buffer.BackCopy(distance, length);
+                    }
                 }
             }
             throw new EndOfStreamException();
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using MemoryPoolStream buffer = new();
-
-            while (sourcePointer < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (MemoryPoolStream buffer = new MemoryPoolStream())
             {
-                int uncompressedLength = 0, compressedLength = 0;
-
-                if (!dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                while (sourcePointer < source.Length)
                 {
-                    uncompressedLength++;
-                    // How long comes no new match?
-                    while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
+                    int uncompressedLength = 0, compressedLength = 0;
+
+                    if (!dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
                         uncompressedLength++;
-                    }
-
-                    buffer.Write(source.Slice(sourcePointer, uncompressedLength));
-                    sourcePointer += uncompressedLength;
-                }
-
-                // Match has data that still needs to be processed?
-                while (match.Length != 0)
-                {
-                    compressedLength++;
-
-                    // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
-                    int lengthflag = match.Length > 7 ? 0 : match.Length;
-                    int distanceflag = match.Distance > 30 ? (match.Distance > 286 ? 0x1F : 0x1E) : match.Distance - 1;
-                    buffer.WriteByte((byte)(distanceflag << 3 | (lengthflag)));
-                    if (lengthflag == 0) // match.Length 8-262
-                    {
-                        buffer.WriteByte((byte)(match.Length - 7));
-                    }
-
-                    if (distanceflag == 0x1E) // 31-286
-                    {
-                        buffer.WriteByte((byte)(match.Distance - 31));
-                    }
-                    else if (distanceflag == 0x1F) // 287-65822
-                    {
-                        buffer.Write((ushort)(match.Distance - 287));
-                    }
-
-                    sourcePointer += match.Length;
-                    if (sourcePointer + compressedLength < source.Length && compressedLength < 8)
-                    {
-                        dictionary.FindMatch(source, sourcePointer, out match);
-                        if (match.Length != 0)
+                        // How long comes no new match?
+                        while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
                         {
-                            dictionary.AddEntryRange(source, sourcePointer, match.Length);
+                            uncompressedLength++;
+                        }
+
+                        buffer.Write(source.Slice(sourcePointer, uncompressedLength));
+                        sourcePointer += uncompressedLength;
+                    }
+
+                    // Match has data that still needs to be processed?
+                    while (match.Length != 0)
+                    {
+                        compressedLength++;
+
+                        // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
+                        int lengthflag = match.Length > 7 ? 0 : match.Length;
+                        int distanceflag = match.Distance > 30 ? (match.Distance > 286 ? 0x1F : 0x1E) : match.Distance - 1;
+                        buffer.WriteByte((byte)(distanceflag << 3 | (lengthflag)));
+                        if (lengthflag == 0) // match.Length 8-262
+                        {
+                            buffer.WriteByte((byte)(match.Length - 7));
+                        }
+
+                        if (distanceflag == 0x1E) // 31-286
+                        {
+                            buffer.WriteByte((byte)(match.Distance - 31));
+                        }
+                        else if (distanceflag == 0x1F) // 287-65822
+                        {
+                            buffer.Write((ushort)(match.Distance - 287));
+                        }
+
+                        sourcePointer += match.Length;
+                        if (sourcePointer + compressedLength < source.Length && compressedLength < 8)
+                        {
+                            dictionary.FindMatch(source, sourcePointer, out match);
+                            if (match.Length != 0)
+                            {
+                                dictionary.AddEntryRange(source, sourcePointer, match.Length);
+                            }
+                        }
+                        else
+                        {
+                            match = default;
                         }
                     }
-                    else
+                    // Write flag and buffer to destination.
+                    int uncompressedflag = uncompressedLength > 29 ? (uncompressedLength > 285 ? 0x1F : 0x1E) : uncompressedLength;
+                    compressedLength = Math.Max(0, compressedLength - 1);
+                    destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength));
+
+                    if (uncompressedflag == 0x1E) // 30-285
                     {
-                        match = default;
+                        destination.WriteByte((byte)(uncompressedLength - 30));
                     }
-                }
-                // Write flag and buffer to destination.
-                int uncompressedflag = uncompressedLength > 29 ? (uncompressedLength > 285 ? 0x1F : 0x1E) : uncompressedLength;
-                compressedLength = Math.Max(0, compressedLength - 1);
-                destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength));
+                    else if (uncompressedflag == 0x1F) // 286-65821
+                    {
+                        destination.Write((ushort)(uncompressedLength - 286));
+                    }
 
-                if (uncompressedflag == 0x1E) // 30-285
-                {
-                    destination.WriteByte((byte)(uncompressedLength - 30));
+                    buffer.WriteTo(destination);
+                    buffer.SetLength(0);
                 }
-                else if (uncompressedflag == 0x1F) // 286-65821
-                {
-                    destination.Write((ushort)(uncompressedLength - 286));
-                }
-
-                buffer.WriteTo(destination);
-                buffer.SetLength(0);
             }
+
             destination.Write(0);
         }
 

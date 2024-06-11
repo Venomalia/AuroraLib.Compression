@@ -2,6 +2,11 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -13,7 +18,7 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x11;
 
-        private static readonly LzProperties _lz = new(0x1000, 0x4000, 3);
+        private static readonly LzProperties _lz = new LzProperties(0x1000, 0x4000, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
@@ -54,88 +59,95 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new(destination, _lz.WindowsSize);
-            FlagReader Flag = new(source, Endian.Big);
-
-            while (destination.Position + buffer.Position < endPosition)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                if (Flag.Readbit())
-                {
-                    int distance, length;
-                    byte b1 = source.ReadUInt8();
-                    byte b2 = source.ReadUInt8();
-                    if (b1 >> 4 == 0) // match.Length 17-272
-                    {
-                        //0000LLLL LLLLDDDD DDDDDDDD
-                        byte b3 = source.ReadUInt8();
-                        distance = ((b2 & 0xf) << 8 | b3) + 1;
-                        length = ((b1 & 0xf) << 4 | b2 >> 4) + 17;
-                    }
-                    else if (b1 >> 4 == 1) // match.Length 273-65808
-                    {
-                        //0001LLLL LLLLLLLL LLLLDDDD DDDDDDDD
-                        byte b3 = source.ReadUInt8();
-                        byte b4 = source.ReadUInt8();
-                        distance = ((b3 & 0xf) << 8 | b4) + 1;
-                        length = ((b1 & 0xf) << 12 | b2 << 4 | b3 >> 4) + 273;
-                    }
-                    else // match.Length 3-16
-                    {
-                        //LLLLDDDD DDDDDDDD
-                        distance = ((b1 & 0xf) << 8 | b2) + 1;
-                        length = (b1 >> 4) + 1;
-                    }
+                FlagReader Flag = new FlagReader(source, Endian.Big);
 
-                    buffer.BackCopy(distance, length);
-                }
-                else // Not compressed
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    buffer.WriteByte(source.ReadUInt8());
-                }
-            }
+                    if (Flag.Readbit())
+                    {
+                        int distance, length;
+                        byte b1 = source.ReadUInt8();
+                        byte b2 = source.ReadUInt8();
+                        if (b1 >> 4 == 0) // match.Length 17-272
+                        {
+                            //0000LLLL LLLLDDDD DDDDDDDD
+                            byte b3 = source.ReadUInt8();
+                            distance = ((b2 & 0xf) << 8 | b3) + 1;
+                            length = ((b1 & 0xf) << 4 | b2 >> 4) + 17;
+                        }
+                        else if (b1 >> 4 == 1) // match.Length 273-65808
+                        {
+                            //0001LLLL LLLLLLLL LLLLDDDD DDDDDDDD
+                            byte b3 = source.ReadUInt8();
+                            byte b4 = source.ReadUInt8();
+                            distance = ((b3 & 0xf) << 8 | b4) + 1;
+                            length = ((b1 & 0xf) << 12 | b2 << 4 | b3 >> 4) + 273;
+                        }
+                        else // match.Length 3-16
+                        {
+                            //LLLLDDDD DDDDDDDD
+                            distance = ((b1 & 0xf) << 8 | b2) + 1;
+                            length = (b1 >> 4) + 1;
+                        }
 
-            if (destination.Position + buffer.Position > endPosition)
-            {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                        buffer.BackCopy(distance, length);
+                    }
+                    else // Not compressed
+                    {
+                        buffer.WriteByte(source.ReadUInt8());
+                    }
+                }
+
+                if (destination.Position + buffer.Position > endPosition)
+                {
+                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                }
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new(_lz, lookAhead, level);
-            using FlagWriter flag = new(destination, Endian.Big);
-
-            while (sourcePointer < source.Length)
+            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
             {
-                if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                while (sourcePointer < source.Length)
                 {
-                    if (match.Length <= 16)  // match.Length 3-16
+                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
-                        flag.Buffer.Write((ushort)((match.Length - 1) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                        if (match.Length <= 16)  // match.Length 3-16
+                        {
+                            flag.Buffer.Write((ushort)((match.Length - 1) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                        }
+                        else if (match.Length <= 272) // match.Length 17-272
+                        {
+                            flag.Buffer.WriteByte((byte)(((match.Length - 17) & 0xFF) >> 4));
+                            flag.Buffer.Write((ushort)((match.Length - 17) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                        }
+                        else // match.Length 273-65808
+                        {
+                            flag.Buffer.Write((uint)(0x10000000 | ((match.Length - 273) & 0xFFFF) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                        }
+                        sourcePointer += match.Length;
+                        flag.WriteBit(true);
                     }
-                    else if (match.Length <= 272) // match.Length 17-272
+                    else
                     {
-                        flag.Buffer.WriteByte((byte)(((match.Length - 17) & 0xFF) >> 4));
-                        flag.Buffer.Write((ushort)((match.Length - 17) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                        flag.Buffer.WriteByte(source[sourcePointer++]);
+                        flag.WriteBit(false);
                     }
-                    else // match.Length 273-65808
-                    {
-                        flag.Buffer.Write((uint)(0x10000000 | ((match.Length - 273) & 0xFFFF) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
-                    }
-                    sourcePointer += match.Length;
-                    flag.WriteBit(true);
-                }
-                else
-                {
-                    flag.Buffer.WriteByte(source[sourcePointer++]);
-                    flag.WriteBit(false);
                 }
             }
         }

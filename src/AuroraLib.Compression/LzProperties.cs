@@ -1,4 +1,6 @@
-﻿namespace AuroraLib.Compression
+﻿using System;
+
+namespace AuroraLib.Compression
 {
     /// <summary>
     /// Represents properties and settings for LZ compression.

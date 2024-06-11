@@ -1,4 +1,7 @@
 ﻿using AuroraLib.Core.Extensions;
+using System;
+using System.Collections.Generic;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.MatchFinder
@@ -18,15 +21,33 @@ namespace AuroraLib.Compression.MatchFinder
             offsetLists = new List<int>[0x100];
             for (int i = 0; i < offsetLists.Length; i++)
                 offsetLists[i] = new List<int>(0x10);
-
+#if NET20_OR_GREATER
+            switch (level)
+            {
+                case CompressionLevel.Optimal:
+                    lz = lzProperties.WindowsSize > 0x10000 ? new LzProperties(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties;
+                    break;
+                case CompressionLevel.Fastest:
+                    lz = lzProperties.WindowsSize > 0x4000 ? new LzProperties(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties;
+                    break;
+                case CompressionLevel.NoCompression:
+                    lz = new LzProperties(0, 0, byte.MaxValue, lzProperties.WindowsStart);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+#else
             lz = level switch
             {
-                CompressionLevel.NoCompression => new(0, 0, byte.MaxValue, lzProperties.WindowsStart),
-                CompressionLevel.Optimal => lzProperties.WindowsSize > 0x10000 ? new(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
-                CompressionLevel.Fastest => lzProperties.WindowsSize > 0x4000 ? new(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
+                CompressionLevel.NoCompression => new LzProperties(0, 0, byte.MaxValue, lzProperties.WindowsStart),
+                CompressionLevel.Optimal => lzProperties.WindowsSize > 0x10000 ? new LzProperties(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
+                CompressionLevel.Fastest => lzProperties.WindowsSize > 0x4000 ? new LzProperties(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
+#if NET6_0_OR_GREATER
                 CompressionLevel.SmallestSize => lzProperties,
+#endif
                 _ => throw new NotImplementedException(),
-            }; ;
+            };
+#endif
             this.lookAhead = lookAhead;
         }
 
@@ -37,7 +58,6 @@ namespace AuroraLib.Compression.MatchFinder
         /// <param name="offset">The offset in the source data to start searching for a match.</param>
         /// <param name="match">The best match found at the specified offset.</param>
         /// <returns>True if a match is found; otherwise, false.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public bool TryToFindMatch(ReadOnlySpan<byte> source, int offset, out LzMatch match)
         {
             FindMatch(source, offset, out match);
@@ -60,19 +80,21 @@ namespace AuroraLib.Compression.MatchFinder
         /// <param name="source">The source data to search for matches.</param>
         /// <param name="offset">The offset in the source data to start searching for a match.</param>
         /// <param name="match">The best match found at the specified offset.</param>
+#if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public void FindMatch(ReadOnlySpan<byte> source, int offset, out LzMatch match)
         {
             match = default;
-
-            // Remove old entries for this index
-            RemoveOldEntries(source[offset], offset);
 
             // Check if there is enough data to find matches
             if (offset == 0 || source.Length - offset < lz.MinLength)
             {
                 return;
             }
+
+            // Remove old entries for this index
+            RemoveOldEntries(source[offset], offset);
 
             // Start finding matches
             ReadOnlySpan<byte> dataToMatch = source.Slice(offset, Math.Min(lz.MaxLength, source.Length - offset));
@@ -89,7 +111,7 @@ namespace AuroraLib.Compression.MatchFinder
                 // Is that match good and better than what we have?
                 if (matchLength >= lz.MinLength && matchLength > match.Length)
                 {
-                    match = new(offset - possibleMatchOffset, matchLength);
+                    match = new LzMatch(offset - possibleMatchOffset, matchLength);
                     // Found the best possible match?
                     if (matchLength == dataToMatch.Length) break;
                 }

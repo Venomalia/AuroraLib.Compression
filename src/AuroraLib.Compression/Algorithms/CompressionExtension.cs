@@ -1,6 +1,10 @@
 ﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Extensions;
+using AuroraLib.Core.IO;
+using System;
+using System.IO;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -28,9 +32,11 @@ namespace AuroraLib.Compression.Algorithms
         /// <returns>A new <see cref="byte"/> array containing the decompressed data.</returns>
         public static byte[] Decompress(this ICompressionDecoder algorithm, ReadOnlySpan<byte> source)
         {
-            using MemoryPoolStream destination = new();
-            algorithm.Decompress(source, destination);
-            return destination.ToArray();
+            using (MemoryPoolStream destination = new MemoryPoolStream())
+            {
+                algorithm.Decompress(source, destination);
+                return destination.ToArray();
+            }
         }
 
         /// <summary>
@@ -41,7 +47,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <returns>A <see cref="MemoryPoolStream"/> containing the decompressed data.</returns>
         public static MemoryPoolStream Decompress(this ICompressionDecoder algorithm, Stream source)
         {
-            MemoryPoolStream destination = new();
+            MemoryPoolStream destination = new MemoryPoolStream();
             algorithm.Decompress(source, destination);
             destination.Position = 0;
             return destination;
@@ -55,9 +61,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="destinationFile">The path to the destination file where the decompressed data will be written.</param>
         public static void Decompress(this ICompressionDecoder algorithm, string sourceFile, string destinationFile)
         {
-            using FileStream source = new(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using FileStream destination = new(destinationFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            algorithm.Decompress(source, destination);
+            using (FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                algorithm.Decompress(source, destination);
         }
         #endregion
 
@@ -72,7 +78,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
         public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, Stream source, CompressionLevel level = CompressionLevel.Optimal)
         {
-            MemoryPoolStream destination = new();
+            MemoryPoolStream destination = new MemoryPoolStream();
             algorithm.Compress(source, destination, level);
             destination.Position = 0;
             return destination;
@@ -87,9 +93,11 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="level">The compression level to use (optional, default is CompressionLevel.Optimal).</param>
         public static void Compress(this ICompressionEncoder algorithm, Stream source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using SpanBuffer<byte> bytes = new((int)(source.Length - source.Position));
-            source.Read(bytes);
-            algorithm.Compress(bytes, destination, level);
+            using (SpanBuffer<byte> bytes = new SpanBuffer<byte>((int)(source.Length - source.Position)))
+            {
+                source.Read(bytes);
+                algorithm.Compress(bytes, destination, level);
+            }
         }
 
         /// <summary>
@@ -101,7 +109,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
         public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, CompressionLevel level = CompressionLevel.Optimal)
         {
-            MemoryPoolStream destination = new();
+            MemoryPoolStream destination = new MemoryPoolStream();
             algorithm.Compress(source, destination, level);
             destination.Position = 0;
             return destination;
@@ -116,9 +124,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="level">The compression level to use (optional, default is CompressionLevel.Optimal).</param>
         public static void Compress(this ICompressionEncoder algorithm, string sourceFile, string destinationFile, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using FileStream source = new(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using FileStream destination = new(destinationFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            algorithm.Compress(source, destination, level);
+            using (FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None))
+                algorithm.Compress(source, destination, level);
         }
 
         #endregion
