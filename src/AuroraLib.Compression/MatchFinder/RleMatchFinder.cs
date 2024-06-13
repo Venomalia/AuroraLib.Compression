@@ -6,7 +6,7 @@ namespace AuroraLib.Compression
     /// <summary>
     /// Provides functionality for finding matches in Run-Length compression algorithm.
     /// </summary>
-    public class RleMatchFinder
+    public sealed class RleMatchFinder
     {
         private readonly int minMatch;
         private readonly int maxMatch;

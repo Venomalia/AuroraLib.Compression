@@ -118,11 +118,11 @@ namespace AuroraLib.Compression.Algorithms
                     if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
                         int length = match.Length > 16 ? 0 : match.Length - 1;
-                        flag.Buffer.Write((byte)((match.Distance >> 8 << 4) | length));
-                        flag.Buffer.Write((byte)(match.Distance & 0xFF));
+                        flag.Buffer.WriteByte((byte)((match.Distance >> 8 << 4) | length));
+                        flag.Buffer.WriteByte((byte)(match.Distance & 0xFF));
                         if (length == 0)
                         {
-                            flag.Buffer.Write((byte)(match.Length - 17));
+                            flag.Buffer.WriteByte((byte)(match.Length - 17));
                         }
 
                         sourcePointer += match.Length;

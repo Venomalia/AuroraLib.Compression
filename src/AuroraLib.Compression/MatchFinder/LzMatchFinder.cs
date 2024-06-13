@@ -9,7 +9,7 @@ namespace AuroraLib.Compression.MatchFinder
     /// <summary>
     /// Provides functionality for finding matches in LZ compression algorithms.
     /// </summary>
-    public class LzMatchFinder
+    public sealed class LzMatchFinder
     {
         private readonly LzProperties lz;
         private readonly bool lookAhead;

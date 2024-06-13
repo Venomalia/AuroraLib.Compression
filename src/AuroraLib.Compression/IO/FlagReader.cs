@@ -8,7 +8,7 @@ namespace AuroraLib.Compression.IO
     /// <summary>
     /// Reads individual bits from a stream and provides methods for interpreting the flag values.
     /// </summary>
-    public class FlagReader
+    public sealed class FlagReader
     {
         private byte CurrentFlag;
         public byte BitsLeft { get; private set; }
