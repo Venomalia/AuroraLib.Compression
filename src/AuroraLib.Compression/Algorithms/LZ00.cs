@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Sega LZ00 based on LZSS algorithm with encryption
     /// </summary>
-    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IObjectName
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -24,6 +24,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
+        /// <summary>
+        /// File name that was read during decoding and is written to the file header during encoding.
+        /// </summary>
         public string Name { get; set; } = "Temp.dat";
 
         /// <inheritdoc/>
