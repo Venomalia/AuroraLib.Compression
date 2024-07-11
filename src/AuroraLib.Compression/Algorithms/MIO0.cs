@@ -26,7 +26,7 @@ namespace AuroraLib.Compression.Algorithms
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
 
         /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
+        public bool LookAhead { get; set; } = false;
 
         /// <inheritdoc/>
         public Endian ExplicitOrder { get; set; } = Endian.Big;
