@@ -14,6 +14,7 @@ It is written entirely in managed C# and does not rely on external C++ libraries
 | LZ10           | Nintendo LZ10 compression used in various GBA, DS and WII games.           |
 | LZ11           | Nintendo LZ11 compression used in various DS and WII games.                |
 | LZ40           | Nintendo LZ40 compression mainly used in DS games.                         |
+| LZ60           | Nintendo LZ60 corresponds to LZ40 algorithm.                               |
 | LZ77           | Nintendo LZ77 based on LZ10 used in WII games and data.                    |
 | MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
 | Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
@@ -45,6 +46,11 @@ It is written entirely in managed C# and does not rely on external C++ libraries
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
 | ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
 | LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
+| LZ4            | LZ4 is similar to LZO focused on decompression speed.                      |
+| MDF0           | Konami MDF0 based on ZLib used in Castlevania: The Adventure ReBirth.      |
+| Level5         | Level5 compression algorithm, mainly used in Level5 3ds games.             |
+| SSZL           | Level5 SSZL algorithm base on LZSS, used in Inazuma Eleven 3.              |
+| IECP           | IECP algorithm base on LZSS, used in Fate/Extra.                           |
 
  `*` Big-endian and little-endian version are supported.
  
