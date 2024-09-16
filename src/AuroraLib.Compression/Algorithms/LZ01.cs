@@ -18,7 +18,7 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32("LZ01".AsSpan());
 
-        private static readonly LzProperties _lz = new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
+        private static readonly LzProperties _lz = LZSS.Lzss0Properties;
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;

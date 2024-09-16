@@ -28,11 +28,14 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        public LZSS() : this(new LzProperties((byte)12, 4, 2))
+        public LZSS() : this(DefaultProperties)
         { }
 
         public LZSS(LzProperties lz)
             => LZ = lz;
+
+        public static LzProperties DefaultProperties => new LzProperties((byte)12, 4, 2);
+        public static LzProperties Lzss0Properties => new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
 
         /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)

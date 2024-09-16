@@ -22,7 +22,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
+        private static readonly LzProperties _lz = LZSS.Lzss0Properties;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
