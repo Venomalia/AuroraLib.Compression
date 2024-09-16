@@ -63,12 +63,7 @@ namespace AuroraLib.Compression.IO
             while (length != 0)
             {
                 int l = Math.Min(length, (int)(Length - Position));
-#if NET20_OR_GREATER
                 source.Read(_Buffer, (int)Position,l);
-#else
-                Span<byte> buffer = _Buffer.AsSpan((int)Position, l);
-                source.Read(buffer);
-#endif
                 Position += l;
                 length -= l;
                 if (Position == 0)
