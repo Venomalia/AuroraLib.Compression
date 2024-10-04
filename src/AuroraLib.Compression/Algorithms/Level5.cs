@@ -18,7 +18,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <summary>
         /// Specifies the type of compression used.
         /// </summary>
-        public CompressionType Type = CompressionType.OnlySave;
+        public CompressionType Type = CompressionType.LZ10;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
