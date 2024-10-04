@@ -1,7 +1,7 @@
-﻿using AuroraLib.Compression.Exceptions;
-using AuroraLib.Compression.Interfaces;
+﻿using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -13,12 +13,23 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZ4 algorithm, similar to LZO focused on decompression speed.
     /// </summary>
-    public sealed class LZ4 : ICompressionAlgorithm, ILzSettings
+    // https://github.com/lz4/lz4/tree/dev/doc
+    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings
     {
         private static readonly LzProperties _lz = new LzProperties(0xFFFF, int.MaxValue, 4);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
+
+        /// <summary>
+        /// What type of frame should be written
+        /// </summary>
+        public FrameTypes FrameType = FrameTypes.Legacy;
+
+        /// <summary>
+        /// Specifies the maximum size of the data blocks to be written.
+        /// </summary>
+        public BlockMaxSizes BlockSize = BlockMaxSizes.Block4MB;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -26,79 +37,147 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && stream.ReadUInt32() != 0 && stream.ReadUInt32() - 8 != stream.Length;
+            => stream.Position + 0x10 < stream.Length && Enum.IsDefined(typeof(FrameTypes), stream.ReadUInt32());
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
-            => DecompressHeaderless(source, destination);
+        {
+            uint blockSize;
+            while (source.Position < source.Length)
+            {
+                FrameTypes magic = source.Read<FrameTypes>();
+            SwitchStart:
+                switch (magic)
+                {
+                    case FrameTypes.Legacy:
+                        blockSize = source.ReadUInt32();
+                        do
+                        {
+                            DecompressBlockHeaderless(source, destination, blockSize);
+
+                            if ((sbyte)source.ReadByte() == -1) // EOF
+                                return;
+                            source.Position--;
+
+                            blockSize = source.ReadUInt32();
+                        } while (!Enum.IsDefined(typeof(FrameTypes), blockSize));
+                        magic = (FrameTypes)blockSize;
+                        goto SwitchStart;
+                    case FrameTypes.LZ4FrameHeader:
+                        DecompressLZ4FrameHeader(source, destination);
+                        break;
+                    case FrameTypes.Skippable0:
+                    case FrameTypes.Skippable1:
+                    case FrameTypes.Skippable2:
+                    case FrameTypes.Skippable3:
+                    case FrameTypes.Skippable4:
+                    case FrameTypes.Skippable5:
+                    case FrameTypes.Skippable6:
+                    case FrameTypes.Skippable7:
+                    case FrameTypes.Skippable8:
+                    case FrameTypes.Skippable9:
+                    case FrameTypes.SkippableA:
+                    case FrameTypes.SkippableB:
+                    case FrameTypes.SkippableC:
+                    case FrameTypes.SkippableD:
+                    case FrameTypes.SkippableE:
+                    case FrameTypes.SkippableF:
+                        blockSize = source.ReadUInt32();
+                        source.Position += blockSize;
+                        break;
+                    default: //end
+                        source.Position -= 4;
+                        break;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, LookAhead, level);
-
-        public static void DecompressHeaderless(Stream source, Stream destination)
         {
-            while (source.Position < source.Length)
+            destination.Write(FrameType);
+            switch (FrameType)
             {
-                uint decompressedBlocSize = source.ReadUInt32();
-                uint compressedBlockSize = source.ReadUInt32();
+                case FrameTypes.Legacy:
+                    int sourcePointer = 0x0;
+                    while (sourcePointer != source.Length)
+                    {
+                        long blockStart = destination.Position;
+                        destination.Write(0); // Placeholder
 
-                if (compressedBlockSize == 0) break;
-                long endPosition = destination.Position + decompressedBlocSize;
-                destination.SetLength(endPosition);
-                DecompressBlockHeaderless(source, destination, compressedBlockSize);
+                        ReadOnlySpan<byte> blockSource = source.Slice(sourcePointer, Math.Min((int)BlockSize, source.Length - sourcePointer));
+                        CompressBlockHeaderless(blockSource, destination, LookAhead, level);
+                        sourcePointer += blockSource.Length;
 
-                if (destination.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decompressedBlocSize, destination.Position - (endPosition - decompressedBlocSize));
-                }
+                        uint thisBlockSize = (uint)(destination.Position - blockStart - 4);
+                        destination.At(blockStart, s => s.Write(thisBlockSize));
+                    }
+                    destination.WriteByte(0xFF); // EOF flag
+                    break;
+                case FrameTypes.LZ4FrameHeader:
+                    CompressLZ4FrameHeader(source, destination, level);
+                    break;
+                case FrameTypes.Skippable0:
+                case FrameTypes.Skippable1:
+                case FrameTypes.Skippable2:
+                case FrameTypes.Skippable3:
+                case FrameTypes.Skippable4:
+                case FrameTypes.Skippable5:
+                case FrameTypes.Skippable6:
+                case FrameTypes.Skippable7:
+                case FrameTypes.Skippable8:
+                case FrameTypes.Skippable9:
+                case FrameTypes.SkippableA:
+                case FrameTypes.SkippableB:
+                case FrameTypes.SkippableC:
+                case FrameTypes.SkippableD:
+                case FrameTypes.SkippableE:
+                case FrameTypes.SkippableF:
+                    destination.Write(source.Length);
+                    destination.Write(source);
+                    break;
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public static void DecompressBlockHeaderless(Stream source, Stream destination, uint compressedBlockSize)
+        {
+            using (LzWindows windows = new LzWindows(destination, _lz.WindowsSize))
+            using (SpanBuffer<byte> sourceBlock = new SpanBuffer<byte>(compressedBlockSize))
+            {
+                source.Read(sourceBlock);
+                DecompressBlockHeaderless(sourceBlock, windows);
             }
         }
 
 #if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
 #endif
-        public static void DecompressBlockHeaderless(Stream source, Stream destination, uint compressedBlockSize)
+        public static void DecompressBlockHeaderless(ReadOnlySpan<byte> source, LzWindows buffer)
         {
-            long blockEnd = source.Position + compressedBlockSize;
-            if (blockEnd > source.Length)
+            int sourcePointer = 0;
+
+            while (sourcePointer < source.Length)
             {
-                throw new EndOfStreamException();
+                int token = source[sourcePointer++];
+
+                // Plain copy
+                int plainLength = token >> 4;
+                plainLength = ReadExtension(source, plainLength, ref sourcePointer);
+                buffer.Write(source.Slice(sourcePointer, plainLength));
+                sourcePointer += plainLength;
+
+                if (sourcePointer >= source.Length)
+                    break;
+
+                // Distance copy
+                int matchLength = token & 0xF;
+                int matchDistance = source[sourcePointer++] | source[sourcePointer++] << 8;
+
+                matchLength = ReadExtension(source, matchLength, ref sourcePointer);
+                buffer.BackCopy(matchDistance, matchLength + 4);
             }
-
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
-            {
-                while (source.Position < blockEnd)
-                {
-                    int flag = source.ReadByte();
-
-                    // Plain copy
-                    int plainLength = flag >> 4;
-                    ReadExtension(source, ref plainLength);
-                    buffer.CopyFrom(source, plainLength);
-
-                    if (source.Position >= blockEnd)
-                        break;
-
-                    // Distance copy
-                    int matchLength = flag & 0xF;
-                    int matchDistance = source.ReadUInt16();
-                    ReadExtension(source, ref matchLength);
-                    buffer.BackCopy(matchDistance, matchLength + 4);
-                }
-            }
-        }
-
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
-        {
-            long startPos = destination.Position;
-            destination.Write(source.Length);
-            destination.Write(0);
-
-            CompressBlockHeaderless(source, destination, lookAhead, level);
-
-            uint compressedBlockSize = (uint)(destination.Position - (startPos + 8));
-            destination.At(startPos + 4, s => s.Write(compressedBlockSize));
         }
 
 #if !(NETSTANDARD || NET20_OR_GREATER)
@@ -107,6 +186,7 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
+            ReadOnlySpan<byte> sourceToCom = source.Slice(0, source.Length - 5);
             LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
             while (sourcePointer < source.Length)
             {
@@ -114,12 +194,23 @@ namespace AuroraLib.Compression.Algorithms
                 LzMatch match = default;
                 while (sourcePointer + plainLength < source.Length)
                 {
-                    if (dictionary.TryToFindMatch(source, sourcePointer + plainLength, out match))
+                    // The last sequence contains at last 5 bytes of literals.
+                    if (sourcePointer + plainLength == sourceToCom.Length)
+                    {
+                        plainLength += 5;
+                        break;
+                    }
+
+                    if (dictionary.TryToFindMatch(sourceToCom, sourcePointer + plainLength, out match))
                         break;
                     plainLength++;
                 }
-                int flag = (match.Length - 4 > 0xF ? 0xF : match.Length - 4) | (plainLength > 0xF ? 0xF : plainLength) << 4;
-                destination.WriteByte((byte)flag);
+
+                // Write token
+                int token = (plainLength > 0xF ? 0xF : plainLength) << 4;
+                if (match.Length != 0)
+                    token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
+                destination.WriteByte((byte)token);
 
                 // Plain copy
                 WriteExtension(destination, plainLength);
@@ -134,21 +225,19 @@ namespace AuroraLib.Compression.Algorithms
                 WriteExtension(destination, match.Length - 4);
                 sourcePointer += match.Length;
             }
-
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ReadExtension(Stream stream, ref int length)
+        private static int ReadExtension(ReadOnlySpan<byte> source, int length, ref int sourcePointer)
         {
             if (length == 0xF)
             {
-                int vaule;
                 do
                 {
-                    vaule = stream.ReadByte();
-                    length += vaule;
-                } while (vaule == 0xFF);
+                    length += source[sourcePointer];
+                } while (source[sourcePointer++] == 0xFF);
             }
+            return length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

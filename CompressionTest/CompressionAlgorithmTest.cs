@@ -64,5 +64,14 @@ namespace CompressionTest
                 }
             }
         }
+
+        [TestMethod]
+        public void EncodingAndDecodingMatchTest_LZ4Frame()
+        {
+            LZ4.HashAlgorithm = (b => XXHash.Hash32(b));
+            LZ4 LZ4Frame = new LZ4() { FrameType = LZ4.FrameTypes.LZ4FrameHeader, Flags = LZ4.FrameDescriptorFlags.IsVersion1 | LZ4.FrameDescriptorFlags.HasContentSize | LZ4.FrameDescriptorFlags.HasContentChecksum };
+            EncodingAndDecodingMatchTest(LZ4Frame);
+        }
+
     }
 }
