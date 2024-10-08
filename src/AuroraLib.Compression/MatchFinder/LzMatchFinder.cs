@@ -21,7 +21,7 @@ namespace AuroraLib.Compression.MatchFinder
             offsetLists = new List<int>[0x100];
             for (int i = 0; i < offsetLists.Length; i++)
                 offsetLists[i] = new List<int>(0x10);
-#if NET20_OR_GREATER
+#if NET20_OR_GREATER || NETSTANDARD2_0
             switch (level)
             {
                 case CompressionLevel.Optimal:

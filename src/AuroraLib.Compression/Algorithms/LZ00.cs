@@ -130,7 +130,7 @@ namespace AuroraLib.Compression.Algorithms
             }
 
             public override int Read(byte[] buffer, int offset, int count)
-#if !NET20_OR_GREATER
+#if !(NET20_OR_GREATER || NETSTANDARD2_0)
                 => Read(buffer.AsSpan(offset, count));
 
             public override int Read(Span<byte> buffer)
@@ -148,7 +148,7 @@ namespace AuroraLib.Compression.Algorithms
 #endif
             public override void Write(byte[] buffer, int offset, int count)
 
-#if !NET20_OR_GREATER
+#if !(NET20_OR_GREATER || NETSTANDARD2_0)
                 => Write(buffer.AsSpan(offset, count));
 
             public override void Write(ReadOnlySpan<byte> buffer)
