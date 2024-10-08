@@ -22,6 +22,7 @@ It is written entirely in managed C# and does not rely on external C++ libraries
 | Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
 | RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
+| HWGZ           | Hyrule Warriors GZ compression format based on ZLib.                       |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
