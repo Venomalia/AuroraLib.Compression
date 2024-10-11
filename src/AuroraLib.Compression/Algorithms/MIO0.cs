@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo MIO0 compression algorithm, mainly used in early Nintendo 64 games.
     /// </summary>
-    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Algorithms
         public bool LookAhead { get; set; } = false;
 
         /// <inheritdoc/>
-        public Endian ExplicitOrder { get; set; } = Endian.Big;
+        public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -64,9 +64,9 @@ namespace AuroraLib.Compression.Algorithms
 
                 uint startPosition = (uint)destination.Position;
                 destination.Write(_identifier);
-                destination.Write(source.Length, ExplicitOrder);
-                destination.Write((uint)(0x10 + flagData.Length - startPosition), ExplicitOrder);
-                destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), ExplicitOrder);
+                destination.Write(source.Length, FormatByteOrder);
+                destination.Write((uint)(0x10 + flagData.Length - startPosition), FormatByteOrder);
+                destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), FormatByteOrder);
                 flagData.WriteTo(destination);
                 compressedData.WriteTo(destination);
                 uncompressedData.WriteTo(destination);

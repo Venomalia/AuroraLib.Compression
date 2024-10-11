@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Hyrule Warriors GZ compression format based on ZLib.
     /// </summary>
-    public sealed class HWGZ : ICompressionAlgorithm
+    public sealed class HWGZ : ICompressionAlgorithm, IEndianDependentFormat
     {
         /// <summary>
         /// Defines the size of the chunks.
@@ -20,7 +20,7 @@ namespace AuroraLib.Compression.Algorithms
         public int ChunkSize = 0x10000;
 
         /// <inheritdoc/>
-        public Endian ExplicitOrder { get; set; } = Endian.Big;
+        public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -51,22 +51,22 @@ namespace AuroraLib.Compression.Algorithms
         {
             long destStart = destination.Position;
 
-            uint chunkSize = source.ReadUInt32(ExplicitOrder);
-            uint chunkCount = source.ReadUInt32(ExplicitOrder);
-            uint decompressedSize = source.ReadUInt32(ExplicitOrder);
+            uint chunkSize = source.ReadUInt32(FormatByteOrder);
+            uint chunkCount = source.ReadUInt32(FormatByteOrder);
+            uint decompressedSize = source.ReadUInt32(FormatByteOrder);
 
             if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
             {
                 chunkCount = BinaryPrimitives.ReverseEndianness(chunkCount);
                 decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
-                ExplicitOrder = ExplicitOrder == Endian.Big ? Endian.Little : Endian.Big;
+                FormatByteOrder = FormatByteOrder == Endian.Big ? Endian.Little : Endian.Big;
             }
             source.Align(4 * chunkCount, SeekOrigin.Current, 128);
 
             ZLib zLib = new ZLib();
             for (int i = 0; i < chunkCount; i++)
             {
-                int chunkDataSize = source.ReadInt32(ExplicitOrder);
+                int chunkDataSize = source.ReadInt32(FormatByteOrder);
                 zLib.Decompress(source, destination, chunkDataSize);
                 source.Align(128);
             }
@@ -84,10 +84,10 @@ namespace AuroraLib.Compression.Algorithms
             int chunkCount = (source.Length + ChunkSize - 1) / ChunkSize;
             uint[] chunkSizes = new uint[chunkCount];
 
-            destination.Write(ChunkSize, ExplicitOrder);
-            destination.Write(chunkCount, ExplicitOrder);
-            destination.Write(source.Length, ExplicitOrder);
-            destination.Write<uint>(chunkSizes, ExplicitOrder); // Placeholder
+            destination.Write(ChunkSize, FormatByteOrder);
+            destination.Write(chunkCount, FormatByteOrder);
+            destination.Write(source.Length, FormatByteOrder);
+            destination.Write<uint>(chunkSizes, FormatByteOrder); // Placeholder
 
             destination.WriteAlign(128);
 
@@ -104,12 +104,12 @@ namespace AuroraLib.Compression.Algorithms
 
                     ReadOnlySpan<byte> segmentData = buffer.UnsaveAsSpan();
                     chunkSizes[i] = (uint)(segmentData.Length + 4);
-                    destination.Write(segmentData.Length, ExplicitOrder);
+                    destination.Write(segmentData.Length, FormatByteOrder);
                     destination.Write(segmentData);
                     destination.WriteAlign(128);
                 }
             }
-            destination.At(destStart + 12, s => s.Write<uint>(chunkSizes, ExplicitOrder));
+            destination.At(destStart + 12, s => s.Write<uint>(chunkSizes, FormatByteOrder));
         }
     }
 }

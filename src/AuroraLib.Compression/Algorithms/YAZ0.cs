@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo Yaz0 compression algorithm successor to the <see cref="Yay0"/> algorithm, used in numerous Nintendo titles from the N64 era to Switch.
     /// </summary>
-    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat
     {
 
         /// <inheritdoc/>
@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Algorithms
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public Endian ExplicitOrder { get; set; } = Endian.Big;
+        public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -43,9 +43,9 @@ namespace AuroraLib.Compression.Algorithms
         public virtual void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            uint decompressedSize = source.ReadUInt32(ExplicitOrder);
-            _ = source.ReadUInt32(ExplicitOrder);
-            _ = source.ReadUInt32(ExplicitOrder);
+            uint decompressedSize = source.ReadUInt32(FormatByteOrder);
+            _ = source.ReadUInt32(FormatByteOrder);
+            _ = source.ReadUInt32(FormatByteOrder);
 
             long sourceDataStartPosition = source.Position;
             long destinationStartPosition = destination.Position;
@@ -66,7 +66,7 @@ namespace AuroraLib.Compression.Algorithms
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);
-            destination.Write(source.Length, ExplicitOrder);
+            destination.Write(source.Length, FormatByteOrder);
             destination.Write(0);
             destination.Write(0);
             CompressHeaderless(source, destination, LookAhead, level);

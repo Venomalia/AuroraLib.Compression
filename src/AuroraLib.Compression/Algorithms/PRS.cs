@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// SEGA PRS is an LZ based compression algorithm.
     /// </summary>
-    public sealed class PRS : ICompressionAlgorithm, ILzSettings
+    public sealed class PRS : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat
     {
         private static readonly LzProperties _lz = new LzProperties(0x1FFF, 0x100, 2);
 
@@ -21,7 +21,7 @@ namespace AuroraLib.Compression.Algorithms
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public Endian ExplicitOrder { get; set; } = Endian.Big;
+        public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
@@ -37,7 +37,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, ExplicitOrder, LookAhead, level);
+            => CompressHeaderless(source, destination, FormatByteOrder, LookAhead, level);
 
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
