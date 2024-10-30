@@ -63,7 +63,7 @@ namespace AuroraLib.Compression.IO
             while (length != 0)
             {
                 int l = Math.Min(length, (int)(Length - Position));
-                source.Read(_Buffer, (int)Position,l);
+                source.Read(_Buffer, (int)Position, l);
                 Position += l;
                 length -= l;
                 if (Position == 0)
@@ -89,7 +89,7 @@ namespace AuroraLib.Compression.IO
                 // Partially write and wrap around.
                 int left = (int)(Length - (Position));
                 destination.Write(_Buffer.AsSpan(0, (int)Position));
-                destination.Write(buffer.Slice(0,left));
+                destination.Write(buffer.Slice(0, left));
                 base.Write(buffer);
             }
         }

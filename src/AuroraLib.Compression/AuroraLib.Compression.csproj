@@ -5,7 +5,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>AuroraLib.Compression</Title>
-	<Version>1.2.0.1</Version>
+	<Version>1.2.1.0</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
