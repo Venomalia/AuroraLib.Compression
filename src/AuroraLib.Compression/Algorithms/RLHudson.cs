@@ -1,11 +1,11 @@
 ﻿using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using System.Runtime.CompilerServices;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using AuroraLib.Core.IO;
-using AuroraLib.Core;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {

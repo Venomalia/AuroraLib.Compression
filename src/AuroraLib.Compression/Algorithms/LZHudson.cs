@@ -6,6 +6,7 @@ using AuroraLib.Core.IO;
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -41,23 +42,20 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                uint flag = 0, flagbits = 0;
+                FlagReader flag = new FlagReader(source, Endian.Big, 4, Endian.Big);
 
                 while (destination.Position + buffer.Position < endPosition)
                 {
-                    if (flagbits == 0)
-                    {
-                        flag = source.ReadUInt32(Endian.Big);
-                        flagbits = 32;
-                    }
-
-                    if ((flag & 0x80000000) != 0)
+                    if (flag.Readbit()) // Compressed?
                     {
                         buffer.WriteByte(source.ReadUInt8());
                     }
@@ -73,53 +71,39 @@ namespace AuroraLib.Compression.Algorithms
                         }
                         buffer.BackCopy(distance, length);
                     }
-                    flag <<= 1;
-                    flagbits--;
                 }
             }
         }
 
+#if !(NETSTANDARD || NET20_OR_GREATER)
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
             LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
-            using (MemoryPoolStream buffer = new MemoryPoolStream(128))
+            using (FlagWriter flag = new FlagWriter(destination, Endian.Big, 128, 4, Endian.Big))
             {
-                uint flag = 0, flagbits = 0;
-
                 while (sourcePointer < source.Length)
                 {
                     if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
                     {
                         int length = match.Length > 17 ? 0 : match.Length - 2;
 
-                        buffer.WriteByte((byte)((length << 4) | ((match.Distance - 1) >> 8))); // LLLLDDDD
-                        buffer.WriteByte((byte)(match.Distance - 1)); // DDDDDDDD
+                        flag.Buffer.WriteByte((byte)((length << 4) | ((match.Distance - 1) >> 8))); // LLLLDDDD
+                        flag.Buffer.WriteByte((byte)(match.Distance - 1)); // DDDDDDDD
                         if (length == 0)
                         {
-                            buffer.WriteByte((byte)(match.Length - 18));
+                            flag.Buffer.WriteByte((byte)(match.Length - 18));
                         }
                         sourcePointer += match.Length;
+                        flag.WriteBit(false);
                     }
                     else
                     {
-                        buffer.WriteByte(source[sourcePointer++]);
-                        flag |= (0x80000000 >> (int)flagbits);
+                        flag.Buffer.WriteByte(source[sourcePointer++]);
+                        flag.WriteBit(true);
                     }
-
-                    flagbits++;
-                    if (flagbits == 32)
-                    {
-                        destination.Write(flag, Endian.Big);
-                        buffer.WriteTo(destination);
-                        buffer.SetLength(0);
-                        flag = flagbits = 0;
-                    }
-                }
-                if (flagbits != 0)
-                {
-                    destination.Write(flag, Endian.Big);
-                    buffer.WriteTo(destination);
                 }
             }
         }

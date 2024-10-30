@@ -1,5 +1,6 @@
 ﻿using AuroraLib.Core;
 using AuroraLib.Core.IO;
+using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 
@@ -10,15 +11,36 @@ namespace AuroraLib.Compression.IO
     /// </summary>
     public sealed class FlagReader
     {
-        private byte CurrentFlag;
-        public byte BitsLeft { get; private set; }
+        private int CurrentFlag;
+        public int BitsLeft { get; private set; }
+        private readonly int FlagSize;
         public readonly Stream Base;
         public readonly Endian BitOrder;
+        private readonly Func<int> ReadFlag;
 
-        public FlagReader(Stream source, Endian bitOrder)
+        public FlagReader(Stream source, Endian bitOrder, byte flagSize = 1, Endian byteOrder = Endian.Little)
         {
             Base = source;
             BitOrder = bitOrder;
+
+            FlagSize = flagSize * 8;
+            switch (flagSize)
+            {
+                case 1:
+                    ReadFlag = () => Base.ReadInt8();
+                    break;
+                case 2:
+                    ReadFlag = () => Base.ReadUInt16(byteOrder);
+                    break;
+                case 3:
+                    ReadFlag = () => Base.ReadUInt24(byteOrder);
+                    break;
+                case 4:
+                    ReadFlag = () => Base.ReadInt32(byteOrder);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -29,15 +51,14 @@ namespace AuroraLib.Compression.IO
         {
             if (BitsLeft == 0)
             {
-                CurrentFlag = Base.ReadUInt8();
-                BitsLeft = 8;
+                CurrentFlag = ReadFlag();
+                BitsLeft = FlagSize;
             }
 
-            int bitindex = BitOrder == Endian.Little ? 8 - BitsLeft : BitsLeft - 1;
-            bool flag = (CurrentFlag & (1 << bitindex)) != 0;
-
+            int shiftAmount = BitOrder == Endian.Little ? FlagSize - BitsLeft : BitsLeft - 1;
             BitsLeft--;
-            return flag;
+
+            return (CurrentFlag & (1 << shiftAmount)) != 0;
         }
 
         /// <summary>

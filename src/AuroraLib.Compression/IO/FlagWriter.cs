@@ -11,19 +11,39 @@ namespace AuroraLib.Compression.IO
     /// </summary>
     public sealed class FlagWriter : IDisposable
     {
-        private byte CurrentFlag;
-        public byte BitsLeft { get; private set; }
-        public readonly Stream Base;
+        private int CurrentFlag;
+        public int BitsLeft { get; private set; }
+        private readonly int FlagSize;
+        private readonly Stream Base;
         public readonly MemoryPoolStream Buffer;
-        public readonly Endian BitOrder;
+        private readonly Endian BitOrder;
+        private readonly Action WriteFlag;
 
-        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100)
+        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little)
         {
             Base = destination;
             BitOrder = bitOrder;
             Buffer = new MemoryPoolStream(bufferCapacity);
             CurrentFlag = 0;
-            BitsLeft = 8;
+            FlagSize = BitsLeft = 8 * flagSize;
+
+            switch (flagSize)
+            {
+                case 1:
+                    WriteFlag = () => Base.WriteByte((byte)CurrentFlag);
+                    break;
+                case 2:
+                    WriteFlag = () => Base.Write((ushort)CurrentFlag, byteOrder);
+                    break;
+                case 3:
+                    WriteFlag = () => Base.Write((UInt24)CurrentFlag, byteOrder);
+                    break;
+                case 4:
+                    WriteFlag = () => Base.Write(CurrentFlag, byteOrder);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
         }
 
         /// <summary>
@@ -37,18 +57,12 @@ namespace AuroraLib.Compression.IO
         {
             if (bit)
             {
-                if (BitOrder == Endian.Little)
-                    CurrentFlag |= (byte)(1 << (8 - BitsLeft));
-                else
-                    CurrentFlag |= (byte)(1 << (BitsLeft - 1));
+                int shiftAmount = BitOrder == Endian.Little ? FlagSize - BitsLeft : BitsLeft - 1;
+                CurrentFlag |= (1 << shiftAmount);
             }
 
-            BitsLeft--;
-
-            if (BitsLeft == 0)
-            {
+            if (--BitsLeft == 0)
                 Flush();
-            }
         }
 
         /// <summary>
@@ -82,10 +96,10 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         public void Flush()
         {
-            if (BitsLeft != 8)
+            if (BitsLeft != FlagSize)
             {
-                Base.WriteByte(CurrentFlag);
-                BitsLeft = 8;
+                WriteFlag();
+                BitsLeft = FlagSize;
                 CurrentFlag = 0;
             }
             if (Buffer.Length != 0)
@@ -100,7 +114,7 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         public void FlushIfNecessary()
         {
-            if (BitsLeft == 8 && Buffer.Length != 0)
+            if (BitsLeft == FlagSize && Buffer.Length != 0)
             {
                 Buffer.WriteTo(Base);
                 Buffer.SetLength(0);
