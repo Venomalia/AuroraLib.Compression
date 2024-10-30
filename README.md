@@ -20,6 +20,7 @@ It is written entirely in managed C# and does not rely on external C++ libraries
 | Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
 | Yaz0*          | Nintendo Yaz0 compression used in games from the N64 to Switch era.        |
 | Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
+| HUF20          | Nintendo Huffman compression algorithm, mainly used in GBA and DS games.   |
 | RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
 | HWGZ           | Hyrule Warriors GZ compression format based on ZLib.                       |
@@ -81,6 +82,7 @@ Check if the file can be decompressed with a specific algorithm.
 - [Nickworonekin](https://github.com/nickworonekin/puyotools) Puyo Tools inspired the LZ Decode and Encode code and reference for CNX2, LZ00, LZ01, LZ10, LZ11, PRS algorithms.
 - [Haruhiko Okumura](https://oku.edu.mie-u.ac.jp/) reference his original C implementation of the LZSS algorithm.
 - [Daniel-McCarthy](https://github.com/Daniel-McCarthy/Mr-Peeps-Compressor) reference for MIO0, YAZ0, YAY0 algorithm.
+- [Kuriimu](https://github.com/IcySon55/Kuriimu/blob/ebfbf8de50755cc32a7e1ea4aee394628d49d3d2/src/Kontract/Compression/Huffman.cs#L9) reference for HUF20 algorithm.
 - [Niotso.wiki](http://wiki.niotso.org/RefPack) reference for RefPack algorithm.
 - [Sukharah](https://github.com/sukharah/CLZ-Compression) reference for CLZ0 algorithm.
 - [Gamemasterplc](https://github.com/gamemasterplc/mpbintools/blob/master/bindump.c#L240C6-L240C21) reference for LZHudson algorithm.

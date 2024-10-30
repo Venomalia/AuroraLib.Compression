@@ -1,11 +1,11 @@
 ﻿using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using System.Runtime.CompilerServices;
+using AuroraLib.Core;
+using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using AuroraLib.Core.IO;
 using System.IO.Compression;
-using AuroraLib.Core;
+using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -72,7 +72,7 @@ namespace AuroraLib.Compression.Algorithms
                 Span<byte> section = bytes.Slice(0, length);
                 if (flag >= FlagMask)
                 {
-                    section = bytes.Slice(0,length + 2);
+                    section = bytes.Slice(0, length + 2);
                     section.Fill(source.ReadUInt8());
                 }
                 else

@@ -1,4 +1,5 @@
 ﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
@@ -59,6 +60,12 @@ namespace AuroraLib.Compression.Algorithms
                 case CompressionType.RLE:
                     RLE30.DecompressHeaderless(source, destination, decompressedSize);
                     break;
+                case CompressionType.Huffman4Bit:
+                    HUF20.DecompressHeaderless(source, destination, decompressedSize, 4, Endian.Big);
+                    break;
+                case CompressionType.Huffman8Bit:
+                    HUF20.DecompressHeaderless(source, destination, decompressedSize, 8, Endian.Big);
+                    break;
                 default:
                     throw new NotSupportedException();
             }
@@ -90,6 +97,12 @@ namespace AuroraLib.Compression.Algorithms
                 case CompressionType.RLE:
                     RLE30.CompressHeaderless(source, destination);
                     break;
+                case CompressionType.Huffman4Bit:
+                    HUF20.CompressHeaderless(source, destination, 4, Endian.Big);
+                    break;
+                case CompressionType.Huffman8Bit:
+                    HUF20.CompressHeaderless(source, destination, 8, Endian.Big);
+                    break;
                 default:
                     throw new NotSupportedException();
             }
@@ -99,8 +112,8 @@ namespace AuroraLib.Compression.Algorithms
         {
             OnlySave = 0,
             LZ10 = 1,
-            //Huffman4Bit = 2,
-            //Huffman8Bit = 3,
+            Huffman4Bit = 2,
+            Huffman8Bit = 3,
             RLE = 4,
             ZLib = 8
         }
