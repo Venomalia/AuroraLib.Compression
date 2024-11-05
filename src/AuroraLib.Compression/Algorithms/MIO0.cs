@@ -7,6 +7,7 @@ using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -140,32 +141,35 @@ namespace AuroraLib.Compression.Algorithms
             return Math.Max(compressedDataPointer, uncompressedDataPointer);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
+
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
             using (FlagWriter flag = new FlagWriter(flagData, Endian.Big))
             {
+                CompressHeaderless(source, compressedData, uncompressedData, flag, matches);
+            }
+        }
 
-                LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
-
-                while (sourcePointer < source.Length)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, List<LzMatch> matches)
+        {
+            int sourcePointer = 0x0, matchPointer = 0x0;
+            while (sourcePointer < source.Length)
+            {
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                 {
-                    // Search for a match
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
-                    {
-                        // 2 byte match.Length 3-18
-                        compressedData.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x3) << 12)), Endian.Big);
-                        sourcePointer += match.Length;
-                        flag.WriteBit(false);
-                    }
-                    else
-                    {
-                        uncompressedData.Write(source[sourcePointer++]);
-                        flag.WriteBit(true);
-                    }
+                    LzMatch match = matches[matchPointer++];
+
+                    // 2 byte match.Length 3-18
+                    compressedData.Write((ushort)((match.Distance - 0x1) | ((match.Length - 0x3) << 12)), Endian.Big);
+                    sourcePointer += match.Length;
+                    flag.WriteBit(false);
+
+                }
+                else
+                {
+                    uncompressedData.Write(source[sourcePointer++]);
+                    flag.WriteBit(true);
                 }
             }
         }

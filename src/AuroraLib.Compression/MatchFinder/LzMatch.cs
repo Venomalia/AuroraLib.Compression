@@ -5,6 +5,7 @@
     /// </summary>
     public readonly struct LzMatch
     {
+        public readonly int Offset;
         /// <summary>
         /// Gets the distance of the match, indicating the offset from the current position.
         /// </summary>
@@ -15,8 +16,9 @@
         /// </summary>
         public readonly int Length;
 
-        public LzMatch(int distance, int length)
+        public LzMatch(int offset, int distance, int length)
         {
+            Offset = offset;
             Distance = distance;
             Length = length;
         }

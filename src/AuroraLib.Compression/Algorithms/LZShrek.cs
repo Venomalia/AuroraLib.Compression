@@ -5,9 +5,9 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -62,9 +62,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.At(start - 8, s => s.Write(compLength));
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(ReadOnlySpan<byte> source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -113,83 +110,55 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
             using (MemoryPoolStream buffer = new MemoryPoolStream())
             {
-                while (sourcePointer < source.Length)
+                for (int i = 0; i < matches.Count; i++)
                 {
-                    int uncompressedLength = 0, compressedLength = 0;
+                    LzMatch match = matches[i];
+                    ReadOnlySpan<byte> uncompressed = source.Slice(sourcePointer, match.Offset - sourcePointer);
+                    sourcePointer += uncompressed.Length;
+                    int compressedLength = 1;
 
-                    if (!dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
-                    {
-                        uncompressedLength++;
-                        // How long comes no new match?
-                        while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
-                        {
-                            uncompressedLength++;
-                        }
-
-                        buffer.Write(source.Slice(sourcePointer, uncompressedLength));
-                        sourcePointer += uncompressedLength;
-                    }
-
-                    // Match has data that still needs to be processed?
                     while (match.Length != 0)
                     {
-                        compressedLength++;
-
                         // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
                         int lengthflag = match.Length > 7 ? 0 : match.Length;
                         int distanceflag = match.Distance > 30 ? (match.Distance > 286 ? 0x1F : 0x1E) : match.Distance - 1;
+
                         buffer.WriteByte((byte)(distanceflag << 3 | (lengthflag)));
                         if (lengthflag == 0) // match.Length 8-262
-                        {
                             buffer.WriteByte((byte)(match.Length - 7));
-                        }
 
                         if (distanceflag == 0x1E) // 31-286
-                        {
                             buffer.WriteByte((byte)(match.Distance - 31));
-                        }
                         else if (distanceflag == 0x1F) // 287-65822
-                        {
                             buffer.Write((ushort)(match.Distance - 287));
-                        }
 
                         sourcePointer += match.Length;
-                        if (sourcePointer + compressedLength < source.Length && compressedLength < 8)
+
+                        if (compressedLength < 8 && i < matches.Count && matches[i + 1].Offset == sourcePointer)
                         {
-                            dictionary.FindMatch(source, sourcePointer, out match);
-                            if (match.Length != 0)
-                            {
-                                dictionary.AddEntryRange(source, sourcePointer, match.Length);
-                            }
+                            compressedLength++;
+                            match = matches[++i];
                         }
                         else
-                        {
-                            match = default;
-                        }
+                            break;
                     }
                     // Write flag and buffer to destination.
-                    int uncompressedflag = uncompressedLength > 29 ? (uncompressedLength > 285 ? 0x1F : 0x1E) : uncompressedLength;
-                    compressedLength = Math.Max(0, compressedLength - 1);
-                    destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength));
+                    int uncompressedflag = uncompressed.Length > 29 ? (uncompressed.Length > 285 ? 0x1F : 0x1E) : uncompressed.Length;
+                    destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength - 1));
 
                     if (uncompressedflag == 0x1E) // 30-285
-                    {
-                        destination.WriteByte((byte)(uncompressedLength - 30));
-                    }
+                        destination.WriteByte((byte)(uncompressed.Length - 30));
                     else if (uncompressedflag == 0x1F) // 286-65821
-                    {
-                        destination.Write((ushort)(uncompressedLength - 286));
-                    }
+                        destination.Write((ushort)(uncompressed.Length - 286));
 
+                    destination.Write(uncompressed);
                     buffer.WriteTo(destination);
                     buffer.SetLength(0);
                 }

@@ -5,9 +5,9 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -60,9 +60,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(extendData);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength = 0)
         {
             long endPosition = destination.Position + decomLength;
@@ -104,29 +101,28 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            int sourcePointer = 0x0, matchPointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+
             using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
             {
                 while (sourcePointer < source.Length)
                 {
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                     {
+                        LzMatch match = matches[matchPointer++];
+
                         int length = match.Length > 16 ? 0 : match.Length - 1;
                         flag.Buffer.WriteByte((byte)((match.Distance >> 8 << 4) | length));
                         flag.Buffer.WriteByte((byte)(match.Distance & 0xFF));
                         if (length == 0)
-                        {
                             flag.Buffer.WriteByte((byte)(match.Length - 17));
-                        }
 
                         sourcePointer += match.Length;
                         flag.WriteBit(true);
+
                     }
                     else
                     {
@@ -137,7 +133,6 @@ namespace AuroraLib.Compression.Algorithms
                 flag.Buffer.Write(0);
                 flag.Buffer.Write(0);
                 flag.WriteBit(true);
-                flag.Flush();
             }
         }
     }

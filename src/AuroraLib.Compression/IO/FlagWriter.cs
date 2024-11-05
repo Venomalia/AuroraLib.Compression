@@ -14,32 +14,37 @@ namespace AuroraLib.Compression.IO
         private int CurrentFlag;
         public int BitsLeft { get; private set; }
         private readonly int FlagSize;
-        private readonly Stream Base;
+        public readonly Stream Base;
         public readonly MemoryPoolStream Buffer;
-        private readonly Endian BitOrder;
-        private readonly Action WriteFlag;
+        public readonly Endian BitOrder;
+        private readonly Action<int> WriteFlag;
 
-        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little)
+
+        public FlagWriter(Stream destination, Endian bitOrder, Action<int> writeFlag, int bufferCapacity = 0x100, byte flagSize = 1)
         {
             Base = destination;
             BitOrder = bitOrder;
             Buffer = new MemoryPoolStream(bufferCapacity);
             CurrentFlag = 0;
             FlagSize = BitsLeft = 8 * flagSize;
+            WriteFlag = writeFlag;
+        }
 
+        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little) : this(destination, bitOrder, null, bufferCapacity, flagSize)
+        {
             switch (flagSize)
             {
                 case 1:
-                    WriteFlag = () => Base.WriteByte((byte)CurrentFlag);
+                    WriteFlag = i => destination.WriteByte((byte)i);
                     break;
                 case 2:
-                    WriteFlag = () => Base.Write((ushort)CurrentFlag, byteOrder);
+                    WriteFlag = i => destination.Write((ushort)i, byteOrder);
                     break;
                 case 3:
-                    WriteFlag = () => Base.Write((UInt24)CurrentFlag, byteOrder);
+                    WriteFlag = i => destination.Write((UInt24)i, byteOrder);
                     break;
                 case 4:
-                    WriteFlag = () => Base.Write(CurrentFlag, byteOrder);
+                    WriteFlag = i => destination.Write(i, byteOrder);
                     break;
                 default:
                     throw new NotImplementedException();
@@ -98,7 +103,7 @@ namespace AuroraLib.Compression.IO
         {
             if (BitsLeft != FlagSize)
             {
-                WriteFlag();
+                WriteFlag(CurrentFlag);
                 BitsLeft = FlagSize;
                 CurrentFlag = 0;
             }

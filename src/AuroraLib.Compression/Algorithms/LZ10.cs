@@ -5,6 +5,7 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -90,23 +91,23 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            int sourcePointer = 0x0, matchPointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+
             using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
             {
                 while (sourcePointer < source.Length)
                 {
-                    // Search for a match
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                     {
+                        LzMatch match = matches[matchPointer++];
+
                         flag.Buffer.Write((ushort)((match.Length - 3) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
                         sourcePointer += match.Length;
                         flag.WriteBit(true);
+
                     }
                     else
                     {

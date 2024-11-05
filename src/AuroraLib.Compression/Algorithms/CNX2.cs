@@ -6,9 +6,9 @@ using AuroraLib.Core;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -66,9 +66,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.At(StartPosition + 8, x => x.Write(destinationLength - 16, Endian.Big));
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -117,26 +114,21 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            int sourcePointer = 0x0, plainSize;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+
             using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
             {
-                while (sourcePointer < source.Length)
+                foreach (LzMatch match in matches)
                 {
-                    if (!dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
-                    {
-                        byte length = 1;
-                        // How long comes no new match?
-                        while (sourcePointer + length < source.Length && length < byte.MaxValue && !dictionary.TryToFindMatch(source, sourcePointer + length, out match))
-                        {
-                            length++;
-                        }
+                    plainSize = match.Offset - sourcePointer;
 
+                    while (plainSize != 0)
+                    {
+                        byte length = (byte)Math.Min(byte.MaxValue, plainSize);
                         if (length == 1)
                         {
                             flag.Buffer.WriteByte(source[sourcePointer]);
@@ -148,7 +140,9 @@ namespace AuroraLib.Compression.Algorithms
                             flag.Buffer.Write(source.Slice(sourcePointer, length));
                             flag.WriteInt(3, 2);
                         }
+
                         sourcePointer += length;
+                        plainSize -= length;
                     }
 
                     // Match has data that still needs to be processed?

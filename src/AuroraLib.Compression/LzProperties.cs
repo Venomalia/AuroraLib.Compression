@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO.Compression;
 
 namespace AuroraLib.Compression
 {
@@ -56,6 +57,34 @@ namespace AuroraLib.Compression
             MaxLength = (1 << lengthBits) + threshold;
             WindowsStart = WindowsSize - (1 << lengthBits) - threshold;
         }
+
+        public LzProperties SetLevel(CompressionLevel level = CompressionLevel.Optimal)
+#if NET6_0_OR_GREATER
+            => level switch
+            {
+                CompressionLevel.NoCompression => new LzProperties(0, 0, byte.MaxValue, WindowsStart),
+                CompressionLevel.Optimal => WindowsSize > 0x10000 ? new LzProperties(0x10000, MaxLength, MinLength, WindowsStart) : this,
+                CompressionLevel.Fastest => WindowsSize > 0x4000 ? new LzProperties(0x4000, MaxLength, MinLength, WindowsStart) : this,
+                CompressionLevel.SmallestSize => this,
+                _ => throw new NotImplementedException(),
+            };
+#else
+        {
+            switch (level)
+            {
+                case CompressionLevel.Optimal:
+                    return WindowsSize > 0x20000 ? new LzProperties(0x20000, MaxLength, MinLength, WindowsStart) : this;
+                case CompressionLevel.Fastest:
+                    return WindowsSize > 0x4000 ? new LzProperties(0x4000, MaxLength, MinLength, WindowsStart) : this;
+                case CompressionLevel.NoCompression:
+                    return new LzProperties(0, 0, byte.MaxValue, WindowsStart);
+                case (CompressionLevel)3:
+                    return this;
+                default:
+                    throw new NotImplementedException();
+            }
+        }
+#endif
 
         public int GetWindowsFlag()
             => WindowsSize - 1;

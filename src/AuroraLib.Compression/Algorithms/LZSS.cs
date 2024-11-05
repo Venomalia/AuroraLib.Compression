@@ -6,9 +6,9 @@ using AuroraLib.Core;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -72,9 +72,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.At(destinationStartPosition + 8, x => x.Write(destinationLength, Endian.Big));
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength, LzProperties lz, byte initialFill = 0x0)
         {
             long endPosition = destination.Position + decomLength;
@@ -82,7 +79,6 @@ namespace AuroraLib.Compression.Algorithms
             FlagReader flag = new FlagReader(source, Endian.Little);
             using (LzWindows buffer = new LzWindows(destination, lz.WindowsSize))
             {
-
                 buffer.UnsaveAsSpan().Fill(initialFill);
 
                 int f = lz.GetLengthBitsFlag();
@@ -113,13 +109,13 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+            => CompressHeaderless(source, destination, LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level), lz);
+
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, List<LzMatch> matches, LzProperties lz)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(lz, lookAhead, level);
+            int sourcePointer = 0x0, matchPointer = 0x0;
+
             using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
             {
                 int n = lz.GetWindowsFlag();
@@ -127,13 +123,16 @@ namespace AuroraLib.Compression.Algorithms
 
                 while (sourcePointer < source.Length)
                 {
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch lzMatch))
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                     {
+                        LzMatch lzMatch = matches[matchPointer++];
+
                         // Distance to offset
                         int offset = ((lz.WindowsStart + sourcePointer - lzMatch.Distance) & n);
                         flag.Buffer.Write((ushort)((offset & 0xFF) | (offset & 0xFF00) << lz.LengthBits | ((lzMatch.Length - lz.MinLength) & f) << 8));
                         flag.WriteBit(false);
                         sourcePointer += lzMatch.Length;
+
                     }
                     else
                     {
