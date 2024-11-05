@@ -39,8 +39,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (level == CompressionLevel.NoCompression)
                 return new List<LzMatch>();
 
-            lz = lz.SetLevel(level);
-            LZMatchFinder finder = new LZMatchFinder(lz.WindowsSize, lz.MaxLength, lz.MinLength, lookAhead);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead);
 
             fixed (byte* dataPtr = source)
                 return finder.FindMatches(dataPtr, source.Length, blockSize);
@@ -52,8 +51,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (level == CompressionLevel.NoCompression)
                 return new List<LzMatch>();
 
-            lz = lz.SetLevel(level);
-            LZMatchFinder finder = new LZMatchFinder(lz.WindowsSize, lz.MaxLength, lz.MinLength, lookAhead);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead);
             return finder.FindMatches(source);
         }
 

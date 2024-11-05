@@ -58,14 +58,14 @@ namespace AuroraLib.Compression
             WindowsStart = WindowsSize - (1 << lengthBits) - threshold;
         }
 
-        public LzProperties SetLevel(CompressionLevel level = CompressionLevel.Optimal)
+        public int GetWindowsLevel(CompressionLevel level)
 #if NET6_0_OR_GREATER
             => level switch
             {
-                CompressionLevel.NoCompression => new LzProperties(0, 0, byte.MaxValue, WindowsStart),
-                CompressionLevel.Optimal => WindowsSize > 0x10000 ? new LzProperties(0x10000, MaxLength, MinLength, WindowsStart) : this,
-                CompressionLevel.Fastest => WindowsSize > 0x4000 ? new LzProperties(0x4000, MaxLength, MinLength, WindowsStart) : this,
-                CompressionLevel.SmallestSize => this,
+                CompressionLevel.Optimal => WindowsSize > 0x8000 ? 0x8000 : WindowsSize,
+                CompressionLevel.Fastest => WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1,
+                CompressionLevel.SmallestSize => WindowsSize,
+                CompressionLevel.NoCompression => 0,
                 _ => throw new NotImplementedException(),
             };
 #else
@@ -73,13 +73,13 @@ namespace AuroraLib.Compression
             switch (level)
             {
                 case CompressionLevel.Optimal:
-                    return WindowsSize > 0x20000 ? new LzProperties(0x20000, MaxLength, MinLength, WindowsStart) : this;
+                    return WindowsSize > 0x10000 ? 0x10000 : WindowsSize;
                 case CompressionLevel.Fastest:
-                    return WindowsSize > 0x4000 ? new LzProperties(0x4000, MaxLength, MinLength, WindowsStart) : this;
-                case CompressionLevel.NoCompression:
-                    return new LzProperties(0, 0, byte.MaxValue, WindowsStart);
+                    return WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1;
                 case (CompressionLevel)3:
-                    return this;
+                    return WindowsSize;
+                case CompressionLevel.NoCompression:
+                    return 0;
                 default:
                     throw new NotImplementedException();
             }
