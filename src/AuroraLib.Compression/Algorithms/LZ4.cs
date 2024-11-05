@@ -4,6 +4,7 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -151,9 +152,6 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressBlockHeaderless(ReadOnlySpan<byte> source, LzWindows buffer)
         {
             int sourcePointer = 0;
@@ -180,34 +178,19 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            ReadOnlySpan<byte> sourceToCom = source.Slice(0, source.Length - 5);
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
-            while (sourcePointer < source.Length)
-            {
-                int plainLength = 0;
-                LzMatch match = default;
-                while (sourcePointer + plainLength < source.Length)
-                {
-                    // The last sequence contains at last 5 bytes of literals.
-                    if (sourcePointer + plainLength == sourceToCom.Length)
-                    {
-                        plainLength += 5;
-                        break;
-                    }
+            int sourcePointer = 0x0, plainLength, token;
+            // The last sequence contains at last 5 bytes of literals.
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
-                    if (dictionary.TryToFindMatch(sourceToCom, sourcePointer + plainLength, out match))
-                        break;
-                    plainLength++;
-                }
+            foreach (LzMatch match in matches)
+            {
+                plainLength = match.Offset - sourcePointer;
 
                 // Write token
-                int token = (plainLength > 0xF ? 0xF : plainLength) << 4;
+                token = (plainLength > 0xF ? 0xF : plainLength) << 4;
                 if (match.Length != 0)
                     token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
                 destination.WriteByte((byte)token);

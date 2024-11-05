@@ -1,159 +1,175 @@
-﻿using AuroraLib.Core.Extensions;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace AuroraLib.Compression.MatchFinder
 {
     /// <summary>
-    /// Provides functionality for finding matches in LZ compression algorithms.
+    /// A class for finding LZ compression matches within a given sequence.
     /// </summary>
-    public sealed class LzMatchFinder
+    public unsafe sealed class LZMatchFinder
     {
-        private readonly LzProperties lz;
-        private readonly bool lookAhead;
-        private readonly List<int>[] offsetLists;
+        // Properties related to the LZ compression parameters
+        private readonly int _minMatchLength;
+        private readonly int _maxMatchLength;
+        private readonly int _windowsSize;
+        private readonly bool _lookAhead;
 
-        public LzMatchFinder(LzProperties lzProperties, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true)
         {
-            // Build the offset list, so Lz compression will become significantly faster
-            offsetLists = new List<int>[0x100];
-            for (int i = 0; i < offsetLists.Length; i++)
-                offsetLists[i] = new List<int>(0x10);
-#if NET20_OR_GREATER || NETSTANDARD2_0
-            switch (level)
-            {
-                case CompressionLevel.Optimal:
-                    lz = lzProperties.WindowsSize > 0x10000 ? new LzProperties(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties;
-                    break;
-                case CompressionLevel.Fastest:
-                    lz = lzProperties.WindowsSize > 0x4000 ? new LzProperties(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties;
-                    break;
-                case CompressionLevel.NoCompression:
-                    lz = new LzProperties(0, 0, byte.MaxValue, lzProperties.WindowsStart);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
-#else
-            lz = level switch
-            {
-                CompressionLevel.NoCompression => new LzProperties(0, 0, byte.MaxValue, lzProperties.WindowsStart),
-                CompressionLevel.Optimal => lzProperties.WindowsSize > 0x10000 ? new LzProperties(0x10000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
-                CompressionLevel.Fastest => lzProperties.WindowsSize > 0x4000 ? new LzProperties(0x4000, lzProperties.MaxLength, lzProperties.MinLength, lzProperties.WindowsStart) : lzProperties,
-#if NET6_0_OR_GREATER
-                CompressionLevel.SmallestSize => lzProperties,
-#endif
-                _ => throw new NotImplementedException(),
-            };
-#endif
-            this.lookAhead = lookAhead;
+            _lookAhead = lookAhead;
+            _minMatchLength = minLength;
+            _maxMatchLength = maxLength;
+            _windowsSize = windowsSize;
         }
 
         /// <summary>
-        /// Attempts to find the best match in the provided source data at the given offset and returns the match information.
+        /// Finds compression matches within the specified source data.
         /// </summary>
-        /// <param name="source">The source data to search for matches.</param>
-        /// <param name="offset">The offset in the source data to start searching for a match.</param>
-        /// <param name="match">The best match found at the specified offset.</param>
-        /// <returns>True if a match is found; otherwise, false.</returns>
-        public bool TryToFindMatch(ReadOnlySpan<byte> source, int offset, out LzMatch match)
+        /// <param name="source">The byte data in which to find matches.</param>
+        /// <param name="lz">LZ compression properties, such as window size and match lengths.</param>
+        /// <param name="lookAhead">Whether to use look-ahead optimization.</param>
+        /// <param name="level">Compression level, affecting match sensitivity.</param>
+        /// <param name="blockSize">Size of each block to process in parallel.</param>
+        /// <returns>A list of matches found in the source data.</returns>
+        public static List<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
         {
-            FindMatch(source, offset, out match);
-            if (match.Length != 0)
+            if (level == CompressionLevel.NoCompression)
+                return new List<LzMatch>();
+
+            lz = lz.SetLevel(level);
+            LZMatchFinder finder = new LZMatchFinder(lz.WindowsSize, lz.MaxLength, lz.MinLength, lookAhead);
+
+            fixed (byte* dataPtr = source)
+                return finder.FindMatches(dataPtr, source.Length, blockSize);
+        }
+
+        /// <inheritdoc cref="FindMatchesParallel(ReadOnlySpan{byte}, LzProperties, bool, CompressionLevel, int)"/>
+        public static List<LzMatch> FindMatches(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        {
+            if (level == CompressionLevel.NoCompression)
+                return new List<LzMatch>();
+
+            lz = lz.SetLevel(level);
+            LZMatchFinder finder = new LZMatchFinder(lz.WindowsSize, lz.MaxLength, lz.MinLength, lookAhead);
+            return finder.FindMatches(source);
+        }
+
+        internal List<LzMatch> FindMatches(ReadOnlySpan<byte> data)
+        {
+            var matchResults = new List<LzMatch>();
+            fixed (byte* dataPtr = data)
+                FindMatchesInBlock(dataPtr, data.Length, 0, data.Length, matchResults);
+            return matchResults;
+        }
+
+        internal List<LzMatch> FindMatches(byte* data, int length, int blockSize)
+        {
+            int numberOfBlocks = Math.Max(1, (length + blockSize - 1) / blockSize);
+            List<LzMatch>[] blockMatches = new List<LzMatch>[numberOfBlocks];
+
+            // Process each block in parallel
+            ParallelLoopResult result = Parallel.For(0, numberOfBlocks, blockIndex =>
             {
-                AddEntryRange(source, offset, match.Length);
-                return true;
+                var lzMatches = new List<LzMatch>();
+                int start = blockIndex * blockSize;
+                int end = Math.Min(start + blockSize, length);
+                FindMatchesInBlock(data, length, start, end, lzMatches);
+                blockMatches[blockIndex] = lzMatches;
+            });
+
+            List<LzMatch> matchResults = blockMatches[0];
+            matchResults.Capacity = blockMatches.Sum(list => list.Count);
+
+            // Handle overlapping matches between blocks if necessary
+            if (_lookAhead || blockSize < _maxMatchLength)
+            {
+                LzMatch last = matchResults.LastOrDefault();
+                for (int i = 1; i < blockMatches.Length; i++)
+                {
+                    LzMatch first = blockMatches[i].FirstOrDefault();
+                    if (last.Offset + last.Length > first.Offset)
+                    {
+                        int diff = last.Offset + last.Length - first.Offset;
+                        if (last.Distance == first.Distance && last.Length + first.Length - diff < _maxMatchLength)
+                        {
+                            matchResults[matchResults.Count - 1] = new LzMatch(last.Offset, first.Distance, last.Length + first.Length - diff);
+                            blockMatches[i].RemoveAt(0);
+                        }
+                        else if (first.Length - diff >= _minMatchLength)
+                        {
+                            first = blockMatches[i][0] = new LzMatch(first.Offset + diff, first.Distance, first.Length - diff);
+                        }
+                        else
+                        {
+                            blockMatches[i].RemoveAt(0);
+                        }
+                    }
+                    else if (last.Distance == first.Distance && last.Length + first.Length < _maxMatchLength && last.Offset + last.Length == first.Offset)
+                    {
+                        matchResults[matchResults.Count - 1] = new LzMatch(last.Offset, first.Distance, last.Length + first.Length);
+                        blockMatches[i].RemoveAt(0);
+                    }
+                    matchResults.AddRange(blockMatches[i]);
+                    last = matchResults.Last();
+                }
             }
             else
             {
-                AddEntry(source, offset);
-                return false;
+                for (int i = 1; i < blockMatches.Length; i++)
+                    matchResults.AddRange(blockMatches[i]);
             }
+
+            return matchResults;
         }
 
-
-        /// <summary>
-        /// Finds the best match in the provided source data at the given offset and returns the match information.
-        /// </summary>
-        /// <param name="source">The source data to search for matches.</param>
-        /// <param name="offset">The offset in the source data to start searching for a match.</param>
-        /// <param name="match">The best match found at the specified offset.</param>
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-        public void FindMatch(ReadOnlySpan<byte> source, int offset, out LzMatch match)
+        internal void FindMatchesInBlock(byte* dataPtr, int length, int start, int end, List<LzMatch> lzMatches)
         {
-            match = default;
+            if (start == 0)
+                start = _lookAhead ? 1 : _minMatchLength;
 
-            // Check if there is enough data to find matches
-            if (offset == 0 || source.Length - offset < lz.MinLength)
+            for (int i = start; i < end; i++)
             {
-                return;
-            }
+                int matchStart = Math.Max(0, i - _windowsSize);
+                int maxBestLength = _lookAhead
+                    ? Math.Min(_maxMatchLength, length - i)
+                    : Math.Min(Math.Min(_maxMatchLength, end - i), i);
 
-            // Remove old entries for this index
-            RemoveOldEntries(source[offset], offset);
+                int bestLength = 0, bestDistance = 0;
 
-            // Start finding matches
-            ReadOnlySpan<byte> dataToMatch = source.Slice(offset, Math.Min(lz.MaxLength, source.Length - offset));
-            List<int> offsetList = offsetLists[source[offset]];
-            for (int i = offsetList.Count - 1; i >= 0; i--)
-            {
-                int possibleMatchOffset = offsetList[i];
-                int possibleMatchLength = lookAhead ? dataToMatch.Length : Math.Min(dataToMatch.Length, offset - possibleMatchOffset);
-                ReadOnlySpan<byte> possibleMatch = source.Slice(possibleMatchOffset, possibleMatchLength);
-
-                // Checks the maximum length of the match.
-                int matchLength = SpanEx.MaxMatch(dataToMatch, possibleMatch);
-
-                // Is that match good and better than what we have?
-                if (matchLength >= lz.MinLength && matchLength > match.Length)
+                for (int j = i - 1; j >= matchStart; j--)
                 {
-                    match = new LzMatch(offset - possibleMatchOffset, matchLength);
-                    // Found the best possible match?
-                    if (matchLength == dataToMatch.Length) break;
+                    // Use ushort comparison for the first two bytes for faster matching
+                    if (*(ushort*)(dataPtr + i) == *(ushort*)(dataPtr + j))
+                    {
+                        int currentLength = 2;
+                        int currentBestLength = _lookAhead ? maxBestLength : Math.Min(maxBestLength, i - j);
+                        // Check additional bytes for a match
+                        while (currentLength < currentBestLength && dataPtr[i + currentLength] == dataPtr[j + currentLength])
+                            currentLength++;
+
+                        // Update if a better match is found
+                        if (currentLength > bestLength)
+                        {
+                            bestLength = currentLength;
+                            bestDistance = i - j;
+
+                            // Stop if the maximum match length is reached
+                            if (bestLength == maxBestLength)
+                                break;
+                        }
+                    }
+                }
+
+                // If a match is found, add it to the list
+                if (bestLength >= _minMatchLength)
+                {
+                    lzMatches.Add(new LzMatch(i, bestDistance, bestLength));
+                    i += bestLength - 1;
                 }
             }
-        }
-
-
-        private void RemoveOldEntries(byte index, int offset)
-        {
-            int windowStart = offset - lz.WindowsSize;
-            if (windowStart > 0)
-            {
-                List<int> offsetList = offsetLists[index];
-
-                int i = 0;
-                for (; i < offsetList.Count; i++)
-                {
-                    if (offsetList[i] >= windowStart)
-                        break;
-                }
-                offsetList.RemoveRange(0, i);
-            }
-        }
-
-        /// <summary>
-        /// Adds a new entry to the offset list for a specific source data index.
-        /// </summary>
-        /// <param name="source">The source data containing the entry.</param>
-        /// <param name="offset">The offset value to be added to the offset list.</param>
-        public void AddEntry(ReadOnlySpan<byte> source, int offset)
-            => offsetLists[source[offset]].Add(offset);
-
-        /// <summary>
-        /// Adds a range of entries to the offset list for a specific source data index.
-        /// </summary>
-        /// <param name="source">The source data containing the entries.</param>
-        /// <param name="offset">The starting offset for the range of entries.</param>
-        /// <param name="length">The number of entries to add to the offset list.</param>
-        public void AddEntryRange(ReadOnlySpan<byte> source, int offset, int length)
-        {
-            for (int i = 0; i < length; i++)
-                AddEntry(source, offset + i);
         }
     }
 }

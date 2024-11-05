@@ -4,9 +4,9 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -55,9 +55,7 @@ namespace AuroraLib.Compression.Algorithms
                 DecompressHeaderless(source, destination, detected == Endian.Big ? Endian.Little : Endian.Big);
             }
         }
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
+
         public static void DecompressHeaderless(Stream source, Stream destination, Endian order)
         {
             using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
@@ -105,29 +103,29 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int position = 0;
+            int sourcePointer = 0, matchPointer = 0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
 
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
             using (FlagWriter flag = new FlagWriter(destination, order))
             {
-                while (position < source.Length)
+                while (sourcePointer < source.Length)
                 {
-                    dictionary.FindMatch(source, position, out LzMatch match);
+                    LzMatch match;
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
+                        match = matches[matchPointer++];
+                    else
+                        match = default;
+
                     if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
                     {
-                        dictionary.AddEntry(source, position);
-                        flag.Buffer.WriteByte(source[position++]);
+                        flag.Buffer.WriteByte(source[sourcePointer++]);
                         flag.WriteBit(true);
                     }
                     else
                     {
-                        dictionary.AddEntryRange(source, position, match.Length);
-                        position += match.Length;
+                        sourcePointer += match.Length;
                         int distance = match.Distance * -1;
                         int length = match.Length;
 

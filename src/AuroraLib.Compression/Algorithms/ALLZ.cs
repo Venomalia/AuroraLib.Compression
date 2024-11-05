@@ -6,9 +6,9 @@ using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -61,9 +61,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, flags, true, level);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
         {
             int length, distance, destinationPointer = 0;
@@ -103,29 +100,23 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatch match = default;
+            int sourcePointer = 0x0, plainSize = 0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
             using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
             {
-                while (sourcePointer < source.Length)
+                foreach (LzMatch match in matches)
                 {
-                    int uncompressedLength = 0;
-                    while (sourcePointer + uncompressedLength < source.Length && !dictionary.TryToFindMatch(source, sourcePointer + uncompressedLength, out match))
-                        uncompressedLength++;
-
-                    if (uncompressedLength > 0)
+                    plainSize = match.Offset - sourcePointer;
+                    if (plainSize > 0)
                     {
                         flag.WriteBit(false);
-                        WriteALFlag(flags[3], uncompressedLength - 1);
-                        flag.Buffer.Write(source.Slice(sourcePointer, uncompressedLength));
-                        sourcePointer += uncompressedLength;
+                        WriteALFlag(flags[3], plainSize - 1);
+                        flag.Buffer.Write(source.Slice(sourcePointer, plainSize));
+                        sourcePointer += plainSize;
                         flag.FlushIfNecessary();
                     }
                     else

@@ -6,9 +6,9 @@ using AuroraLib.Core;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -55,9 +55,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -91,25 +88,25 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            int sourcePointer = 0x0, matchPointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+
             using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
             {
                 while (sourcePointer < source.Length)
                 {
-                    // Search for a match
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                     {
+                        LzMatch match = matches[matchPointer++];
+
                         int delta = 0x1000 - match.Distance;
                         flag.Buffer.WriteByte((byte)delta);
                         flag.Buffer.WriteByte((byte)((match.Length - 3) | (delta >> 8 << 4)));
                         sourcePointer += match.Length;
                         flag.WriteBit(true);
+
                     }
                     else
                     {

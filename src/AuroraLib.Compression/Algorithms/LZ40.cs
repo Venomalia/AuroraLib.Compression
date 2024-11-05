@@ -2,11 +2,12 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -55,9 +56,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -110,56 +108,42 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0, flag = 0, flagbits = 0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
-            using (MemoryPoolStream buffer = new MemoryPoolStream())
+            int sourcePointer = 0x0, matchPointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+
+            using (FlagWriter flag = new FlagWriter(destination, Endian.Big, i => destination.WriteByte((byte)-i)))
             {
                 while (sourcePointer < source.Length)
                 {
-                    if (dictionary.TryToFindMatch(source, sourcePointer, out LzMatch match))
+                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                     {
+                        LzMatch match = matches[matchPointer++];
+
                         if (match.Length < 16) // match.Length 3-15
                         {
-                            buffer.Write((ushort)(match.Distance << 4 | match.Length));
+                            flag.Buffer.Write((ushort)(match.Distance << 4 | match.Length));
                         }
                         else if (match.Length < 272) // match.Length 16-271
                         {
-                            buffer.Write((ushort)(match.Distance << 4));
-                            buffer.Write((byte)(match.Length - 16));
+                            flag.Buffer.Write((ushort)(match.Distance << 4));
+                            flag.Buffer.Write((byte)(match.Length - 16));
                         }
                         else // match.Length 272-65808
                         {
-                            buffer.Write((ushort)(match.Distance << 4 | 1));
-                            buffer.Write((ushort)(match.Length - 272));
+                            flag.Buffer.Write((ushort)(match.Distance << 4 | 1));
+                            flag.Buffer.Write((ushort)(match.Length - 272));
                         }
 
                         sourcePointer += match.Length;
-                        flag |= (0x80 >> flagbits);
+                        flag.WriteBit(true);
                     }
                     else
                     {
-                        buffer.WriteByte(source[sourcePointer++]);
+                        flag.Buffer.WriteByte(source[sourcePointer++]);
+                        flag.WriteBit(false);
                     }
-
-                    flagbits++;
-                    if (flagbits == 8)
-                    {
-                        destination.WriteByte((byte)-flag);
-                        buffer.WriteTo(destination);
-                        buffer.SetLength(0);
-                        flag = flagbits = 0;
-                    }
-                }
-
-                if (flagbits != 0)
-                {
-                    destination.WriteByte((byte)-flag);
-                    buffer.WriteTo(destination);
                 }
             }
         }

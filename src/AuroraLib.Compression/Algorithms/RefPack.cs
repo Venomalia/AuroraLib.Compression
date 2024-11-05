@@ -5,6 +5,7 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -61,7 +62,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.SetLength(endPosition);
             using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-
 
                 while (source.Position < source.Length)
                 {
@@ -122,25 +122,18 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            int sourcePointer = 0x0;
-            LzMatchFinder dictionary = new LzMatchFinder(_lz, lookAhead, level);
+            int sourcePointer = 0x0, plainSize = 0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
-            int plainSize = 0;
-            while (sourcePointer < source.Length)
+            foreach (LzMatch match in matches)
             {
-                LzMatch match = default;
-                while (sourcePointer + plainSize < source.Length)
-                {
-                    dictionary.FindMatch(source, sourcePointer + plainSize, out match);
-                    if (match.Length != 0 && (match.Distance <= 0x400 || match.Length >= 5 || (match.Length >= 4 && match.Distance <= 0x4000))) break;
-                    dictionary.AddEntry(source, sourcePointer + plainSize);
-                    plainSize++;
-                }
+                if ((match.Distance > 0x4000 && match.Length < 5) || (match.Distance > 0x400 && match.Length < 4))
+                    continue;
+
+                plainSize = match.Offset - sourcePointer;
 
                 while (plainSize > 3)
                 {
@@ -172,14 +165,9 @@ namespace AuroraLib.Compression.Algorithms
                         destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
                         destination.Write((byte)(match.Length - 5)); // LLLLLLLL
                     }
-                    dictionary.AddEntryRange(source, sourcePointer + plainSize, match.Length);
                     destination.Write(source.Slice(sourcePointer, plainSize));
                     sourcePointer += plainSize + match.Length;
                     plainSize = 0;
-                }
-                else
-                {
-                    break;
                 }
             }
             destination.Write((byte)(0xFC | plainSize)); // 111111PP

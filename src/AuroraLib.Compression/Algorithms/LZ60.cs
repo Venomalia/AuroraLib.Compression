@@ -13,8 +13,6 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x60;
 
-        private static readonly LzProperties _lz = new LzProperties(0x1000, 0x4000, 3);
-
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
