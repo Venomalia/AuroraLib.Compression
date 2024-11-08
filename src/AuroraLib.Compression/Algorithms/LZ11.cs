@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -60,9 +59,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -116,11 +112,9 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level));
-
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, List<LzMatch> matches)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
+            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
 
             using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
             {

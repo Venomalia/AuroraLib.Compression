@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -57,9 +56,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
