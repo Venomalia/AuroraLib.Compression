@@ -1,4 +1,4 @@
-﻿using AuroraLib.Core;
+using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -30,7 +30,7 @@ namespace AuroraLib.Compression.IO
             WriteFlag = writeFlag;
         }
 
-        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little) : this(destination, bitOrder, null, bufferCapacity, flagSize)
+        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little) : this(destination, bitOrder, null!, bufferCapacity, flagSize)
         {
             switch (flagSize)
             {

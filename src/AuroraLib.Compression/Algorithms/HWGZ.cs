@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
         {
-            if (stream == null || stream.Length <= 128)
+            if (stream.Length <= 128)
                 return false;
 
             uint chunkSize = stream.ReadUInt32();

@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Huffman;
+using AuroraLib.Compression.Huffman;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
@@ -121,8 +121,8 @@ namespace AuroraLib.Compression.Algorithms
             destination.WriteByte((byte)labelList[0].Value); // Write Tree Root
             foreach (var node in labelList) // Write Tree
             {
-                destination.WriteByte((byte)node.Children.Left.Value);
-                destination.WriteByte((byte)node.Children.Right.Value);
+                destination.WriteByte((byte)node.Children.Left!.Value);
+                destination.WriteByte((byte)node.Children.Right!.Value);
             }
 
             CompressHeaderless(source, destination, tree, bitDepth, order);
@@ -170,7 +170,7 @@ namespace AuroraLib.Compression.Algorithms
                 labelList.Add(node);
 
                 // Loop through all children that aren't leaves
-                if (node.Children.Left.IsLeaf)
+                if (node.Children.Left!.IsLeaf)
                 {
                     node.Value |= 0x80;
                 }
@@ -179,7 +179,7 @@ namespace AuroraLib.Compression.Algorithms
                     node.Children.Left.Value = labelList.Count;
                     frequencies.Add(node.Children.Left);
                 }
-                if (node.Children.Right.IsLeaf)
+                if (node.Children.Right!.IsLeaf)
                 {
                     node.Value |= 0x40;
                 }

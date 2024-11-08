@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AuroraLib.Compression.Huffman
@@ -7,7 +7,7 @@ namespace AuroraLib.Compression.Huffman
     /// Represents a node in a Huffman tree, used in the Huffman algorithm.
     /// </summary>
     /// <typeparam name="T">The type of the value contained in the Huffman node.</typeparam>
-    public sealed class HuffmanNode<T> : IComparable<HuffmanNode<T>>
+    public sealed class HuffmanNode<T> : IComparable<HuffmanNode<T>> where T : notnull
     {
         /// <summary>
         /// The value stored in the node.
@@ -22,7 +22,7 @@ namespace AuroraLib.Compression.Huffman
         /// <summary>
         /// The left and right children of the node.
         /// </summary>
-        public (HuffmanNode<T> Left, HuffmanNode<T> Right) Children { get; set; }
+        public (HuffmanNode<T>? Left, HuffmanNode<T>? Right) Children { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether the node is a leaf node.
@@ -56,13 +56,13 @@ namespace AuroraLib.Compression.Huffman
             }
             else
             {
-                Children.Left.GetCodeDictionary(path + '0', result);
-                Children.Right.GetCodeDictionary(path + '1', result);
+                Children.Left!.GetCodeDictionary(path + '0', result);
+                Children.Right!.GetCodeDictionary(path + '1', result);
             }
         }
 
         /// <inheritdoc/>
-        public int CompareTo(HuffmanNode<T> other)
+        public int CompareTo(HuffmanNode<T>? other)
             => other == null ? 1 : Frequency.CompareTo(other.Frequency);
     }
 }

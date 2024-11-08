@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFrameworks>net8.0;net6.0;netstandard2.0;net472;</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>AuroraLib.Compression</Title>
     <Version>1.3.0.1</Version>
@@ -18,6 +19,11 @@
 like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NETFrameworks>|netstandard2.0|net481|net48|net472|NET471|NET47|NET462|NET461|</NETFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
+    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
