@@ -5,7 +5,7 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>AuroraLib.Compression</Title>
-	<Version>1.3.0.1</Version>
+    <Version>1.3.0.1</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
@@ -31,7 +31,7 @@ like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
     </None>
   </ItemGroup>
 
-	<ItemGroup>
+  <ItemGroup>
     <PackageReference Include="AuroraLib.Core" Version="1.4.2.4" />
   </ItemGroup>
 
