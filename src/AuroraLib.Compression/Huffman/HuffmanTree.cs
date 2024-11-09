@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace AuroraLib.Compression.Huffman
@@ -20,7 +20,7 @@ namespace AuroraLib.Compression.Huffman
         /// <typeparam name="T">The type of the elements in the input span, which will be treated as symbols in the Huffman tree.</typeparam>
         /// <param name="input">A read-only span of elements representing the data to be compressed using Huffman coding.</param>
         /// <returns>The root node of the generated Huffman tree.</returns>
-        public static HuffmanNode<T> Build<T>(ReadOnlySpan<T> input)
+        public static HuffmanNode<T> Build<T>(ReadOnlySpan<T> input) where T : notnull
             => CreateTree(GetFrequencies(input));
 
         private static List<HuffmanNode<int>> GetFrequencies(ReadOnlySpan<byte> input, int bitDepth)
@@ -54,7 +54,7 @@ namespace AuroraLib.Compression.Huffman
             return tree;
         }
 
-        private static List<HuffmanNode<T>> GetFrequencies<T>(ReadOnlySpan<T> input)
+        private static List<HuffmanNode<T>> GetFrequencies<T>(ReadOnlySpan<T> input) where T : notnull
         {
             // Iterate through the input span, counting the frequency of each unique symbol.
             Dictionary<T, uint> frequency = new Dictionary<T, uint>();
@@ -82,7 +82,7 @@ namespace AuroraLib.Compression.Huffman
         /// <typeparam name="T">The type of the value contained in the Huffman node.</typeparam>
         /// <param name="frequencies">A collection of Huffman nodes.</param>
         /// <returns>The root node of the resulting Huffman tree.</returns>
-        public static HuffmanNode<T> CreateTree<T>(IEnumerable<HuffmanNode<T>> frequencies)
+        public static HuffmanNode<T> CreateTree<T>(IEnumerable<HuffmanNode<T>> frequencies) where T : notnull
         {
             var frequenciesList = new List<HuffmanNode<T>>(frequencies);
 

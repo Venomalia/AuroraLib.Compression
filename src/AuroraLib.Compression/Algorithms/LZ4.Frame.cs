@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Interfaces;
@@ -23,7 +23,7 @@ namespace AuroraLib.Compression.Algorithms
         /// The hash algorithm to be used for the <see cref="FrameTypes.LZ4FrameHeader"/>, normally xxHash-32.
         /// Is required to write and verify checksums in the <see cref="FrameTypes.LZ4FrameHeader"/> format.
         /// </summary>
-        public static HashCalculator HashAlgorithm;
+        public static HashCalculator? HashAlgorithm;
         public delegate uint HashCalculator(ReadOnlySpan<byte> bytes);
 
         private static void CheckChecksum(Stream source, Span<byte> buffer)
@@ -241,7 +241,7 @@ namespace AuroraLib.Compression.Algorithms
                 if (Flags.HasFlag(FrameDescriptorFlags.HasDictID))
                     BinaryPrimitives.WriteUInt32LittleEndian(bytes.Slice(bytes.Length - 5), DictionaryID);
 
-                bytes[bytes.Length - 1] = (byte)((HashAlgorithm.Invoke(bytes.Slice(0, bytes.Length - 1)) >> 8) & 0xFF);
+                bytes[bytes.Length - 1] = (byte)((HashAlgorithm!.Invoke(bytes.Slice(0, bytes.Length - 1)) >> 8) & 0xFF);
             }
 
             private BlockMaxSizes GetBlockMaxSize(byte BD)

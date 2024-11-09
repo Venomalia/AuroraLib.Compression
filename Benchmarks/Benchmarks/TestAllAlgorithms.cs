@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Algorithms;
+using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.IO;
 using BenchmarkDotNet.Attributes;
@@ -9,13 +9,13 @@ namespace Benchmarks.Benchmarks
     public class TestAllAlgorithms
     {
         public const string TestFile = "Test.bmp";
-        public MemoryPoolStream TestRawData;
-        public MemoryPoolStream TestComData;
+        public MemoryPoolStream TestRawData = (MemoryPoolStream)Stream.Null;
+        public MemoryPoolStream TestComData = (MemoryPoolStream)Stream.Null;
 
         // Test all unique algorithm.
         [Params(typeof(ALLZ), typeof(CLZ0), typeof(CNS), typeof(CNX2), typeof(LZ00), typeof(LZ02), typeof(LZ10), typeof(LZ11), typeof(LZ40), typeof(LZO), typeof(LZShrek), typeof(LZSS), typeof(MIO0), typeof(PRS), typeof(RefPack), typeof(RLE30), typeof(Yay0), typeof(Yaz0), typeof(LZ4), typeof(HWGZ), typeof(HUF20))]
-        public Type Algorithm;
-        public ICompressionAlgorithm Instance;
+        public Type Algorithm = null!;
+        public ICompressionAlgorithm Instance = null!;
 
         [Params(1)]
         public int MB;
@@ -23,7 +23,7 @@ namespace Benchmarks.Benchmarks
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Instance = (ICompressionAlgorithm)Activator.CreateInstance(Algorithm);
+            Instance = (ICompressionAlgorithm)Activator.CreateInstance(Algorithm)!;
             using FileStream input = new(TestFile, FileMode.Open, FileAccess.Read);
             TestRawData = new MemoryPoolStream(input, 1024 * 1024); //read 1mb
             TestComData = Instance.Compress(TestRawData);

@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Algorithms;
+using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.IO;
 using BenchmarkDotNet.Attributes;
@@ -9,9 +9,9 @@ namespace Benchmarks.Benchmarks
     public class TestAlgorithm<T> where T : ICompressionAlgorithm, new()
     {
         public const string TestFile = "Test.bmp";
-        public MemoryPoolStream TestRawData;
-        public MemoryPoolStream TestComData;
-        public T Instance;
+        public MemoryPoolStream TestRawData = (MemoryPoolStream)Stream.Null;
+        public MemoryPoolStream TestComData = (MemoryPoolStream)Stream.Null;
+        public T Instance = new();
 
         [Params(1, 10)]
         public int MB;
@@ -19,7 +19,6 @@ namespace Benchmarks.Benchmarks
         [GlobalSetup]
         public void GlobalSetup()
         {
-            Instance = new T();
             using FileStream input = new(TestFile, FileMode.Open, FileAccess.Read);
             TestRawData = new MemoryPoolStream(input, 1024 * 1024); //read 1mb
             TestComData = Instance.Compress(TestRawData);
