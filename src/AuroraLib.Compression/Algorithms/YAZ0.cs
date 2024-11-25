@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
 using AuroraLib.Core.Interfaces;
@@ -32,7 +32,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x10 < stream.Length && stream.Match(_identifier);
+            => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)

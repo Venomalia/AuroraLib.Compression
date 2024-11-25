@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -26,8 +26,10 @@ namespace AuroraLib.Compression.Algorithms
             if (stream.Length < 0x12)
                 return false;
 
+            long pos = stream.Position;
             uint compressedSize = stream.ReadUInt32();
             uint decompressedSize = stream.ReadUInt32();
+            stream.Position = pos;
             return (compressedSize == stream.Length - 8 || compressedSize == stream.Length) && decompressedSize != compressedSize && decompressedSize >= 0x20;
         }
 

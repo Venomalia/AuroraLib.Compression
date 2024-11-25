@@ -31,6 +31,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             if (stream.Length <= 128)
                 return false;
+            long pos = stream.Position;
 
             uint chunkSize = stream.ReadUInt32();
             uint chunkCount = stream.ReadUInt32();
@@ -43,7 +44,9 @@ namespace AuroraLib.Compression.Algorithms
                 decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
             }
             stream.Align(4 * chunkCount, SeekOrigin.Current, 128);
-            return decompressedSize != 0 && chunkCount == (decompressedSize + chunkSize - 1) / chunkSize && stream.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
+            bool result = decompressedSize != 0 && chunkCount == (decompressedSize + chunkSize - 1) / chunkSize && stream.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
+            stream.Position = pos;
+            return result;
         }
 
         /// <inheritdoc/>

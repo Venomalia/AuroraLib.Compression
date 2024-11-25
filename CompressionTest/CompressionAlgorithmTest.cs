@@ -43,7 +43,7 @@ namespace CompressionTest
             using (FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read))
             using (MemoryPoolStream compressData = algorithm.Compress(testData, CompressionLevel.NoCompression))
 
-                Assert.IsTrue(algorithm.IsMatch(compressData, $".{algorithm.GetType().Name}".AsSpan()));
+                Assert.IsTrue(algorithm.IsMatch(compressData, $".{algorithm.GetType().Name}".AsSpan()) && compressData.Position == 0);
         }
 
         [TestMethod]

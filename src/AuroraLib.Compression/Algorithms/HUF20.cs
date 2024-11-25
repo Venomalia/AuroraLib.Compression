@@ -34,7 +34,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && Enum.IsDefined(typeof(CompressionType), stream.Read<CompressionType>()) && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0) && stream.ReadByte() != 0 && stream.ReadByte() != 0;
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()) && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadByte() != 0 && s.ReadByte() != 0);
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
