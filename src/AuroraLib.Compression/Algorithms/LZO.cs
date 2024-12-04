@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.IO;
@@ -28,7 +28,7 @@ namespace AuroraLib.Compression.Algorithms
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
         {
             // Has no header, recognition is inaccurate!
-            int flag = stream.ReadByte();
+            int flag = stream.PeekByte();
             return (flag > 11 && flag < 0x20) || (flag != -1 && flag < 0x10);
         }
 

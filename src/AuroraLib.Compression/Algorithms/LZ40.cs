@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && stream.ReadByte() == Identifier && (stream.ReadUInt24() != 0 || stream.ReadUInt32() != 0);
+            => stream.Peek(s => s.Position + 0x8 < s.Length && s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0));
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

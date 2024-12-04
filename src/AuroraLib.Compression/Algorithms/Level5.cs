@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
@@ -30,7 +30,9 @@ namespace AuroraLib.Compression.Algorithms
         {
             uint typeAndSize = stream.ReadUInt32();
             int decompressedSize = (int)(typeAndSize >> 3);
-            return (stream.ReadByte() == 0x78 & typeAndSize != 0) || (Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0 && decompressedSize <= 0x1FFFFF && (typeAndSize & 0x7) == 0 ? decompressedSize + 4 == stream.Length : true);
+            bool isZLib = stream.ReadByte() == 0x78 && typeAndSize != 0;
+            stream.Position -= 5;
+            return isZLib || !Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) || decompressedSize == 0 || decompressedSize > 0x1FFFFF || (typeAndSize & 0x7) != 0 || decompressedSize + 4 == stream.Length;
         }
 
         /// <inheritdoc/>

@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
@@ -28,9 +28,9 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
 #if NET5_0_OR_GREATER
-            => stream.Position + 0x8 < stream.Length && Enum.IsDefined(stream.Read<DataType>()) && stream.Read<UInt24>(Endian.Big) != 0;
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0);
 #else
-            => stream.Position + 0x8 < stream.Length && Enum.IsDefined(typeof(DataType), stream.Read<DataType>()) && stream.Read<UInt24>(Endian.Big) != 0;
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(DataType), s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0);
 #endif
 
         private enum DataType : byte
