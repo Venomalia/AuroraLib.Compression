@@ -1,6 +1,8 @@
 using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -13,12 +15,17 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo LZ77 extension Header from LZ10 algorithm
     /// </summary>
-    public sealed class LZ77 : LZ10, IHasIdentifier
+    public sealed class LZ77 : LZ10, ICompressionAlgorithm, IHasIdentifier
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32("LZ77".AsSpan());
+
+        /// <inheritdoc/>
+        public override IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ77>("Nintendo LZ77", new MediaType(MIMEType.Application, "x-nintendo-lz10+lz77"), string.Empty, _identifier);
 
         /// <summary>
         /// Specifies the type of compression used.
@@ -31,11 +38,11 @@ namespace AuroraLib.Compression.Algorithms
         public UInt24 ChunkSize = 0x1000;
 
         /// <inheritdoc/>
-        public override bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public override bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()));
 
         /// <inheritdoc/>

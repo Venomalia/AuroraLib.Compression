@@ -5,7 +5,8 @@ using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Extensions;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -24,6 +25,11 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32("Yay0".AsSpan());
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<Yay0>("Nintendo Yay0", new MediaType(MIMEType.Application, "x-nintendo-yay0"), string.Empty, _identifier);
+
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 0xff + 0x12, 3);
 
         /// <inheritdoc/>
@@ -33,11 +39,11 @@ namespace AuroraLib.Compression.Algorithms
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>

@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -12,16 +13,21 @@ namespace AuroraLib.Compression.Algorithms
     public sealed class LZSega : ICompressionAlgorithm, ILzSettings
     {
         /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZSega>("LZ Sega", new MediaType(MIMEType.Application, "x-lzss+sega"), ".lz");
+
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = LZSS.DefaultProperties;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
         {
             if (stream.Length < 0x12)
                 return false;

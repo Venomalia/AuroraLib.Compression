@@ -2,6 +2,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -15,6 +16,11 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class PRS : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat
     {
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<PRS>("SEGA PRS", new MediaType(MIMEType.Application, "x-sega-prs"), ".prs");
+
         private static readonly LzProperties _lz = new LzProperties(0x1FFF, 0x100, 2);
 
         /// <inheritdoc/>
@@ -24,11 +30,11 @@ namespace AuroraLib.Compression.Algorithms
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && GetByteOrder(stream).HasValue;
 
         /// <inheritdoc/>

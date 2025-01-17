@@ -8,26 +8,25 @@ using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
-
     /// <summary>
-    /// FCMP extension header based on LZSS algorithm used in Muramasa The Demon Blade.
+    /// <see cref="LZ4"/> initial versions of “LZ4Demo”, known as LZ4Legacy.
     /// </summary>
-    public sealed class FCMP : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZ4Legacy : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
-        private static readonly Identifier32 _identifier = new Identifier32("FCMP".AsSpan());
+        private static readonly Identifier32 _identifier = new Identifier32((uint)LZ4.FrameTypes.Legacy);
 
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<FCMP>("FCMP", new MediaType(MIMEType.Application, "x-lzss+fcmp"), string.Empty, _identifier);
+        private static readonly IFormatInfo _info = new FormatInfo<LZ4Legacy>("LZ4 Legacy Compression", new MediaType(MIMEType.Application, "x-lz4demo"), ".lz4", _identifier);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz = LZSS.Lzss0Properties;
+        private LZ4 algorithmlZ4 = new LZ4();
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -39,21 +38,13 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
-        {
-            source.MatchThrow(_identifier);
-            int destinationLength = source.ReadInt32();
-            int unk = source.ReadInt32(); //always 305397760?
-            LZSS.DecompressHeaderless(source, destination, (int)destinationLength, _lz);
-        }
+            => algorithmlZ4.Decompress(source, destination);
 
-        /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            // Write out the header
-            destination.Write(_identifier);
-            destination.Write(source.Length); // Decompressed length
-            destination.Write(305397760);
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, level);
+            algorithmlZ4.FrameType = LZ4.FrameTypes.Legacy;
+            algorithmlZ4.LookAhead = LookAhead;
+            algorithmlZ4.Compress(source, destination, level);
         }
     }
 }

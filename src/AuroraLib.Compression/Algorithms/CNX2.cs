@@ -3,7 +3,8 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,11 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'C', (byte)'N', (byte)'X', 0x2);
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<CNX2>("CNX2", new MediaType(MIMEType.Application, "x-cnx2"), string.Empty, _identifier);
+
         private static readonly LzProperties _lz = new LzProperties(0x800, 0x1F + 4, 4);
 
         /// <summary>
@@ -33,11 +39,11 @@ namespace AuroraLib.Compression.Algorithms
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>

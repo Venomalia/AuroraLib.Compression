@@ -1,6 +1,7 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -19,11 +20,16 @@ namespace AuroraLib.Compression.Algorithms
         private const int MaxLength = 0x7F;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<RLHudson>("Hudson RLE", new MediaType(MIMEType.Application, "x-hudson-rle"), string.Empty);
+
+        /// <inheritdoc/>
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.ReadInt32(Endian.Big) != 0 && s.ReadInt32(Endian.Big) == Identifier);
 
         /// <inheritdoc/>

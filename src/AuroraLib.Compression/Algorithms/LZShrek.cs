@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -16,17 +17,22 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class LZShrek : ICompressionAlgorithm, ILzSettings
     {
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZShrek>("LZ Shrek", new MediaType(MIMEType.Application, "x-lz-shrek"), string.Empty);
+
         private static readonly LzProperties _lz = new LzProperties(0x1000, 262, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Read<int>() == 0x10 && s.Read<int>() != 0 && s.Read<int>() == s.Length - 0x10 && s.Read<int>() == 0);
 
         /// <inheritdoc/>

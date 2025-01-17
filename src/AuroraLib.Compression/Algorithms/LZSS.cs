@@ -3,7 +3,8 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -17,11 +18,15 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public class LZSS : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
-
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32("LZSS".AsSpan());
+
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZSS>("Lempel–Ziv–Storer–Szymanski", new MediaType(MIMEType.Application, "x-lzss"), string.Empty, _identifier);
 
         protected readonly LzProperties LZ;
 
@@ -38,11 +43,11 @@ namespace AuroraLib.Compression.Algorithms
         public static LzProperties Lzss0Properties => new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
 
         /// <inheritdoc/>
-        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
@@ -79,7 +84,7 @@ namespace AuroraLib.Compression.Algorithms
             FlagReader flag = new FlagReader(source, Endian.Little);
             using (LzWindows buffer = new LzWindows(destination, lz.WindowsSize))
             {
-                buffer.UnsaveAsSpan().Fill(initialFill);
+                buffer.UnsafeAsSpan().Fill(initialFill);
 
                 int f = lz.GetLengthBitsFlag();
 

@@ -1,6 +1,6 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -19,16 +19,19 @@ namespace AuroraLib.Compression.Algorithms
         private static readonly Identifier32 _identifier = new Identifier32("SSZL".AsSpan());
 
         /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
+        public IFormatInfo Info => _info;
 
-        private static readonly LzProperties _lz = new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
+        private static readonly IFormatInfo _info = new FormatInfo<SSZL>("Level5 lzss", new MediaType(MIMEType.Application, "x-lzss+level5"), string.Empty, _identifier);
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool LookAhead { get; set; } = true;
+
+        /// <inheritdoc/>
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier) && s.ReadUInt32() == 0);
 
         /// <inheritdoc/>
@@ -41,7 +44,7 @@ namespace AuroraLib.Compression.Algorithms
             uint compressedSize = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
 
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, LZSS.Lzss0Properties);
             source.Seek(startpos + compressedSize + 0x10, SeekOrigin.Begin);
         }
 
@@ -55,7 +58,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0); // Placeholder
             destination.Write(source.Length);
 
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, level);
+            LZSS.CompressHeaderless(source, destination, LZSS.Lzss0Properties, LookAhead, level);
             destination.At(startpos + 0x8, s => s.Write((uint)(destination.Length - startpos - 0x10)));
         }
     }

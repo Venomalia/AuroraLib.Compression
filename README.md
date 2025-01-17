@@ -1,9 +1,9 @@
 # AuroraLib.Compression
 
-Provides support for a wide range of compression algorithms primarily used in video games, it offers fast decompression/compression and efficient memory usage.
-It is written entirely in managed C# and does not rely on external C++ libraries.
+AuroraLib.Compression is a high-performance, memory-efficient library for a broad range of compression algorithms primarily used in video games.
+Designed for seamless use across multiple .NET versions. Written entirely in managed C#, it eliminates the need for external C++ libraries while offering fast decompression and compression.
 
-[Nuget Package](https://www.nuget.org/packages/AuroraLib.Compression)
+[![NuGet Package](https://img.shields.io/nuget/v/AuroraLib.Compression.svg?style=flat-square&label=NuGet%20Package)](https://www.nuget.org/packages/AuroraLib.Compression)
 
 [Benchmarks](https://github.com/Venomalia/AuroraLib.Compression/blob/main/Benchmarks.md)
 
@@ -23,7 +23,7 @@ It is written entirely in managed C# and does not rely on external C++ libraries
 | HUF20          | Nintendo Huffman compression algorithm, mainly used in GBA and DS games.   |
 | RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
-| HWGZ           | Hyrule Warriors GZ compression format based on ZLib.                       |
+| HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
@@ -58,25 +58,53 @@ It is written entirely in managed C# and does not rely on external C++ libraries
  
 ## How To Use
 
-Decompress a file with a specific algorithm.
+### Decompress a File Using a Specific Algorithm
 ``` csharp
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     using FileStream destination = new("output.dat", FileMode.Create, FileAccess.ReadWrite, FileShare.None);
     new LZSS().Decompress(source, destination);
 ```
 
-Compress a file with a specific algorithm.
+### Compress a File Using a Specific Algorithm
 ``` csharp
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     using FileStream destination = new("output.dat", FileMode.Create, FileAccess.ReadWrite, FileShare.None);
     new LZSS().Compress(source, destination);
 ```
 
-Check if the file can be decompressed with a specific algorithm.
+### Check If a File Matches a Specific Compression Algorithm
 ``` csharp
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     bool canDecompressed = new LZSS().IsMatch(source);
 ```
+
+### Configure an Compression Encoder
+``` csharp
+    Yaz0 encoder = new Yaz0
+    {
+        FormatByteOrder = Endian.Big,  // Use big-endian byte order
+        LookAhead = false              // Disable look-ahead optimization
+    };
+```
+
+### Automatically Detect and Decompress Using a Recognized Algorithm
+``` csharp
+    FormatDictionary formats = new FormatDictionary(AppDomain.CurrentDomain.GetAssemblies());
+
+    using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
+    ReadOnlySpan<char> fileName = Path.GetFileName("input.dat");
+
+    if (formats.Identify(source, fileName, out IFormatInfo format) && format.Class != null)
+    {
+        var decoder = format.CreateInstance();
+        if (decoder is ICompressionDecoder compressionDecoder)
+        {
+            using Stream destination = compressionDecoder.Decompress(source);
+            // Use the decompressed stream as needed
+        }
+    }
+```
+
 # Credits
 
 - [Nickworonekin](https://github.com/nickworonekin/puyotools) Puyo Tools inspired the LZ Decode and Encode code and reference for CNX2, LZ00, LZ01, LZ10, LZ11, PRS algorithms.

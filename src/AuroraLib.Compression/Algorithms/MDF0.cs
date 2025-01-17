@@ -1,7 +1,7 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -19,14 +19,19 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'m', (byte)'d', (byte)'f', 0x0);
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<MDF0>("Konami MDF0", new MediaType(MIMEType.Application, "zlib+mdf0"), string.Empty, _identifier);
+
         private static readonly ZLib zLib = new ZLib();
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x14 < stream.Length && stream.Peek(s => s.Match(_identifier) && s.ReadUInt32() != 0 && s.Read<ZLib.Header>().Validate());
 
         /// <inheritdoc/>

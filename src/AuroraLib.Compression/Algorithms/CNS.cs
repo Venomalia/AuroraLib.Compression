@@ -3,6 +3,8 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
@@ -22,6 +24,11 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32("@CNS".AsSpan());
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<CNS>("Red Entertainmen CNS", new MediaType(MIMEType.Application, "x-red-cns"), string.Empty, _identifier);
+
         internal static readonly LzProperties _lz = new LzProperties(0x100, 130, 3);
 
         /// <inheritdoc/>
@@ -33,11 +40,11 @@ namespace AuroraLib.Compression.Algorithms
         public string Extension = "PAK";
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>

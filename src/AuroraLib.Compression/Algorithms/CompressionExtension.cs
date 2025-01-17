@@ -1,4 +1,4 @@
-﻿using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Extensions;
 using AuroraLib.Core.IO;

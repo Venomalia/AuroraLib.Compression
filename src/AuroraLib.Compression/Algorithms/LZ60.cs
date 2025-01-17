@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -14,14 +15,20 @@ namespace AuroraLib.Compression.Algorithms
         private const byte Identifier = 0x60;
 
         /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ60>("Nintendo LZ60", new MediaType(MIMEType.Application, "x-nintendo-lz60"), ".lz");
+
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            // Has no distinct header, recognition is inaccurate!
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0));
 
         /// <inheritdoc/>

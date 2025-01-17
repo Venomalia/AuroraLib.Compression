@@ -1,6 +1,8 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Extensions;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -13,6 +15,13 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public class Level5 : ICompressionAlgorithm, ILzSettings
     {
+        private static readonly string[] _extensions = new string[] { ".Level5" };
+
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<Level5>("Level5 compression", new MediaType(MIMEType.Application, "x-level5-compressed"), _extensions);
+
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
@@ -22,17 +31,20 @@ namespace AuroraLib.Compression.Algorithms
         public CompressionType Type = CompressionType.LZ10;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
         {
+            if (stream.Length < 0x10)
+                return false;
+
             uint typeAndSize = stream.ReadUInt32();
             int decompressedSize = (int)(typeAndSize >> 3);
-            bool isZLib = stream.ReadByte() == 0x78 && typeAndSize != 0;
-            stream.Position -= 5;
-            return isZLib || !Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) || decompressedSize == 0 || decompressedSize > 0x1FFFFF || (typeAndSize & 0x7) != 0 || decompressedSize + 4 == stream.Length;
+            bool isZLib = typeAndSize != 0 && stream.PeekByte() == 0x78 && stream.Peek<ZLib.Header>().Validate();
+            stream.Position -= 4;
+            return isZLib || (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0;
         }
 
         /// <inheritdoc/>
@@ -81,6 +93,9 @@ namespace AuroraLib.Compression.Algorithms
                 destination.Write(source.Length);
                 new ZLib().Compress(source, destination, level);
             }
+
+            if (level == CompressionLevel.NoCompression)
+                Type = CompressionType.OnlySave;
 
             if (source.Length > 0x1fffffff)
             {

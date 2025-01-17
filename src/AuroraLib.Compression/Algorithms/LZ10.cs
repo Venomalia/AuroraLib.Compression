@@ -1,8 +1,9 @@
-﻿using AuroraLib.Compression.Exceptions;
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -18,18 +19,24 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x10;
 
+        /// <inheritdoc/>
+        public virtual IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ10>("Nintendo LZ10", new MediaType(MIMEType.Application, "x-nintendo-lz10"), ".lz");
+
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && (s.ReadUInt8() & 0x80) == 0);
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            // Has no distinct header, recognition is inaccurate!
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && (s.ReadUInt8() & 0xC0) == 0);
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)

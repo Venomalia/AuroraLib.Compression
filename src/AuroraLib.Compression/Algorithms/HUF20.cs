@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,11 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class HUF20 : ICompressionAlgorithm
     {
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<HUF20>("Nintendo HUF20", new MediaType(MIMEType.Application, "x-nintendo-huf20"), ".huf");
+
         /// <summary>
         /// Specifies the type of Huffman compression used.
         /// </summary>
@@ -29,11 +35,11 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()) && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadByte() != 0 && s.ReadByte() != 0);
 
         /// <inheritdoc/>

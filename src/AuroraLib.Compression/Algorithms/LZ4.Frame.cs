@@ -1,10 +1,9 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core.Buffers;
-using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
-using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 
@@ -37,7 +36,7 @@ namespace AuroraLib.Compression.Algorithms
             }
             else
             {
-                Console.Error.WriteLine("Warning: Hash algorithm is not defined. Skipping LZ4 content checksum verification.");
+                Trace.WriteLine("Warning: Hash algorithm is not defined. Skipping LZ4 content checksum verification.");
             }
         }
 
@@ -60,23 +59,38 @@ namespace AuroraLib.Compression.Algorithms
             /// </summary>
             LZ4FrameHeader = 0x184D2204,
             /// <summary>
-            /// Skippable frames allow the integration of user-defined data, these are skipped by the decoder. 
+            /// Skippable frame allow the integration of user-defined data, these are skipped by the decoder. 
             /// </summary>
             Skippable0 = 0x184D2A50,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable1 = 0x184D2A51,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable2 = 0x184D2A52,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable3 = 0x184D2A53,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable4 = 0x184D2A54,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable5 = 0x184D2A55,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable6 = 0x184D2A56,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable7 = 0x184D2A57,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable8 = 0x184D2A58,
+            /// <inheritdoc cref="Skippable0"/>
             Skippable9 = 0x184D2A59,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableA = 0x184D2A5A,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableB = 0x184D2A5B,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableC = 0x184D2A5C,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableD = 0x184D2A5D,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableE = 0x184D2A5E,
+            /// <inheritdoc cref="Skippable0"/>
             SkippableF = 0x184D2A5F,
         }
 
@@ -99,7 +113,7 @@ namespace AuroraLib.Compression.Algorithms
             if (descriptor.Flags.HasFlag(FrameDescriptorFlags.HasDictID))
                 throw new NotSupportedException("External dictionaries are currently not supported");
 
-            SpanBuffer<byte> buffer = new SpanBuffer<byte>((int)descriptor.BlockMaxSize);
+            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>((int)descriptor.BlockMaxSize))
             using (LzWindows windows = new LzWindows(destination, _lz.WindowsSize))
             {
                 // Decode Blocks
@@ -112,7 +126,7 @@ namespace AuroraLib.Compression.Algorithms
 
                     // Check if the block is uncompressed (highest bit = 1)
                     bool isUncompressed = (blockSize & UncompressedFlag) != 0;
-                    Span<byte> blockBuffer = buffer.Slice(0, (int)(blockSize & (UncompressedFlag - 1)));
+                    Span<byte> blockBuffer = buffer.Span.Slice(0, (int)(blockSize & (UncompressedFlag - 1)));
 
                     // Read the block content into the buffer
                     source.Read(blockBuffer);
@@ -140,7 +154,7 @@ namespace AuroraLib.Compression.Algorithms
             {
                 Span<byte> contentBuffer;
                 if (destination is MemoryPoolStream mps)
-                    contentBuffer = mps.UnsaveAsSpan((int)destStartPos);
+                    contentBuffer = mps.UnsafeAsSpan((int)destStartPos);
                 else if (destination is MemoryStream ms)
                     contentBuffer = ms.GetBuffer().AsSpan((int)destStartPos);
                 else
@@ -156,7 +170,7 @@ namespace AuroraLib.Compression.Algorithms
         private void CompressLZ4FrameHeader(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             if (HashAlgorithm == null)
-                throw new AggregateException();
+                throw new ArgumentException("Requires a hash function.", nameof(HashAlgorithm));
 
             if (Flags.HasFlag(FrameDescriptorFlags.HasDictID))
                 throw new NotSupportedException("External dictionaries are currently not supported");
@@ -187,7 +201,7 @@ namespace AuroraLib.Compression.Algorithms
                     {
                         // Write Block Size Compressed
                         destination.Write((uint)buffer.Position);
-                        blockData = buffer.UnsaveAsSpan();
+                        blockData = buffer.UnsafeAsSpan();
                     }
 
                     // Write Block Data
@@ -204,89 +218,6 @@ namespace AuroraLib.Compression.Algorithms
                 // Write Content Checksum, if required.
                 if (descriptor.Flags.HasFlag(FrameDescriptorFlags.HasContentChecksum))
                     destination.Write(HashAlgorithm.Invoke(source));
-            }
-        }
-
-        private class FrameDescriptor : IBinaryObject
-        {
-            public FrameDescriptorFlags Flags;
-            public BlockMaxSizes BlockMaxSize;
-            public long ContentSize;
-            public uint DictionaryID;
-            public byte HeaderChecksum;
-
-            public void BinaryDeserialize(Stream source)
-            {
-                Flags = source.Read<FrameDescriptorFlags>();
-                byte BD = source.ReadUInt8();
-                BlockMaxSize = GetBlockMaxSize(BD);
-                ContentSize = Flags.HasFlag(FrameDescriptorFlags.HasContentSize) ? source.ReadInt64() : 0;
-                DictionaryID = Flags.HasFlag(FrameDescriptorFlags.HasDictID) ? source.ReadUInt32() : 0;
-                HeaderChecksum = source.ReadUInt8();
-            }
-
-            public void BinarySerialize(Stream dest)
-            {
-                Span<byte> bytes = stackalloc byte[GetDescriptorSize(Flags)];
-                BinarySerialize(bytes);
-                dest.Write(bytes);
-            }
-
-            private void BinarySerialize(Span<byte> bytes)
-            {
-                bytes[0] = (byte)(Flags | FrameDescriptorFlags.IsVersion1);
-                bytes[1] = BuildBDByte();
-                if (Flags.HasFlag(FrameDescriptorFlags.HasContentSize))
-                    BinaryPrimitives.WriteInt64LittleEndian(bytes.Slice(2), ContentSize);
-                if (Flags.HasFlag(FrameDescriptorFlags.HasDictID))
-                    BinaryPrimitives.WriteUInt32LittleEndian(bytes.Slice(bytes.Length - 5), DictionaryID);
-
-                bytes[bytes.Length - 1] = (byte)((HashAlgorithm!.Invoke(bytes.Slice(0, bytes.Length - 1)) >> 8) & 0xFF);
-            }
-
-            private BlockMaxSizes GetBlockMaxSize(byte BD)
-            {
-                // Extract block size bits (bits 4-6 of BD byte)
-                switch ((BD & 0x70) >> 4)
-                {
-                    case 4:
-                        return BlockMaxSizes.Block64KB;
-                    case 5:
-                        return BlockMaxSizes.Block256KB;
-                    case 6:
-                        return BlockMaxSizes.Block1MB;
-                    case 7:
-                        return BlockMaxSizes.Block4MB;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(BD), "Invalid BlockMaxSize in BD byte");
-                }
-            }
-
-            private byte BuildBDByte()
-            {
-                switch (BlockMaxSize)
-                {
-                    case BlockMaxSizes.Block64KB:
-                        return 0x40;
-                    case BlockMaxSizes.Block256KB:
-                        return 0x50;
-                    case BlockMaxSizes.Block1MB:
-                        return 0x60;
-                    case BlockMaxSizes.Block4MB:
-                        return 0x70;
-                    default:
-                        throw new ArgumentOutOfRangeException(nameof(BlockMaxSize), "Invalid BlockMaxSize value");
-                }
-            }
-
-            private static int GetDescriptorSize(FrameDescriptorFlags flag)
-            {
-                int size = 3;
-                if ((flag & FrameDescriptorFlags.HasContentSize) != 0)
-                    size += 8;
-                if ((flag & FrameDescriptorFlags.HasDictID) != 0)
-                    size += 4;
-                return size;
             }
         }
     }

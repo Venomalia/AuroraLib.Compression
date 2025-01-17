@@ -1,5 +1,6 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
@@ -13,12 +14,17 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class ZLib : ICompressionAlgorithm
     {
+        private static readonly string[] _extensions = new string[] { ".zz", ".zlib", string.Empty };
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<ZLib>("zlib", new MediaType(MIMEType.Application, "zlib"), _extensions);
+        /// <inheritdoc/>
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek<Header>().Validate();
 
         /// <inheritdoc/>

@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -18,17 +19,23 @@ namespace AuroraLib.Compression.Algorithms
     {
         private const byte Identifier = 0x40;
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ40>("Nintendo LZ40", new MediaType(MIMEType.Application, "x-nintendo-lz40"), ".lz");
+
         private static readonly LzProperties _lz = new LzProperties(0x1000, 0x4000, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            // Has no distinct header, recognition is inaccurate!
             => stream.Peek(s => s.Position + 0x8 < s.Length && s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0));
 
         /// <inheritdoc/>

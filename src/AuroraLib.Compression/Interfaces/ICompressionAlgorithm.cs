@@ -1,9 +1,11 @@
-﻿namespace AuroraLib.Compression.Interfaces
+using AuroraLib.Core.Format;
+
+namespace AuroraLib.Compression.Interfaces
 {
     /// <summary>
     /// Interface for compressing and decompressing data.
     /// </summary>
-    public interface ICompressionAlgorithm : ICompressionDecoder, ICompressionEncoder
+    public interface ICompressionAlgorithm : ICompressionDecoder, ICompressionEncoder, IFormatInfoProvider
     {
     }
 }

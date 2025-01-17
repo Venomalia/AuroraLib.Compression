@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression
@@ -22,7 +22,6 @@ namespace AuroraLib.Compression
         /// </summary>
         /// <param name="source">The source data to search for matches.</param>
         /// <param name="offset">The offset in the source data to start searching for a match.</param>
-        /// <param name="match">The best match found at the specified offset.</param>
         /// <returns>True if a match is found; otherwise, false.</returns>
 #if !(NETSTANDARD || NET20_OR_GREATER)
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]

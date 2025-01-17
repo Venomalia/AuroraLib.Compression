@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -19,16 +20,21 @@ namespace AuroraLib.Compression.Algorithms
     public sealed class RefPack : ICompressionAlgorithm, ILzSettings
     {
         /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<RefPack>("RefPack", new MediaType(MIMEType.Application, "x-ea-refpack"), string.Empty);
+
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = new LzProperties(0x20000, 1028, 3);
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Read<Header>().IsValid && s.ReadInt24(Endian.Big) != 0);
 
         /// <inheritdoc/>

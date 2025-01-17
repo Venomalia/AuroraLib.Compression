@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -16,21 +17,30 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class LZ02 : ICompressionAlgorithm, ILzSettings
     {
+        private static readonly string[] _extensions = new string[] { ".lz02", string.Empty };
+
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ02>("LZ02", new MediaType(MIMEType.Application, "x-lz02"), _extensions);
+
         internal static readonly LzProperties _lz = new LzProperties(0xFFF, 272, 3);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            // Has no distinct header, recognition is inaccurate!
+            => (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase))
 #if NET5_0_OR_GREATER
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0);
+                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0 && (s.ReadByte() & 0xE0) == 0);
 #else
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(DataType), s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0);
+                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(DataType), s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0 && (s.ReadByte() & 0xE0) == 0);
 #endif
 
         private enum DataType : byte

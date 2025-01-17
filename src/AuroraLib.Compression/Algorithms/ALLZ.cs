@@ -3,7 +3,8 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
-using AuroraLib.Core.Interfaces;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
@@ -22,6 +23,11 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly Identifier32 _identifier = new Identifier32("ALLZ".AsSpan());
 
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<ALLZ>("Aqualead LZ", new MediaType(MIMEType.Application, "x-aqualead-lz"), string.Empty, _identifier);
+
         internal static readonly LzProperties _lz = new LzProperties(0x20000, 0x40000, 3); //A larger window is possible but will take a lot longer.
 
         public byte LzCopyBits = 0;
@@ -29,11 +35,11 @@ namespace AuroraLib.Compression.Algorithms
         public byte LzLengthBits = 1;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>

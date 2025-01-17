@@ -1,6 +1,8 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
@@ -21,23 +23,28 @@ namespace AuroraLib.Compression.Algorithms
         private static readonly Identifier32 _identifier = new Identifier32("Yaz0".AsSpan());
 
         /// <inheritdoc/>
+        public virtual IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<Yaz0>("Nintendo Yaz0", new MediaType(MIMEType.Application, "x-nintendo-yaz0"), string.Empty, _identifier);
+
+        /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
-            source.MatchThrow(_identifier);
+            source.MatchThrow(Identifier);
             uint decompressedSize = source.ReadUInt32(FormatByteOrder);
             _ = source.ReadUInt32(FormatByteOrder);
             _ = source.ReadUInt32(FormatByteOrder);
@@ -60,7 +67,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            destination.Write(_identifier);
+            destination.Write(Identifier.AsSpan());
             destination.Write(source.Length, FormatByteOrder);
             destination.Write(0);
             destination.Write(0);

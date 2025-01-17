@@ -2,9 +2,12 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Format;
+using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -15,8 +18,18 @@ namespace AuroraLib.Compression.Algorithms
     /// LZ4 algorithm, similar to LZO focused on decompression speed.
     /// </summary>
     // https://github.com/lz4/lz4/tree/dev/doc
-    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings
+    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
     {
+        /// <inheritdoc/>
+        public IIdentifier Identifier => _identifier;
+
+        private static readonly Identifier32 _identifier = new Identifier32((uint)FrameTypes.LZ4FrameHeader);
+
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<LZ4>("LZ4 Frame Compression", new MediaType(MIMEType.Application, "x-lz4"), ".lz4", _identifier);
+
         private static readonly LzProperties _lz = new LzProperties(0xFFFF, int.MaxValue, 4);
 
         /// <inheritdoc/>
@@ -25,7 +38,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <summary>
         /// What type of frame should be written
         /// </summary>
-        public FrameTypes FrameType = FrameTypes.Legacy;
+        public FrameTypes FrameType = FrameTypes.LZ4FrameHeader;
 
         /// <summary>
         /// Specifies the maximum size of the data blocks to be written.
@@ -33,11 +46,11 @@ namespace AuroraLib.Compression.Algorithms
         public BlockMaxSizes BlockSize = BlockMaxSizes.Block4MB;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Peek(s => s.Position + 0x10 < s.Length && Enum.IsDefined(typeof(FrameTypes), s.ReadUInt32()));
 
         /// <inheritdoc/>
@@ -62,6 +75,7 @@ namespace AuroraLib.Compression.Algorithms
 
                             blockSize = source.ReadUInt32();
                         } while (!Enum.IsDefined(typeof(FrameTypes), blockSize));
+                        Trace.WriteLine("Mixed LZ4 Legacy and LZ4 Frame");
                         magic = (FrameTypes)blockSize;
                         goto SwitchStart;
                     case FrameTypes.LZ4FrameHeader:
@@ -88,7 +102,7 @@ namespace AuroraLib.Compression.Algorithms
                         break;
                     default: //end
                         source.Position -= 4;
-                        break;
+                        return;
                 }
             }
         }
@@ -106,7 +120,7 @@ namespace AuroraLib.Compression.Algorithms
                         long blockStart = destination.Position;
                         destination.Write(0); // Placeholder
 
-                        ReadOnlySpan<byte> blockSource = source.Slice(sourcePointer, Math.Min((int)BlockSize, source.Length - sourcePointer));
+                        ReadOnlySpan<byte> blockSource = source.Slice(sourcePointer, Math.Min((int)BlockMaxSizes.Block4MB * 2, source.Length - sourcePointer));
                         CompressBlockHeaderless(blockSource, destination, LookAhead, level);
                         sourcePointer += blockSource.Length;
 

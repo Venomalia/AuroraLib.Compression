@@ -1,6 +1,7 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
+using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers.Binary;
@@ -14,6 +15,11 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class HWGZ : ICompressionAlgorithm, IEndianDependentFormat
     {
+        /// <inheritdoc/>
+        public IFormatInfo Info => _info;
+
+        private static readonly IFormatInfo _info = new FormatInfo<HWGZ>("Hyrule Warriors GZ", new MediaType(MIMEType.Application, "zlib+hwgz"), ".gz");
+
         /// <summary>
         /// Defines the size of the chunks.
         /// </summary>
@@ -23,28 +29,33 @@ namespace AuroraLib.Compression.Algorithms
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> extension = default)
-            => IsMatchStatic(stream, extension);
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> extension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
         {
-            if (stream.Length <= 128)
+            if (stream.Length < 0x80)
                 return false;
-            long pos = stream.Position;
 
+            long pos = stream.Position;
             uint chunkSize = stream.ReadUInt32();
             uint chunkCount = stream.ReadUInt32();
             uint decompressedSize = stream.ReadUInt32();
+
+            if (chunkSize == 0 || chunkCount == 0 || decompressedSize == 0)
+                return false;
 
             if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
             {
                 chunkSize = BinaryPrimitives.ReverseEndianness(chunkSize);
                 chunkCount = BinaryPrimitives.ReverseEndianness(chunkCount);
                 decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
+                if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
+                    return false;
             }
             stream.Align(4 * chunkCount, SeekOrigin.Current, 128);
-            bool result = decompressedSize != 0 && chunkCount == (decompressedSize + chunkSize - 1) / chunkSize && stream.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
+            bool result = decompressedSize != 0 && stream.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
             stream.Position = pos;
             return result;
         }
@@ -105,7 +116,7 @@ namespace AuroraLib.Compression.Algorithms
                     buffer.SetLength(0);
                     zLib.Compress(source.Slice(segmentStart, segmentSize), buffer, level);
 
-                    ReadOnlySpan<byte> segmentData = buffer.UnsaveAsSpan();
+                    ReadOnlySpan<byte> segmentData = buffer.UnsafeAsSpan();
                     chunkSizes[i] = (uint)(segmentData.Length + 4);
                     destination.Write(segmentData.Length, FormatByteOrder);
                     destination.Write(segmentData);
