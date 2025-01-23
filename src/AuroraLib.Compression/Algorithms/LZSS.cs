@@ -3,6 +3,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -84,7 +85,8 @@ namespace AuroraLib.Compression.Algorithms
             FlagReader flag = new FlagReader(source, Endian.Little);
             using (LzWindows buffer = new LzWindows(destination, lz.WindowsSize))
             {
-                buffer.UnsafeAsSpan().Fill(initialFill);
+                if (initialFill != 0)
+                    buffer.UnsafeAsSpan().Fill(initialFill);
 
                 int f = lz.GetLengthBitsFlag();
 
@@ -115,9 +117,12 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level), lz);
+        {
+            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level))
+                CompressHeaderless(source, destination, matches, lz);
+        }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, List<LzMatch> matches, LzProperties lz)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, IReadOnlyList<LzMatch> matches, LzProperties lz)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
 

@@ -1,4 +1,5 @@
-﻿using System;
+using AuroraLib.Core.Collections;
+using System;
 using System.Collections.Generic;
 using System.IO.Compression;
 using System.Linq;
@@ -34,10 +35,10 @@ namespace AuroraLib.Compression.MatchFinder
         /// <param name="level">Compression level, affecting match sensitivity.</param>
         /// <param name="blockSize">Size of each block to process in parallel.</param>
         /// <returns>A list of matches found in the source data.</returns>
-        public static List<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
         {
             if (level == CompressionLevel.NoCompression)
-                return new List<LzMatch>();
+                return new PoolList<LzMatch>();
 
             LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead);
 
@@ -63,23 +64,23 @@ namespace AuroraLib.Compression.MatchFinder
             return matchResults;
         }
 
-        internal List<LzMatch> FindMatches(byte* data, int length, int blockSize)
+        internal PoolList<LzMatch> FindMatches(byte* data, int length, int blockSize)
         {
             int numberOfBlocks = Math.Max(1, (length + blockSize - 1) / blockSize);
-            List<LzMatch>[] blockMatches = new List<LzMatch>[numberOfBlocks];
+            PoolList<LzMatch>[] blockMatches = new PoolList<LzMatch>[numberOfBlocks];
 
             // Process each block in parallel
             ParallelLoopResult result = Parallel.For(0, numberOfBlocks, blockIndex =>
             {
-                var lzMatches = new List<LzMatch>();
+                var lzMatches = new PoolList<LzMatch>();
                 int start = blockIndex * blockSize;
                 int end = Math.Min(start + blockSize, length);
                 FindMatchesInBlock(data, length, start, end, lzMatches);
                 blockMatches[blockIndex] = lzMatches;
             });
 
-            List<LzMatch> matchResults = blockMatches[0];
-            matchResults.Capacity = blockMatches.Sum(list => list.Count);
+            PoolList<LzMatch> matchResults = blockMatches[0];
+            matchResults.SetMinimumCapacity(blockMatches.Sum(list => list.Count));
 
             // Handle overlapping matches between blocks if necessary
             if (_lookAhead || blockSize < _maxMatchLength)
@@ -112,18 +113,22 @@ namespace AuroraLib.Compression.MatchFinder
                     }
                     matchResults.AddRange(blockMatches[i]);
                     last = matchResults.Last();
+                    blockMatches[i].Dispose();
                 }
             }
             else
             {
                 for (int i = 1; i < blockMatches.Length; i++)
+                {
                     matchResults.AddRange(blockMatches[i]);
+                    blockMatches[i].Dispose();
+                }
             }
 
             return matchResults;
         }
 
-        internal void FindMatchesInBlock(byte* dataPtr, int length, int start, int end, List<LzMatch> lzMatches)
+        internal void FindMatchesInBlock(byte* dataPtr, int length, int start, int end, IList<LzMatch> lzMatches)
         {
             if (start == 0)
                 start = _lookAhead ? 1 : _minMatchLength;

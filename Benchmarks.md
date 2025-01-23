@@ -1,44 +1,46 @@
-| Method     | Algorithm | MB | Mean         | Error       | StdDev      | Gen0     | Gen1     | Gen2     | Allocated |
-|----------- |---------- |--- |-------------:|------------:|------------:|---------:|---------:|---------:|----------:|
-| Compress   | ALLZ      | 1  | 116,327.8 us | 2,305.17 us | 4,550.18 us |        - |        - |        - | 2048038 B |
-| Decompress | ALLZ      | 1  |   4,573.0 us |    55.76 us |    52.15 us |        - |        - |        - |     240 B |
-| Compress   | CLZ0      | 1  |  40,247.9 us |   756.74 us |   809.70 us | 538.4615 | 461.5385 | 307.6923 | 3886344 B |
-| Decompress | CLZ0      | 1  |   3,986.0 us |    40.24 us |    37.64 us |        - |        - |        - |     312 B |
-| Compress   | CNS       | 1  |   6,382.5 us |    29.09 us |    25.79 us | 367.1875 | 335.9375 | 226.5625 | 2189338 B |
-| Decompress | CNS       | 1  |   3,576.8 us |    36.26 us |    33.92 us |        - |        - |        - |     196 B |
-| Compress   | CNX2      | 1  |  21,016.3 us |   266.68 us |   249.46 us | 468.7500 | 375.0000 | 312.5000 | 3110873 B |
-| Decompress | CNX2      | 1  |   3,736.7 us |    35.68 us |    33.38 us |        - |        - |        - |     340 B |
-| Compress   | HUF20     | 1  |  17,700.6 us |   353.90 us |   347.58 us |  31.2500 |        - |        - |  398999 B |
-| Decompress | HUF20     | 1  |   9,593.0 us |   180.77 us |   177.54 us |        - |        - |        - |      76 B |
-| Compress   | HWGZ      | 1  |   7,355.0 us |    32.40 us |    27.06 us |        - |        - |        - |    4182 B |
-| Decompress | HWGZ      | 1  |   1,181.4 us |    16.48 us |    15.42 us |        - |        - |        - |    6105 B |
-| Compress   | LZ00      | 1  |  24,232.6 us |   474.32 us |   487.09 us | 750.0000 | 656.2500 | 437.5000 | 4413667 B |
-| Decompress | LZ00      | 1  |   7,407.5 us |   107.95 us |   100.97 us | 921.8750 |        - |        - | 7722184 B |
-| Compress   | LZ02      | 1  |  44,668.5 us |   885.62 us |   909.46 us | 312.5000 | 250.0000 | 250.0000 | 2334090 B |
-| Decompress | LZ02      | 1  |   2,699.7 us |    24.25 us |    22.68 us |        - |        - |        - |     284 B |
-| Compress   | LZ10      | 1  |  40,551.0 us |   690.61 us |   646.00 us | 625.0000 | 562.5000 | 375.0000 | 3886404 B |
-| Decompress | LZ10      | 1  |   4,655.6 us |    52.23 us |    48.85 us |        - |        - |        - |     288 B |
-| Compress   | LZ11      | 1  |  38,954.8 us |   728.44 us |   681.38 us | 307.6923 | 230.7692 | 230.7692 | 2219287 B |
-| Decompress | LZ11      | 1  |   4,176.8 us |    47.93 us |    44.83 us |        - |        - |        - |     288 B |
-| Compress   | LZ4       | 1  | 121,867.2 us | 2,428.46 us | 2,890.91 us |        - |        - |        - | 1430445 B |
-| Decompress | LZ4       | 1  |   2,752.9 us |    28.05 us |    26.24 us |        - |        - |        - |     140 B |
-| Compress   | LZ40      | 1  |  37,350.7 us |   741.08 us | 1,131.71 us | 307.6923 | 230.7692 | 230.7692 | 2219290 B |
-| Decompress | LZ40      | 1  |   3,666.0 us |    24.06 us |    22.50 us |        - |        - |        - |     139 B |
-| Compress   | LZO       | 1  |  94,334.3 us | 1,886.38 us | 3,046.15 us |        - |        - |        - | 2068368 B |
-| Decompress | LZO       | 1  |   3,021.1 us |    19.63 us |    18.36 us |        - |        - |        - |     140 B |
-| Compress   | LZSS      | 1  |  38,601.8 us |   751.96 us |   703.39 us | 625.0000 | 562.5000 | 375.0000 | 3886502 B |
-| Decompress | LZSS      | 1  |   4,448.9 us |    40.75 us |    38.12 us |        - |        - |        - |     312 B |
-| Compress   | LZShrek   | 1  |  39,152.2 us |   737.91 us |   789.55 us | 307.6923 | 230.7692 | 230.7692 | 2328724 B |
-| Decompress | LZShrek   | 1  |   2,604.7 us |    25.19 us |    23.56 us |        - |        - |        - |     140 B |
-| Compress   | MIO0      | 1  |  24,971.9 us |   450.96 us |   421.83 us | 656.2500 | 625.0000 | 406.2500 | 3891810 B |
-| Decompress | MIO0      | 1  |   2,374.1 us |    24.81 us |    23.21 us |        - |        - |        - |     164 B |
-| Compress   | PRS       | 1  |  55,791.8 us | 1,038.40 us | 1,019.85 us | 333.3333 | 222.2222 | 222.2222 | 2468671 B |
-| Decompress | PRS       | 1  |   2,149.7 us |    24.99 us |    23.38 us |        - |        - |        - |     428 B |
-| Compress   | RLE30     | 1  |   4,123.9 us |    47.72 us |    44.64 us |        - |        - |        - |      94 B |
-| Decompress | RLE30     | 1  |     654.2 us |     6.49 us |     6.07 us |        - |        - |        - |      65 B |
-| Compress   | RefPack   | 1  | 197,641.5 us | 3,843.02 us | 5,983.11 us |        - |        - |        - | 2076328 B |
-| Decompress | RefPack   | 1  |   1,200.5 us |    18.94 us |    17.72 us |        - |        - |        - |     138 B |
-| Compress   | Yay0      | 1  |  24,227.9 us |   468.06 us |   459.69 us | 406.2500 | 375.0000 | 312.5000 | 2324400 B |
-| Decompress | Yay0      | 1  |   3,190.9 us |    29.11 us |    27.23 us |        - |        - |        - |     572 B |
-| Compress   | Yaz0      | 1  |  40,377.7 us |   790.47 us |   739.40 us | 312.5000 | 250.0000 | 250.0000 | 2324215 B |
-| Decompress | Yaz0      | 1  |   2,606.1 us |    23.75 us |    22.21 us |        - |        - |        - |     308 B |
+BenchmarkDotNet v0.14.0, Windows 10, AMD Ryzen 7 3800X, 1 CPU, 16 logical and 8 physical cores. NET SDK 8.0.400
+
+| Method     | Algorithm | MB | Mean         | Error       | StdDev      | Gen0     | Allocated |
+|----------- |---------- |--- |-------------:|------------:|------------:|---------:|----------:|
+| Compress   | ALLZ      | 1  |  76,131.8 us | 1,501.29 us | 1,541.72 us |       - |    7285 B |
+| Decompress | ALLZ      | 1  |   5,137.3 us |    10.04 us |     8.38 us |       - |     243 B |
+| Compress   | CLZ0      | 1  |  21,671.8 us |   364.12 us |   373.92 us |       - |    6890 B |
+| Decompress | CLZ0      | 1  |   4,105.6 us |    55.51 us |    51.93 us |       - |     315 B |
+| Compress   | CNS       | 1  |   5,519.9 us |    36.18 us |    32.07 us |       - |    6813 B |
+| Decompress | CNS       | 1  |   3,591.4 us |    13.58 us |    10.60 us |       - |     197 B |
+| Compress   | CNX2      | 1  |  35,482.6 us |   673.81 us |   748.94 us |       - |    7105 B |
+| Decompress | CNX2      | 1  |   3,726.3 us |    29.49 us |    24.62 us |       - |     341 B |
+| Compress   | HUF20     | 1  |  17,885.8 us |   252.34 us |   236.04 us | 31.2500 |  398999 B |
+| Decompress | HUF20     | 1  |   9,842.2 us |   190.93 us |   169.26 us |       - |      76 B |
+| Compress   | HWGZ      | 1  |   7,464.5 us |    80.62 us |    75.41 us |       - |    4182 B |
+| Decompress | HWGZ      | 1  |   1,190.2 us |     7.34 us |     6.87 us |       - |    6105 B |
+| Compress   | LZ00      | 1  |  23,302.9 us |   334.38 us |   312.78 us |       - |    7096 B |
+| Decompress | LZ00      | 1  |   4,317.0 us |    45.56 us |    42.62 us |       - |     395 B |
+| Compress   | LZ02      | 1  |  26,137.6 us |   514.95 us |   572.36 us |       - |    6916 B |
+| Decompress | LZ02      | 1  |   2,727.5 us |     4.35 us |     3.86 us |       - |     284 B |
+| Compress   | LZ10      | 1  |  39,257.7 us |   726.95 us |   679.99 us |       - |    7057 B |
+| Decompress | LZ10      | 1  |   3,885.6 us |     3.97 us |     3.52 us |       - |     285 B |
+| Compress   | LZ11      | 1  |  20,563.2 us |   343.27 us |   286.65 us |       - |    6904 B |
+| Decompress | LZ11      | 1  |   3,651.7 us |     4.06 us |     3.80 us |       - |     284 B |
+| Compress   | LZ40      | 1  |  21,386.8 us |   426.25 us |   507.42 us |       - |    6904 B |
+| Decompress | LZ40      | 1  |   3,683.0 us |    30.55 us |    28.58 us |       - |     140 B |
+| Compress   | LZ4Legacy | 1  |  77,821.4 us | 1,500.67 us | 1,897.87 us |       - |    7110 B |
+| Decompress | LZ4Legacy | 1  |   2,680.5 us |     1.76 us |     1.47 us |       - |     141 B |
+| Compress   | LZO       | 1  |  75,013.5 us | 1,479.93 us | 2,074.66 us |       - |    7058 B |
+| Decompress | LZO       | 1  |   3,044.1 us |    37.75 us |    35.31 us |       - |     141 B |
+| Compress   | LZSS      | 1  |  22,289.8 us |   429.59 us |   421.91 us |       - |    6962 B |
+| Decompress | LZSS      | 1  |   3,917.3 us |    16.26 us |    14.41 us |       - |     309 B |
+| Compress   | LZShrek   | 1  |  40,945.5 us |   811.16 us | 1,110.32 us |       - |   15618 B |
+| Decompress | LZShrek   | 1  |   2,621.6 us |    19.85 us |    15.50 us |       - |     140 B |
+| Compress   | MIO0      | 1  |  23,206.3 us |   441.93 us |   413.38 us |       - |    7132 B |
+| Decompress | MIO0      | 1  |   2,394.4 us |     4.15 us |     3.88 us |       - |     165 B |
+| Compress   | PRS       | 1  |  33,078.2 us |   642.58 us |   879.57 us |       - |    7055 B |
+| Decompress | PRS       | 1  |   2,163.0 us |    23.41 us |    21.90 us |       - |     429 B |
+| Compress   | RLE30     | 1  |   3,826.3 us |    66.02 us |    58.53 us |       - |      91 B |
+| Decompress | RLE30     | 1  |     670.6 us |     9.38 us |     8.77 us |       - |      65 B |
+| Compress   | RefPack   | 1  |  72,131.2 us | 1,433.70 us | 2,992.66 us |       - |    6967 B |
+| Decompress | RefPack   | 1  |   1,270.0 us |     2.95 us |     2.46 us |       - |     139 B |
+| Compress   | Yay0      | 1  |  23,458.7 us |   396.25 us |   370.66 us |       - |    7142 B |
+| Decompress | Yay0      | 1  |   3,366.4 us |    30.52 us |    28.55 us |       - |     573 B |
+| Compress   | Yaz0      | 1  |  23,337.6 us |   450.22 us |   442.18 us |       - |    6934 B |
+| Decompress | Yaz0      | 1  |   2,734.8 us |    38.16 us |    35.70 us |       - |     309 B |

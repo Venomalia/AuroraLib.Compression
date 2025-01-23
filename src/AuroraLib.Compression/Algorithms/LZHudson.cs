@@ -1,7 +1,6 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
-using AuroraLib.Core.Extensions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;

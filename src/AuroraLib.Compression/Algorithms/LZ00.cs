@@ -1,8 +1,8 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
-using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -135,12 +135,21 @@ namespace AuroraLib.Compression.Algorithms
                 }
             }
 
+            public override int ReadByte()
+            {
+                int value = Base.ReadByte();
+                return value == -1 ? -1 : Transform((byte)value);
+            }
+
+            public override void WriteByte(byte value) => Base.WriteByte(Transform(value));
+
             public override int Read(byte[] buffer, int offset, int count)
 #if !(NET20_OR_GREATER || NETSTANDARD2_0)
                 => Read(buffer.AsSpan(offset, count));
 
             public override int Read(Span<byte> buffer)
             {
+                Base.ReadByte();
                 int read = Base.Read(buffer);
                 Transform(buffer);
                 return read;

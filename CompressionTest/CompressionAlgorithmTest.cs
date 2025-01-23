@@ -63,8 +63,6 @@ namespace CompressionTest
             }
         }
 
-
-
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
         public void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm)
@@ -87,7 +85,7 @@ namespace CompressionTest
         [TestMethod]
         public void EncodingAndDecodingMatchTest_LZ4Frame()
         {
-            LZ4 LZ4Frame = new LZ4() { FrameType = LZ4.FrameTypes.LZ4FrameHeader, Flags = LZ4.FrameDescriptorFlags.IsVersion1 | LZ4.FrameDescriptorFlags.HasContentSize | LZ4.FrameDescriptorFlags.HasContentChecksum | LZ4.FrameDescriptorFlags.HasBlockChecksum};
+            LZ4 LZ4Frame = new LZ4() { FrameType = LZ4.FrameTypes.LZ4FrameHeader, Flags = LZ4.FrameDescriptorFlags.IsVersion1 | LZ4.FrameDescriptorFlags.HasContentSize | LZ4.FrameDescriptorFlags.HasContentChecksum | LZ4.FrameDescriptorFlags.HasBlockChecksum };
             EncodingAndDecodingMatchTest(LZ4Frame);
         }
     }

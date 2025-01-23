@@ -3,7 +3,6 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
-using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -59,7 +58,7 @@ namespace AuroraLib.Compression.Algorithms
             {
                 source.Seek(sourceDataStartPosition, SeekOrigin.Begin);
                 destination.Seek(destinationStartPosition, SeekOrigin.Begin);
-                decompressedSize = BitConverterX.Swap(decompressedSize);
+                decompressedSize = BitConverterX.ReverseEndianness(decompressedSize);
                 DecompressHeaderless(source, destination, decompressedSize);
             }
         }

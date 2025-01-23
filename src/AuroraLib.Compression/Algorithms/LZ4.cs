@@ -2,11 +2,11 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -196,31 +196,34 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0, plainLength, token;
             // The last sequence contains at last 5 bytes of literals.
-            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            foreach (LzMatch match in matches)
+            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level))
             {
-                plainLength = match.Offset - sourcePointer;
 
-                // Write token
-                token = (plainLength > 0xF ? 0xF : plainLength) << 4;
-                if (match.Length != 0)
-                    token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
-                destination.WriteByte((byte)token);
+                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
-                // Plain copy
-                WriteExtension(destination, plainLength);
-                destination.Write(source.Slice(sourcePointer, plainLength));
-                sourcePointer += plainLength;
+                foreach (LzMatch match in matches)
+                {
+                    plainLength = match.Offset - sourcePointer;
 
-                if (sourcePointer >= source.Length)
-                    break;
+                    // Write token
+                    token = (plainLength > 0xF ? 0xF : plainLength) << 4;
+                    if (match.Length != 0)
+                        token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
+                    destination.WriteByte((byte)token);
 
-                // Distance copy
-                destination.Write((ushort)match.Distance);
-                WriteExtension(destination, match.Length - 4);
-                sourcePointer += match.Length;
+                    // Plain copy
+                    WriteExtension(destination, plainLength);
+                    destination.Write(source.Slice(sourcePointer, plainLength));
+                    sourcePointer += plainLength;
+
+                    if (sourcePointer >= source.Length)
+                        break;
+
+                    // Distance copy
+                    destination.Write((ushort)match.Distance);
+                    WriteExtension(destination, match.Length - 4);
+                    sourcePointer += match.Length;
+                }
             }
         }
 

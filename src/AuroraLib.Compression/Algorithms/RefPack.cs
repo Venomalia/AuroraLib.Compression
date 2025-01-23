@@ -3,10 +3,10 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -131,49 +131,51 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            foreach (LzMatch match in matches)
+            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
             {
-                if ((match.Distance > 0x4000 && match.Length < 5) || (match.Distance > 0x400 && match.Length < 4))
-                    continue;
 
-                plainSize = match.Offset - sourcePointer;
-
-                while (plainSize > 3)
+                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+                foreach (LzMatch match in matches)
                 {
-                    int copyflag = (plainSize > 0x70 ? 0x70 : plainSize) / 4 - 1;
-                    destination.Write((byte)(0xE0 | copyflag));
-                    copyflag = copyflag * 4 + 4;
-                    destination.Write(source.Slice(sourcePointer, copyflag));
-                    sourcePointer += copyflag;
-                    plainSize -= copyflag;
-                }
+                    if ((match.Distance > 0x4000 && match.Length < 5) || (match.Distance > 0x400 && match.Length < 4))
+                        continue;
 
-                if (match.Length != 0)
-                {
-                    if (match.Length <= 10 && match.Distance <= 0x400) // P = 0-3 D = 1-1024 L = 3-10
+                    plainSize = match.Offset - sourcePointer;
+
+                    while (plainSize > 3)
                     {
-                        destination.Write((byte)(plainSize | (((match.Distance - 1) & 0x300) >> 3) | ((match.Length - 3) << 2))); // 0DDLLLPP
-                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                        int copyflag = (plainSize > 0x70 ? 0x70 : plainSize) / 4 - 1;
+                        destination.Write((byte)(0xE0 | copyflag));
+                        copyflag = copyflag * 4 + 4;
+                        destination.Write(source.Slice(sourcePointer, copyflag));
+                        sourcePointer += copyflag;
+                        plainSize -= copyflag;
                     }
-                    else if (match.Length >= 4 && match.Length <= 67 && match.Distance <= 0x4000)
+
+                    if (match.Length != 0)
                     {
-                        destination.Write((byte)(0x80 | match.Length - 4)); // 10LLLLLL
-                        destination.Write((byte)(((match.Distance - 1) >> 8) | (plainSize << 6))); // PPDDDDDD
-                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                        if (match.Length <= 10 && match.Distance <= 0x400) // P = 0-3 D = 1-1024 L = 3-10
+                        {
+                            destination.Write((byte)(plainSize | (((match.Distance - 1) & 0x300) >> 3) | ((match.Length - 3) << 2))); // 0DDLLLPP
+                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                        }
+                        else if (match.Length >= 4 && match.Length <= 67 && match.Distance <= 0x4000)
+                        {
+                            destination.Write((byte)(0x80 | match.Length - 4)); // 10LLLLLL
+                            destination.Write((byte)(((match.Distance - 1) >> 8) | (plainSize << 6))); // PPDDDDDD
+                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                        }
+                        else
+                        {
+                            destination.Write((byte)(0xC0 | ((match.Distance - 1) >> 16 << 4) | ((match.Length - 5) >> 8 << 2) | plainSize)); // 110DLLPP
+                            destination.Write((byte)((match.Distance - 1) >> 8)); // DDDDDDDD
+                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                            destination.Write((byte)(match.Length - 5)); // LLLLLLLL
+                        }
+                        destination.Write(source.Slice(sourcePointer, plainSize));
+                        sourcePointer += plainSize + match.Length;
+                        plainSize = 0;
                     }
-                    else
-                    {
-                        destination.Write((byte)(0xC0 | ((match.Distance - 1) >> 16 << 4) | ((match.Length - 5) >> 8 << 2) | plainSize)); // 110DLLPP
-                        destination.Write((byte)((match.Distance - 1) >> 8)); // DDDDDDDD
-                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
-                        destination.Write((byte)(match.Length - 5)); // LLLLLLLL
-                    }
-                    destination.Write(source.Slice(sourcePointer, plainSize));
-                    sourcePointer += plainSize + match.Length;
-                    plainSize = 0;
                 }
             }
             destination.Write((byte)(0xFC | plainSize)); // 111111PP

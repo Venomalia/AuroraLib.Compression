@@ -3,12 +3,11 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
+using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
-using AuroraLib.Core.Interfaces;
 using AuroraLib.Core.IO;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 
@@ -116,28 +115,30 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, plainSize;
-            List<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            foreach (LzMatch match in matches)
+            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
             {
-                plainSize = match.Offset - sourcePointer;
+                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
-                while (plainSize != 0)
+                foreach (LzMatch match in matches)
                 {
-                    byte length = (byte)Math.Min(127, plainSize);
-                    destination.WriteByte(length);
-                    destination.Write(source.Slice(sourcePointer, length));
-                    sourcePointer += length;
-                    plainSize -= length;
-                }
+                    plainSize = match.Offset - sourcePointer;
 
-                // Match has data that still needs to be processed?
-                if (match.Length != 0)
-                {
-                    destination.WriteByte((byte)(0x80 | (match.Length - 3)));
-                    destination.WriteByte((byte)(match.Distance - 1));
-                    sourcePointer += match.Length;
+                    while (plainSize != 0)
+                    {
+                        byte length = (byte)Math.Min(127, plainSize);
+                        destination.WriteByte(length);
+                        destination.Write(source.Slice(sourcePointer, length));
+                        sourcePointer += length;
+                        plainSize -= length;
+                    }
+
+                    // Match has data that still needs to be processed?
+                    if (match.Length != 0)
+                    {
+                        destination.WriteByte((byte)(0x80 | (match.Length - 3)));
+                        destination.WriteByte((byte)(match.Distance - 1));
+                        sourcePointer += match.Length;
+                    }
                 }
             }
         }
