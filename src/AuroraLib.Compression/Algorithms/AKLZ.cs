@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// AKLZ implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class AKLZ : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class AKLZ : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -38,11 +38,19 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32(Endian.Big);
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

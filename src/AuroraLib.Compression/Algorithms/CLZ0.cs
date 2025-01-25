@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// CLZ0 compression algorithm, used in Games from Victor Interactive Software.
     /// </summary>
-    public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -40,6 +40,15 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 8;
+                return s.ReadUInt32(Endian.Big);
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

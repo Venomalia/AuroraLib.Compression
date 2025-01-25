@@ -17,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Lempel–Ziv–Storer–Szymanski algorithm, a derivative of LZ77 from Haruhiko Okumura.
     /// </summary>
-    public class LZSS : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZSS : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -44,7 +44,7 @@ namespace AuroraLib.Compression.Algorithms
         public static LzProperties Lzss0Properties => new LzProperties(0x1000, 0xF + 3, 3, 0xFEE);
 
         /// <inheritdoc/>
-        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
@@ -52,18 +52,26 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
-        public virtual void Decompress(Stream source, Stream destination)
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32(Endian.Big);
+            });
+
+        /// <inheritdoc/>
+        public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            uint destinationSize = source.ReadUInt32(Endian.Big);
+            uint decompressedSize = source.ReadUInt32(Endian.Big);
             uint compressedSize = source.ReadUInt32(Endian.Big);
             uint unk = source.ReadUInt32(Endian.Big);
 
-            DecompressHeaderless(source, destination, (int)destinationSize, LZ);
+            DecompressHeaderless(source, destination, decompressedSize, LZ);
         }
 
         /// <inheritdoc/>
-        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             long destinationStartPosition = destination.Position;
             destination.Write(_identifier);
@@ -78,7 +86,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.At(destinationStartPosition + 8, x => x.Write(destinationLength, Endian.Big));
         }
 
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength, LzProperties lz, byte initialFill = 0x0)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, LzProperties lz, byte initialFill = 0x0)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);

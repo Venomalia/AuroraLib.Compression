@@ -19,7 +19,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo MIO0 compression algorithm, mainly used in early Nintendo 64 games.
     /// </summary>
-    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat
+    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -46,6 +46,15 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                Endian endian = s.DetectByteOrder<uint>(3);
+                return s.ReadUInt32(endian);
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

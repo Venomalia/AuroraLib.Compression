@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -10,7 +11,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// This LZSS header was used by Sega in early GameCube games like F-zero GX or Super Monkey Ball.
     /// </summary>
-    public sealed class LZSega : ICompressionAlgorithm, ILzSettings
+    public sealed class LZSega : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -40,11 +41,19 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.Position =+ 4;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint compressedSize = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

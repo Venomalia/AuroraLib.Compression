@@ -36,6 +36,14 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x14 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.Read<Header>(Endian.Big).DecompressedSize;
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long start = destination.Position;

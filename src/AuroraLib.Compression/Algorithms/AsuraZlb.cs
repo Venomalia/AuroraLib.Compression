@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// AsuraZlb based on ZLib compression algorithm used in The Simpsons Game.
     /// </summary>
-    public sealed class AsuraZlb : ICompressionAlgorithm, IHasIdentifier
+    public sealed class AsuraZlb : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -36,11 +36,20 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x14 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 8;
+                return s.ReadUInt32(Endian.Big);
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long start = destination.Position;
             source.MatchThrow(_identifier);
-            _ = source.ReadUInt32();
+            source.Skip(4);
             uint compressedSize = source.ReadUInt32(Endian.Big);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
             zLib.Decompress(source, destination, (int)compressedSize);

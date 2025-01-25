@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// FCMP extension header based on LZSS algorithm used in Muramasa The Demon Blade.
     /// </summary>
-    public sealed class FCMP : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class FCMP : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -38,12 +38,20 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            int destinationLength = source.ReadInt32();
-            int unk = source.ReadInt32(); //always 305397760?
-            LZSS.DecompressHeaderless(source, destination, (int)destinationLength, _lz);
+            uint decompressedSize = source.ReadUInt32();
+            _ = source.ReadInt32(); //always 305397760?
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

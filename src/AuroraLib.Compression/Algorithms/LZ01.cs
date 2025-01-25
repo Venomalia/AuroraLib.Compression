@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -11,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZ01 implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class LZ01 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZ01 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -37,13 +38,22 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 4;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             uint sourceLength = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
             _ = source.ReadUInt32();
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

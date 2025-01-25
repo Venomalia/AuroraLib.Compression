@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo Yaz0 compression algorithm successor to the <see cref="Yay0"/> algorithm, used in numerous Nintendo titles from the N64 era to Switch.
     /// </summary>
-    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat
+    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
     {
 
         /// <inheritdoc/>
@@ -39,6 +39,14 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(Identifier);
+                return s.ReadUInt32(FormatByteOrder);
+            });
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)

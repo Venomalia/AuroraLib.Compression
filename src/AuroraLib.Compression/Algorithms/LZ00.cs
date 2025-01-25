@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Sega LZ00 based on LZSS algorithm with encryption
     /// </summary>
-    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IObjectName
+    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IObjectName, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -44,6 +44,15 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x40 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 4 + 8 + 32;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
@@ -57,7 +66,7 @@ namespace AuroraLib.Compression.Algorithms
             source.Position += 8;
 
             StreamTransformer transformSource = new StreamTransformer(source, key);
-            LZSS.DecompressHeaderless(transformSource, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(transformSource, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

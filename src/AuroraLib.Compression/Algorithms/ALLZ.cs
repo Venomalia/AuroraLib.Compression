@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Aqualead LZ compression algorithm, used in games that utilize the Aqualead framework.
     /// </summary>
-    public sealed class ALLZ : ICompressionAlgorithm, IHasIdentifier
+    public sealed class ALLZ : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -43,14 +43,23 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 4;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             Span<byte> flags = stackalloc byte[4];
             source.Read(flags);
-            uint decomLength = source.ReadUInt32();
+            uint decompressedSize = source.ReadUInt32();
 
-            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>(decomLength))
+            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>(decompressedSize))
             {
                 DecompressHeaderless(source, buffer, flags);
                 destination.Write(buffer);

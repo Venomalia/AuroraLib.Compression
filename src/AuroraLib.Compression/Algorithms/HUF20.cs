@@ -3,10 +3,13 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -16,7 +19,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo variant of the Huffman compression algorithm, mainly used in GBA and DS games.
     /// </summary>
-    public sealed class HUF20 : ICompressionAlgorithm
+    public sealed class HUF20 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -43,12 +46,27 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()) && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadByte() != 0 && s.ReadByte() != 0);
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s => InternalGetDecompressedSize(s, out _));
+
+        private static uint InternalGetDecompressedSize(Stream source, out CompressionType type)
+        {
+            Debug.Assert(!(source is null));
+            type = (CompressionType)source!.ReadUInt8();
+            if (!Enum.IsDefined(typeof(CompressionType), type))
+                throw new InvalidIdentifierException(type.ToString("X"), "24 or 28");
+            uint decompressedSize = source!.ReadUInt24();
+            if (decompressedSize == 0)
+                decompressedSize = source!.ReadUInt32();
+
+            return decompressedSize;
+        }
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            Type = (CompressionType)source.ReadByte();
-            int uncompressedSize = source.ReadUInt24();
-            if (uncompressedSize == 0) uncompressedSize = (int)source.ReadUInt32();
-            DecompressHeaderless(source, destination, uncompressedSize, (int)Type - 0x20, Endian.Little);
+            uint decompressedSize = InternalGetDecompressedSize(source, out Type);
+            DecompressHeaderless(source, destination, (int)decompressedSize, (int)Type - 0x20, Endian.Little);
         }
 
         /// <inheritdoc/>

@@ -1,5 +1,6 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -12,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Konami MDF0 based on ZLib compression algorithm used in Castlevania: The Adventure ReBirth.
     /// </summary>
-    public sealed class MDF0 : ICompressionAlgorithm, IHasIdentifier
+    public sealed class MDF0 : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -33,6 +34,14 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x14 < stream.Length && stream.Peek(s => s.Match(_identifier) && s.ReadUInt32() != 0 && s.Read<ZLib.Header>().Validate());
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32();
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

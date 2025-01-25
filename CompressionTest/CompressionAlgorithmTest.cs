@@ -60,6 +60,10 @@ namespace CompressionTest
                 {
                     Assert.Fail();
                 }
+                if (algorithm is IProvidesDecompressedSize providesDecompressedSize)
+                {
+                    Assert.AreEqual(providesDecompressedSize.GetDecompressedSize(compressData), testData.Length);
+                }
             }
         }
 

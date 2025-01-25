@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// CNS compression algorithm, used in Games from Red Entertainment.
     /// </summary>
-    public sealed class CNS : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class CNS : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -45,6 +45,15 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 4;
+                return s.ReadUInt32(Endian.Little);
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

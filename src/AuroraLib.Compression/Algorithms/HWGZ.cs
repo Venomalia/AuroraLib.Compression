@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Hyrule Warriors GZ compression format based on ZLib.
     /// </summary>
-    public sealed class HWGZ : ICompressionAlgorithm, IEndianDependentFormat
+    public sealed class HWGZ : ICompressionAlgorithm, IEndianDependentFormat, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -29,65 +29,55 @@ namespace AuroraLib.Compression.Algorithms
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
         /// <inheritdoc/>
-        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => IsMatchStatic(stream, fileNameAndExtension);
+        public bool IsMatch(Stream source, ReadOnlySpan<char> fileNameAndExtension = default)
+            => IsMatchStatic(source, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public static bool IsMatchStatic(Stream source, ReadOnlySpan<char> fileNameAndExtension = default)
         {
-            if (stream.Length < 0x80)
+            if (source.Length < 0x80)
                 return false;
 
-            long pos = stream.Position;
-            uint chunkSize = stream.ReadUInt32();
-            uint chunkCount = stream.ReadUInt32();
-            uint decompressedSize = stream.ReadUInt32();
-
-            if (chunkSize == 0 || chunkCount == 0 || decompressedSize == 0)
+            long pos = source.Position;
+            if (!Header.TryRead(source, out Header header, out Endian order))
                 return false;
 
-            if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
-            {
-                chunkSize = BinaryPrimitives.ReverseEndianness(chunkSize);
-                chunkCount = BinaryPrimitives.ReverseEndianness(chunkCount);
-                decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
-                if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
-                    return false;
-            }
-            stream.Align(4 * chunkCount, SeekOrigin.Current, 128);
-            bool result = decompressedSize != 0 && stream.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
-            stream.Position = pos;
+            source.Align(4 * header.ChunkCount, SeekOrigin.Current, 128);
+            bool result = source.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
+            source.Position = pos;
             return result;
         }
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                if (!Header.TryRead(s, out Header header, out Endian order))
+                    throw new InvalidOperationException("Header a Invalidate");
+                return header.DecompressedSize;
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long destStart = destination.Position;
 
-            uint chunkSize = source.ReadUInt32(FormatByteOrder);
-            uint chunkCount = source.ReadUInt32(FormatByteOrder);
-            uint decompressedSize = source.ReadUInt32(FormatByteOrder);
+            if (!Header.TryRead(source, out Header header, out Endian order))
+                throw new InvalidOperationException("Header a Invalidate");
 
-            if (chunkCount != (decompressedSize + chunkSize - 1) / chunkSize)
-            {
-                chunkCount = BinaryPrimitives.ReverseEndianness(chunkCount);
-                decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
-                FormatByteOrder = FormatByteOrder == Endian.Big ? Endian.Little : Endian.Big;
-            }
-            source.Align(4 * chunkCount, SeekOrigin.Current, 128);
+            source.Align(4 * header.ChunkCount, SeekOrigin.Current, 128);
 
             ZLib zLib = new ZLib();
-            for (int i = 0; i < chunkCount; i++)
+            for (int i = 0; i < header.ChunkCount; i++)
             {
                 int chunkDataSize = source.ReadInt32(FormatByteOrder);
                 zLib.Decompress(source, destination, chunkDataSize);
                 source.Align(128);
             }
 
-            if (destination.Position - destStart != decompressedSize)
+            if (destination.Position - destStart != header.DecompressedSize)
             {
-                throw new DecompressedSizeException(decompressedSize, destination.Position - destStart);
+                throw new DecompressedSizeException(header.DecompressedSize, destination.Position - destStart);
             }
         }
 
@@ -124,6 +114,45 @@ namespace AuroraLib.Compression.Algorithms
                 }
             }
             destination.At(destStart + 12, s => s.Write<uint>(chunkSizes, FormatByteOrder));
+        }
+
+        private readonly struct Header : IReversibleEndianness<Header>
+        {
+            public readonly uint ChunkSize;
+            public readonly uint ChunkCount;
+            public readonly uint DecompressedSize;
+
+            public bool Validate() => ChunkCount != 0 && ChunkCount == (DecompressedSize + ChunkSize - 1) / ChunkSize;
+
+            public Header(uint chunkSize, uint chunkCount, uint decompressedSize)
+            {
+                ChunkSize = chunkSize;
+                ChunkCount = chunkCount;
+                DecompressedSize = decompressedSize;
+            }
+
+            public static bool TryRead(Stream source, out Header header, out Endian endian)
+            {
+                endian = Endian.Little;
+                header = source.Read<Header>();
+                if (header.ChunkSize == 0 || header.ChunkCount == 0 || header.DecompressedSize == 0)
+                    return false;
+
+                if (!header.Validate())
+                {
+                    endian = Endian.Big;
+                    header = header.ReverseEndianness();
+                    if (!header.Validate())
+                        return false;
+                }
+                return true;
+            }
+
+            public Header ReverseEndianness()
+                => new Header(
+                    BinaryPrimitives.ReverseEndianness(ChunkSize),
+                    BinaryPrimitives.ReverseEndianness(ChunkCount),
+                    BinaryPrimitives.ReverseEndianness(DecompressedSize));
         }
     }
 }

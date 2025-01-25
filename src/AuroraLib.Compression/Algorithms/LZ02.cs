@@ -4,9 +4,11 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 
@@ -15,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZ02 compression algorithm used in Mario Golf: Toadstool Tour.
     /// </summary>
-    public sealed class LZ02 : ICompressionAlgorithm, ILzSettings
+    public sealed class LZ02 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".lz02", string.Empty };
 
@@ -50,10 +52,23 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s => InternalGetDecompressedSize(s, out _));
+
+        private static uint InternalGetDecompressedSize(Stream source, out DataType type)
+        {
+            Debug.Assert(!(source is null));
+
+            type = source!.Read<DataType>();
+            if (!Enum.IsDefined(typeof(DataType), type))
+                throw new InvalidIdentifierException(type.ToString("X"), "1 or 2");
+            return source!.ReadUInt24(Endian.Big);
+        }
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            DataType type = source.Read<DataType>();
-            int uncompressedSize = source.Read<UInt24>(Endian.Big);
+            uint uncompressedSize = InternalGetDecompressedSize(source, out DataType type);
             DecompressHeaderless(source, destination, uncompressedSize);
         }
 
@@ -70,7 +85,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(extendData);
         }
 
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength = 0)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength = 0)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);

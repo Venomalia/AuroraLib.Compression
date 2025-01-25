@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZO Nintendo mainly used in DS Download Games.
     /// </summary>
-    public sealed class LZOn : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZOn : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -37,17 +37,25 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32(Endian.Big);
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long destinationStartPosition = destination.Position;
             source.MatchThrow(_identifier);
-            uint uncompressedSize = source.ReadUInt32(Endian.Big);
+            uint decompressedSize = source.ReadUInt32(Endian.Big);
             uint compressedSize = source.ReadUInt32(Endian.Big);
             LZO.DecompressHeaderless(source, destination);
 
-            if (destination.Position - destinationStartPosition > uncompressedSize)
+            if (destination.Position - destinationStartPosition > decompressedSize)
             {
-                throw new DecompressedSizeException(uncompressedSize, destination.Position - destinationStartPosition);
+                throw new DecompressedSizeException(decompressedSize, destination.Position - destinationStartPosition);
             }
         }
 

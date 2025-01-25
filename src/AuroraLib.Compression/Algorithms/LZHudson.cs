@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZHudson is an LZ based compression algorithm used in Mario Party 4.
     /// </summary>
-    public sealed class LZHudson : ICompressionAlgorithm, ILzSettings
+    public sealed class LZHudson : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".lzHudson" };
 
@@ -35,10 +35,14 @@ namespace AuroraLib.Compression.Algorithms
             => (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && stream.Position + 0x8 < stream.Length && stream.Peek<uint>(Endian.Big) != 0;
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek<uint>(Endian.Big);
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            uint uncompressedSize = source.ReadUInt32(Endian.Big);
-            DecompressHeaderless(source, destination, uncompressedSize);
+            uint decompressedSize = source.ReadUInt32(Endian.Big);
+            DecompressHeaderless(source, destination, decompressedSize);
         }
 
         /// <inheritdoc/>

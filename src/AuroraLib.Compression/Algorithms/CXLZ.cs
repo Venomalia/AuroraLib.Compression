@@ -32,6 +32,14 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && LZ10.IsMatchStatic(s));
 
         /// <inheritdoc/>
+        public override uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return InternalGetDecompressedSize(s);
+            });
+
+        /// <inheritdoc/>
         public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);

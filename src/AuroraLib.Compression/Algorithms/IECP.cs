@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -11,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// IECP algorithm base on LZSS, used in Fate/Extra.
     /// </summary>
-    public class IECP : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public class IECP : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -37,11 +38,19 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             uint decompressedSize = source.ReadUInt32();
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, _lz);
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
         }
 
         /// <inheritdoc/>

@@ -2,6 +2,7 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
+using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
@@ -15,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZShrek compression algorithm used in Shrek Super Slam.
     /// </summary>
-    public sealed class LZShrek : ICompressionAlgorithm, ILzSettings
+    public sealed class LZShrek : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -36,10 +37,18 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Read<int>() == 0x10 && s.Read<int>() != 0 && s.Read<int>() == s.Length - 0x10 && s.Read<int>() == 0);
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.Position += 4;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint offset = source.ReadUInt32();
-            uint decomLength = source.ReadUInt32();
+            uint decompressedSize = source.ReadUInt32();
             uint compLength = source.ReadUInt32();
             source.Seek(offset, SeekOrigin.Begin);
 
@@ -50,7 +59,7 @@ namespace AuroraLib.Compression.Algorithms
 #else
                 source.Read(sourceBuffer);
 #endif
-                DecompressHeaderless(sourceBuffer, destination, (int)decomLength);
+                DecompressHeaderless(sourceBuffer, destination, (int)decompressedSize);
             }
         }
 

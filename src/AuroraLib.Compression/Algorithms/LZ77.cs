@@ -46,6 +46,18 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()));
 
         /// <inheritdoc/>
+        public override uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Skip(1);
+                uint decompressedSize = s.ReadUInt24();
+                if (decompressedSize == 0)
+                    decompressedSize = s.ReadUInt32();
+                return decompressedSize;
+            });
+
+        /// <inheritdoc/>
         public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);
@@ -91,8 +103,8 @@ namespace AuroraLib.Compression.Algorithms
             source.MatchThrow(_identifier);
             CompressionType type = source.Read<CompressionType>();
 
-            int decompressedSize = source.ReadUInt24();
-            if (decompressedSize == 0) decompressedSize = (int)source.ReadUInt32();
+            uint decompressedSize = source.ReadUInt24();
+            if (decompressedSize == 0) decompressedSize = source.ReadUInt32();
 
             long destinationEndPosition = destination.Position + decompressedSize;
             switch (type)

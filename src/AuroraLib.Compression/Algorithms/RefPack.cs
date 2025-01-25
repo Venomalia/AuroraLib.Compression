@@ -17,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
     /// RefPack is an LZ compression format made by Frank Barchard of EA Canada
     /// http://wiki.niotso.org/RefPack
     /// </summary>
-    public sealed class RefPack : ICompressionAlgorithm, ILzSettings
+    public sealed class RefPack : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -36,6 +36,14 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Read<Header>().IsValid && s.ReadInt24(Endian.Big) != 0);
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                Header header = s.Read<Header>();
+                return header.IsInt32 ? s.ReadUInt32(Endian.Big) : s.ReadUInt24(Endian.Big);
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

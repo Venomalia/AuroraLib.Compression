@@ -9,11 +9,11 @@ namespace Benchmarks.Benchmarks
     public class TestAlgorithm<T> where T : ICompressionAlgorithm, new()
     {
         public const string TestFile = "Test.bmp";
-        public MemoryPoolStream TestRawData = (MemoryPoolStream)Stream.Null;
-        public MemoryPoolStream TestComData = (MemoryPoolStream)Stream.Null;
+        public Stream TestRawData = Stream.Null;
+        public Stream TestComData = Stream.Null;
         public T Instance = new();
 
-        [Params(1, 10)]
+        [Params(1)]
         public int MB;
 
         [GlobalSetup]

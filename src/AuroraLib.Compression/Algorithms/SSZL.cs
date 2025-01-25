@@ -1,4 +1,5 @@
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -11,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Level5 SSZL algorithm base on LZSS, first used in Inazuma Eleven 3.
     /// </summary>
-    public class SSZL : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public class SSZL : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -35,6 +36,15 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier) && s.ReadUInt32() == 0);
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                s.Position += 8;
+                return s.ReadUInt32();
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             long startpos = destination.Length;
@@ -44,7 +54,7 @@ namespace AuroraLib.Compression.Algorithms
             uint compressedSize = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
 
-            LZSS.DecompressHeaderless(source, destination, (int)decompressedSize, LZSS.Lzss0Properties);
+            LZSS.DecompressHeaderless(source, destination, decompressedSize, LZSS.Lzss0Properties);
             source.Seek(startpos + compressedSize + 0x10, SeekOrigin.Begin);
         }
 

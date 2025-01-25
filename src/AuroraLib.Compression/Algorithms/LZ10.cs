@@ -4,6 +4,7 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -15,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo LZ10 compression algorithm based on LZ77, mainly used in GBA, DS and WII games.
     /// </summary>
-    public class LZ10 : ICompressionAlgorithm, ILzSettings
+    public class LZ10 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private const byte Identifier = 0x10;
 
@@ -39,12 +40,26 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && (s.ReadUInt8() & 0xC0) == 0);
 
         /// <inheritdoc/>
+        public virtual uint GetDecompressedSize(Stream source)
+            => source.Peek(InternalGetDecompressedSize);
+
+        protected static uint InternalGetDecompressedSize(Stream source)
+        {
+            byte identifier = source.ReadUInt8();
+            if (identifier != Identifier)
+                throw new InvalidIdentifierException(identifier.ToString("X"), Identifier.ToString("X"));
+            uint decompressedSize = source.ReadUInt24();
+            if (decompressedSize == 0)
+                decompressedSize = source.ReadUInt32();
+
+            return decompressedSize;
+        }
+
+        /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
-            source.Position += 1;
-            int uncompressedSize = source.ReadUInt24();
-            if (uncompressedSize == 0) uncompressedSize = (int)source.ReadUInt32();
-            DecompressHeaderless(source, destination, uncompressedSize);
+            uint decompressedSize = InternalGetDecompressedSize(source);
+            DecompressHeaderless(source, destination, decompressedSize);
         }
 
         /// <inheritdoc/>
@@ -63,7 +78,7 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);

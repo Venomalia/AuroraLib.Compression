@@ -17,7 +17,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo Yay0 compression algorithm successor to the <see cref="MIO0"/> algorithm with increased match length, used in some Nintendo 64 and GameCube games.
     /// </summary>
-    public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat
+    public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -44,6 +44,15 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.Match(_identifier));
+
+        /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                s.MatchThrow(_identifier);
+                Endian endian = s.DetectByteOrder<uint>(3);
+                return s.ReadUInt32(Endian.Big);
+            });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)

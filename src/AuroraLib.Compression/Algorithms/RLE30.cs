@@ -1,6 +1,7 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -13,7 +14,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendos Run-Length Encoding algorithm mainly used in GBA, DS games.
     /// </summary>
-    public sealed class RLE30 : ICompressionAlgorithm
+    public sealed class RLE30 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private const byte Identifier = 0x30;
         private const int FlagMask = 0x80;
@@ -34,14 +35,25 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadUInt8() != 0);
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(InternalGetDecompressedSize);
+
+        private static uint InternalGetDecompressedSize(Stream source)
+        {
+            byte identifier = source.ReadUInt8();
+            if (identifier != Identifier)
+                throw new InvalidIdentifierException(identifier.ToString("X"), Identifier.ToString("X"));
+            uint decompressedSize = source.ReadUInt24();
+            if (decompressedSize == 0)
+                decompressedSize = source.ReadUInt32();
+
+            return decompressedSize;
+        }
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            source.Position += 1;
-            uint uncompressedSize = source.ReadUInt24();
-            if (uncompressedSize == 0)
-            {
-                uncompressedSize = source.ReadUInt32();
-            }
+            uint uncompressedSize = InternalGetDecompressedSize(source);
             DecompressHeaderless(source, destination, (int)uncompressedSize);
         }
 

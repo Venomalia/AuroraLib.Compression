@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Level5 compression algorithm, mainly used in Level5 3ds games.
     /// </summary>
-    public class Level5 : ICompressionAlgorithm, ILzSettings
+    public class Level5 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".Level5" };
 
@@ -47,6 +47,14 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(s =>
+            {
+                uint typeAndSize = s.ReadUInt32();
+                return s.Peek<byte>() == 0x78 ? typeAndSize : typeAndSize >> 3;
+            });
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             uint typeAndSize = source.ReadUInt32();
@@ -56,7 +64,7 @@ namespace AuroraLib.Compression.Algorithms
                 return;
             }
             CompressionType type = (CompressionType)(typeAndSize & 0x7);
-            int decompressedSize = (int)(typeAndSize >> 3);
+            uint decompressedSize = typeAndSize >> 3;
 
             switch (type)
             {
@@ -71,13 +79,13 @@ namespace AuroraLib.Compression.Algorithms
                     LZ10.DecompressHeaderless(source, destination, decompressedSize);
                     break;
                 case CompressionType.RLE:
-                    RLE30.DecompressHeaderless(source, destination, decompressedSize);
+                    RLE30.DecompressHeaderless(source, destination, (int)decompressedSize);
                     break;
                 case CompressionType.Huffman4Bit:
-                    HUF20.DecompressHeaderless(source, destination, decompressedSize, 4, Endian.Big);
+                    HUF20.DecompressHeaderless(source, destination, (int)decompressedSize, 4, Endian.Big);
                     break;
                 case CompressionType.Huffman8Bit:
-                    HUF20.DecompressHeaderless(source, destination, decompressedSize, 8, Endian.Big);
+                    HUF20.DecompressHeaderless(source, destination, (int)decompressedSize, 8, Endian.Big);
                     break;
                 default:
                     throw new NotSupportedException();

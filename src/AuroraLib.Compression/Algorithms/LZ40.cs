@@ -4,6 +4,7 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -15,7 +16,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo LZ40 compression algorithm similar to <see cref="LZ11"/>, mainly used in DS games.
     /// </summary>
-    public sealed class LZ40 : ICompressionAlgorithm, ILzSettings
+    public sealed class LZ40 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private const byte Identifier = 0x40;
 
@@ -39,11 +40,25 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Peek(s => s.Position + 0x8 < s.Length && s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0));
 
         /// <inheritdoc/>
+        public uint GetDecompressedSize(Stream source)
+            => source.Peek(InternalGetDecompressedSize);
+
+        protected static uint InternalGetDecompressedSize(Stream source)
+        {
+            byte identifier = source.ReadUInt8();
+            if (identifier != Identifier)
+                throw new InvalidIdentifierException(identifier.ToString("X"), Identifier.ToString("X"));
+            uint decompressedSize = source.ReadUInt24();
+            if (decompressedSize == 0)
+                decompressedSize = source.ReadUInt32();
+
+            return decompressedSize;
+        }
+
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            source.Position += 1;
-            int uncompressedSize = source.ReadUInt24();
-            if (uncompressedSize == 0) uncompressedSize = (int)source.ReadUInt32();
+            uint uncompressedSize = InternalGetDecompressedSize(source);
             DecompressHeaderless(source, destination, uncompressedSize);
         }
 
@@ -63,7 +78,7 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
