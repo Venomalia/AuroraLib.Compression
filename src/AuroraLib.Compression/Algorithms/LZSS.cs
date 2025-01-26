@@ -9,6 +9,7 @@ using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 
@@ -62,23 +63,35 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Read Header
             source.MatchThrow(_identifier);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
             uint compressedSize = source.ReadUInt32(Endian.Big);
             uint unk = source.ReadUInt32(Endian.Big);
 
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Perform the decompression
             DecompressHeaderless(source, destination, decompressedSize, LZ);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, compressedSize);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
+
+            // Write Header
             destination.Write(_identifier);
             destination.Write(source.Length, Endian.Big);
             destination.Write(0); // Compressed length (will be filled in later)
             destination.Write(0);
 
+            // Perform the compression
             CompressHeaderless(source, destination, LZ, LookAhead, level);
 
             // Go back to the beginning of the file and write out the compressed length
@@ -117,46 +130,46 @@ namespace AuroraLib.Compression.Algorithms
                     }
                 }
 
-                if (destination.Position + buffer.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                }
+            }
+
+            // Verify decompressed size
+            if (destination.Position != endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level))
-                CompressHeaderless(source, destination, matches, lz);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level);
+            CompressHeaderless(source, destination, matches, lz);
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, IReadOnlyList<LzMatch> matches, LzProperties lz)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
 
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
+            using FlagWriter flag = new FlagWriter(destination, Endian.Little);
+            int n = lz.GetWindowsFlag();
+            int f = lz.GetLengthBitsFlag();
+
+            while (sourcePointer < source.Length)
             {
-                int n = lz.GetWindowsFlag();
-                int f = lz.GetLengthBitsFlag();
-
-                while (sourcePointer < source.Length)
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                 {
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                    {
-                        LzMatch lzMatch = matches[matchPointer++];
+                    LzMatch lzMatch = matches[matchPointer++];
 
-                        // Distance to offset
-                        int offset = ((lz.WindowsStart + sourcePointer - lzMatch.Distance) & n);
-                        flag.Buffer.Write((ushort)((offset & 0xFF) | (offset & 0xFF00) << lz.LengthBits | ((lzMatch.Length - lz.MinLength) & f) << 8));
-                        flag.WriteBit(false);
-                        sourcePointer += lzMatch.Length;
+                    // Distance to offset
+                    int offset = ((lz.WindowsStart + sourcePointer - lzMatch.Distance) & n);
+                    flag.Buffer.Write((ushort)((offset & 0xFF) | (offset & 0xFF00) << lz.LengthBits | ((lzMatch.Length - lz.MinLength) & f) << 8));
+                    flag.WriteBit(false);
+                    sourcePointer += lzMatch.Length;
 
-                    }
-                    else
-                    {
-                        flag.Buffer.WriteByte(source[sourcePointer++]);
-                        flag.WriteBit(true);
-                    }
+                }
+                else
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(true);
                 }
             }
         }

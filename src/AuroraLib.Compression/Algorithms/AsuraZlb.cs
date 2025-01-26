@@ -5,6 +5,7 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 
@@ -52,12 +53,19 @@ namespace AuroraLib.Compression.Algorithms
             source.Skip(4);
             uint compressedSize = source.ReadUInt32(Endian.Big);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
+
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+            long destinationStartPosition = destination.Position;
+
+            // Perform the decompression
             zLib.Decompress(source, destination, (int)compressedSize);
 
-            if (destination.Position - start != decompressedSize)
-            {
-                throw new DecompressedSizeException(decompressedSize, destination.Position - start);
-            }
+            // Verify decompressed size
+            DecompressedSizeException.ThrowIfMismatch(destination.Position - destinationStartPosition, decompressedSize);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, compressedSize);
         }
 
         /// <inheritdoc/>

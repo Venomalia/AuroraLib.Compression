@@ -1,4 +1,4 @@
-﻿using AuroraLib.Core;
+using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;

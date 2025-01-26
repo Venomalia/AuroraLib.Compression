@@ -79,7 +79,7 @@ namespace AuroraLib.Compression.Algorithms
                     LZ10.DecompressHeaderless(source, destination, decompressedSize);
                     break;
                 case CompressionType.RLE:
-                    RLE30.DecompressHeaderless(source, destination, (int)decompressedSize);
+                    RLE30.DecompressHeaderless(source, destination, decompressedSize);
                     break;
                 case CompressionType.Huffman4Bit:
                     HUF20.DecompressHeaderless(source, destination, (int)decompressedSize, 4, Endian.Big);

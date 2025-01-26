@@ -2,7 +2,6 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core;
 using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
@@ -52,15 +51,10 @@ namespace AuroraLib.Compression.Algorithms
             uint compLength = source.ReadUInt32();
             source.Seek(offset, SeekOrigin.Begin);
 
-            using (SpanBuffer<byte> sourceBuffer = new SpanBuffer<byte>(compLength))
-            {
-#if NET20_OR_GREATER
-                source.Read(sourceBuffer.GetBuffer(), 0, sourceBuffer.Length);
-#else
-                source.Read(sourceBuffer);
-#endif
-                DecompressHeaderless(sourceBuffer, destination, (int)decompressedSize);
-            }
+            using SpanBuffer<byte> sourceBuffer = new SpanBuffer<byte>(compLength);
+            source.Read(sourceBuffer.GetBuffer(), 0, sourceBuffer.Length);
+
+            DecompressHeaderless(sourceBuffer, destination, (int)decompressedSize);
         }
 
         /// <inheritdoc/>
@@ -81,45 +75,43 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+            int sourcePointer = 0;
+
+            while (sourcePointer < source.Length)
             {
-                int sourcePointer = 0;
+                byte flag = source[sourcePointer++];
+                int compressed = (flag & 7) + 1; // 1-8
+                int uncompressed = ReadDistance(flag, source, ref sourcePointer);
 
-                while (sourcePointer < source.Length)
+                if (uncompressed != 0)
                 {
-                    byte flag = source[sourcePointer++];
-                    int compressed = (flag & 7) + 1; // 1-8
-                    int uncompressed = ReadDistance(flag, source, ref sourcePointer);
+                    buffer.Write(source.Slice(sourcePointer, uncompressed));
+                    sourcePointer += uncompressed;
+                }
 
-                    if (uncompressed != 0)
+                for (int i = 0; i < compressed; i++)
+                {
+                    flag = source[sourcePointer++];
+                    int length = flag & 7; // 1-7 | 0 flag
+
+                    if (length == 0)
                     {
-                        buffer.Write(source.Slice(sourcePointer, uncompressed));
-                        sourcePointer += uncompressed;
-                    }
-
-                    for (int i = 0; i < compressed; i++)
-                    {
-                        flag = source[sourcePointer++];
-                        int length = flag & 7; // 1-7 | 0 flag
-
+                        length = source[sourcePointer++];
                         if (length == 0)
                         {
-                            length = source[sourcePointer++];
-                            if (length == 0)
+                            if (destination.Position + buffer.Position > endPosition)
                             {
-                                if (destination.Position + buffer.Position > endPosition)
-                                {
-                                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                                }
-                                return; // end~
+                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
                             }
-                            length += 7; // 7-262
+                            return; // end~
                         }
-
-                        int distance = ReadDistance(flag, source, ref sourcePointer) + 1;
-
-                        buffer.BackCopy(distance, length);
+                        length += 7; // 7-262
                     }
+
+                    int distance = ReadDistance(flag, source, ref sourcePointer) + 1;
+
+                    buffer.BackCopy(distance, length);
                 }
             }
             throw new EndOfStreamException();
@@ -129,55 +121,53 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0;
 
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (MemoryPoolStream buffer = new MemoryPoolStream())
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using MemoryPoolStream buffer = new MemoryPoolStream();
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+            for (int i = 0; i < matches.Count; i++)
             {
-                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-                for (int i = 0; i < matches.Count; i++)
+                LzMatch match = matches[i];
+                ReadOnlySpan<byte> uncompressed = source.Slice(sourcePointer, match.Offset - sourcePointer);
+                sourcePointer += uncompressed.Length;
+                int compressedLength = 1;
+
+                while (match.Length != 0)
                 {
-                    LzMatch match = matches[i];
-                    ReadOnlySpan<byte> uncompressed = source.Slice(sourcePointer, match.Offset - sourcePointer);
-                    sourcePointer += uncompressed.Length;
-                    int compressedLength = 1;
+                    // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
+                    int lengthflag = match.Length > 7 ? 0 : match.Length;
+                    int distanceflag = match.Distance > 30 ? (match.Distance > 286 ? 0x1F : 0x1E) : match.Distance - 1;
 
-                    while (match.Length != 0)
+                    buffer.WriteByte((byte)(distanceflag << 3 | (lengthflag)));
+                    if (lengthflag == 0) // match.Length 8-262
+                        buffer.WriteByte((byte)(match.Length - 7));
+
+                    if (distanceflag == 0x1E) // 31-286
+                        buffer.WriteByte((byte)(match.Distance - 31));
+                    else if (distanceflag == 0x1F) // 287-65822
+                        buffer.Write((ushort)(match.Distance - 287));
+
+                    sourcePointer += match.Length;
+
+                    if (compressedLength < 8 && i < matches.Count && matches[i + 1].Offset == sourcePointer)
                     {
-                        // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
-                        int lengthflag = match.Length > 7 ? 0 : match.Length;
-                        int distanceflag = match.Distance > 30 ? (match.Distance > 286 ? 0x1F : 0x1E) : match.Distance - 1;
-
-                        buffer.WriteByte((byte)(distanceflag << 3 | (lengthflag)));
-                        if (lengthflag == 0) // match.Length 8-262
-                            buffer.WriteByte((byte)(match.Length - 7));
-
-                        if (distanceflag == 0x1E) // 31-286
-                            buffer.WriteByte((byte)(match.Distance - 31));
-                        else if (distanceflag == 0x1F) // 287-65822
-                            buffer.Write((ushort)(match.Distance - 287));
-
-                        sourcePointer += match.Length;
-
-                        if (compressedLength < 8 && i < matches.Count && matches[i + 1].Offset == sourcePointer)
-                        {
-                            compressedLength++;
-                            match = matches[++i];
-                        }
-                        else
-                            break;
+                        compressedLength++;
+                        match = matches[++i];
                     }
-                    // Write flag and buffer to destination.
-                    int uncompressedflag = uncompressed.Length > 29 ? (uncompressed.Length > 285 ? 0x1F : 0x1E) : uncompressed.Length;
-                    destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength - 1));
-
-                    if (uncompressedflag == 0x1E) // 30-285
-                        destination.WriteByte((byte)(uncompressed.Length - 30));
-                    else if (uncompressedflag == 0x1F) // 286-65821
-                        destination.Write((ushort)(uncompressed.Length - 286));
-
-                    destination.Write(uncompressed);
-                    buffer.WriteTo(destination);
-                    buffer.SetLength(0);
+                    else
+                        break;
                 }
+                // Write flag and buffer to destination.
+                int uncompressedflag = uncompressed.Length > 29 ? (uncompressed.Length > 285 ? 0x1F : 0x1E) : uncompressed.Length;
+                destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength - 1));
+
+                if (uncompressedflag == 0x1E) // 30-285
+                    destination.WriteByte((byte)(uncompressed.Length - 30));
+                else if (uncompressedflag == 0x1F) // 286-65821
+                    destination.Write((ushort)(uncompressed.Length - 286));
+
+                destination.Write(uncompressed);
+                buffer.WriteTo(destination);
+                buffer.SetLength(0);
             }
 
             destination.Write(0);

@@ -49,22 +49,35 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Read Header
             source.MatchThrow(_identifier);
             uint sourceLength = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
             _ = source.ReadUInt32();
+
+            // Perform the decompression
             LZSS.DecompressHeaderless(source, destination, decompressedSize, _lz);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, sourceLength);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
+
+            // Write Header
             destination.Write(_identifier);
             destination.Write(0); // Compressed length (will be filled in later)
             destination.Write(source.Length);
             destination.Write(0);
 
+            // Perform the compression
             LZSS.CompressHeaderless(source, destination, _lz, LookAhead, level);
 
             // Go back to the beginning of the file and write out the compressed length

@@ -74,64 +74,62 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+
+            while (source.Position < source.Length)
             {
+                int plainSize, length = 0, distance = 0;
 
-                while (source.Position < source.Length)
+                byte prefix = source.ReadUInt8();
+                if ((prefix & 0x80) == 0) // P = 0-3 D = 1-1024 L = 3-10
                 {
-                    int plainSize, length = 0, distance = 0;
-
-                    byte prefix = source.ReadUInt8();
-                    if ((prefix & 0x80) == 0) // P = 0-3 D = 1-1024 L = 3-10
-                    {
-                        // 0DDLLLPP DDDDDDDD
-                        byte data0 = source.ReadUInt8(); // DDDDDDDD
-                        plainSize = prefix & 0x03;
-                        length = ((prefix & 0x1C) >> 2) + 3;
-                        distance = (((prefix & 0x60) << 3) | data0) + 1;
-                    }
-                    else if ((prefix & 0x40) == 0) //P = 0-3 D = 1-16384 L = 4-67
-                    {
-                        //10LLLLLL PPDDDDDD DDDDDDDD
-                        byte data0 = source.ReadUInt8(); // PPDDDDDD
-                        byte data1 = source.ReadUInt8(); // DDDDDDDD
-
-                        plainSize = data0 >> 6;
-                        length = (prefix & 0x3F) + 4;
-                        distance = (((data0 & 0x3F) << 8) | data1) + 1;
-                    }
-                    else if ((prefix & 0x20) == 0) //P = 0-3 D = 1-131072 L = 5-1028
-                    {
-                        //110DLLPP DDDDDDDD DDDDDDDD LLLLLLLL
-                        byte data0 = source.ReadUInt8(); // DDDDDDDD
-                        byte data1 = source.ReadUInt8(); // DDDDDDDD
-                        byte data2 = source.ReadUInt8(); // LLLLLLLL
-
-                        plainSize = prefix & 3;
-                        length = (((prefix & 0x0C) << 6) | data2) + 5;
-                        distance = (((((prefix & 0x10) << 4) | data0) << 8) | data1) + 1;
-                    }
-                    else // P = 4-112
-                    {
-                        // 111PPPPP
-                        plainSize = (prefix & 0x1F) * 4 + 4;
-                        if (plainSize > 0x70) // P = 0-3
-                        {
-                            // 111111PP
-                            plainSize = prefix & 3;
-                            buffer.CopyFrom(source, plainSize);
-
-                            if (destination.Position + buffer.Position > endPosition)
-                            {
-                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                            }
-                            return; // end
-                        }
-                    }
-
-                    buffer.CopyFrom(source, plainSize);
-                    buffer.BackCopy(distance, length);
+                    // 0DDLLLPP DDDDDDDD
+                    byte data0 = source.ReadUInt8(); // DDDDDDDD
+                    plainSize = prefix & 0x03;
+                    length = ((prefix & 0x1C) >> 2) + 3;
+                    distance = (((prefix & 0x60) << 3) | data0) + 1;
                 }
+                else if ((prefix & 0x40) == 0) //P = 0-3 D = 1-16384 L = 4-67
+                {
+                    //10LLLLLL PPDDDDDD DDDDDDDD
+                    byte data0 = source.ReadUInt8(); // PPDDDDDD
+                    byte data1 = source.ReadUInt8(); // DDDDDDDD
+
+                    plainSize = data0 >> 6;
+                    length = (prefix & 0x3F) + 4;
+                    distance = (((data0 & 0x3F) << 8) | data1) + 1;
+                }
+                else if ((prefix & 0x20) == 0) //P = 0-3 D = 1-131072 L = 5-1028
+                {
+                    //110DLLPP DDDDDDDD DDDDDDDD LLLLLLLL
+                    byte data0 = source.ReadUInt8(); // DDDDDDDD
+                    byte data1 = source.ReadUInt8(); // DDDDDDDD
+                    byte data2 = source.ReadUInt8(); // LLLLLLLL
+
+                    plainSize = prefix & 3;
+                    length = (((prefix & 0x0C) << 6) | data2) + 5;
+                    distance = (((((prefix & 0x10) << 4) | data0) << 8) | data1) + 1;
+                }
+                else // P = 4-112
+                {
+                    // 111PPPPP
+                    plainSize = (prefix & 0x1F) * 4 + 4;
+                    if (plainSize > 0x70) // P = 0-3
+                    {
+                        // 111111PP
+                        plainSize = prefix & 3;
+                        buffer.CopyFrom(source, plainSize);
+
+                        if (destination.Position + buffer.Position > endPosition)
+                        {
+                            throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                        }
+                        return; // end
+                    }
+                }
+
+                buffer.CopyFrom(source, plainSize);
+                buffer.BackCopy(distance, length);
             }
             throw new EndOfStreamException();
         }
@@ -139,57 +137,55 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+            foreach (LzMatch match in matches)
             {
+                if ((match.Distance > 0x4000 && match.Length < 5) || (match.Distance > 0x400 && match.Length < 4))
+                    continue;
 
-                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-                foreach (LzMatch match in matches)
+                plainSize = match.Offset - sourcePointer;
+
+                while (plainSize > 3)
                 {
-                    if ((match.Distance > 0x4000 && match.Length < 5) || (match.Distance > 0x400 && match.Length < 4))
-                        continue;
+                    int copyflag = (plainSize > 0x70 ? 0x70 : plainSize) / 4 - 1;
+                    destination.Write((byte)(0xE0 | copyflag));
+                    copyflag = copyflag * 4 + 4;
+                    destination.Write(source.Slice(sourcePointer, copyflag));
+                    sourcePointer += copyflag;
+                    plainSize -= copyflag;
+                }
 
-                    plainSize = match.Offset - sourcePointer;
-
-                    while (plainSize > 3)
+                if (match.Length != 0)
+                {
+                    if (match.Length <= 10 && match.Distance <= 0x400) // P = 0-3 D = 1-1024 L = 3-10
                     {
-                        int copyflag = (plainSize > 0x70 ? 0x70 : plainSize) / 4 - 1;
-                        destination.Write((byte)(0xE0 | copyflag));
-                        copyflag = copyflag * 4 + 4;
-                        destination.Write(source.Slice(sourcePointer, copyflag));
-                        sourcePointer += copyflag;
-                        plainSize -= copyflag;
+                        destination.Write((byte)(plainSize | (((match.Distance - 1) & 0x300) >> 3) | ((match.Length - 3) << 2))); // 0DDLLLPP
+                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
                     }
-
-                    if (match.Length != 0)
+                    else if (match.Length >= 4 && match.Length <= 67 && match.Distance <= 0x4000)
                     {
-                        if (match.Length <= 10 && match.Distance <= 0x400) // P = 0-3 D = 1-1024 L = 3-10
-                        {
-                            destination.Write((byte)(plainSize | (((match.Distance - 1) & 0x300) >> 3) | ((match.Length - 3) << 2))); // 0DDLLLPP
-                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
-                        }
-                        else if (match.Length >= 4 && match.Length <= 67 && match.Distance <= 0x4000)
-                        {
-                            destination.Write((byte)(0x80 | match.Length - 4)); // 10LLLLLL
-                            destination.Write((byte)(((match.Distance - 1) >> 8) | (plainSize << 6))); // PPDDDDDD
-                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
-                        }
-                        else
-                        {
-                            destination.Write((byte)(0xC0 | ((match.Distance - 1) >> 16 << 4) | ((match.Length - 5) >> 8 << 2) | plainSize)); // 110DLLPP
-                            destination.Write((byte)((match.Distance - 1) >> 8)); // DDDDDDDD
-                            destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
-                            destination.Write((byte)(match.Length - 5)); // LLLLLLLL
-                        }
-                        destination.Write(source.Slice(sourcePointer, plainSize));
-                        sourcePointer += plainSize + match.Length;
-                        plainSize = 0;
+                        destination.Write((byte)(0x80 | match.Length - 4)); // 10LLLLLL
+                        destination.Write((byte)(((match.Distance - 1) >> 8) | (plainSize << 6))); // PPDDDDDD
+                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
                     }
+                    else
+                    {
+                        destination.Write((byte)(0xC0 | ((match.Distance - 1) >> 16 << 4) | ((match.Length - 5) >> 8 << 2) | plainSize)); // 110DLLPP
+                        destination.Write((byte)((match.Distance - 1) >> 8)); // DDDDDDDD
+                        destination.Write((byte)(match.Distance - 1)); // DDDDDDDD
+                        destination.Write((byte)(match.Length - 5)); // LLLLLLLL
+                    }
+                    destination.Write(source.Slice(sourcePointer, plainSize));
+                    sourcePointer += plainSize + match.Length;
+                    plainSize = 0;
                 }
             }
             destination.Write((byte)(0xFC | plainSize)); // 111111PP
         }
 
-        public readonly struct Header
+        private readonly struct Header
         {
             internal readonly byte value1;
             internal readonly byte value2;

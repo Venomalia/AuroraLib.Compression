@@ -58,16 +58,20 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Read Header
             source.MatchThrow(_identifier);
             Extension = source.ReadString(4);
             uint decompressedSize = source.ReadUInt32(Endian.Little);
             source.Position += 4; // 0
+
+            // Perform the decompression
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Write Header
             destination.Write(_identifier);
             if (source[0] == 0x0 && source[1] == 0x20 && source[2] == 0xAF && source[3] == 0x30)
             {
@@ -80,6 +84,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Length, Endian.Little);
             destination.Write(0);
 
+            // Perform the compression
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
@@ -113,11 +118,12 @@ namespace AuroraLib.Compression.Algorithms
                         buffer.BackCopy(distance, length);
                     }
                 }
+            }
 
-                if (destination.Position + buffer.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                }
+            // Verify decompressed size
+            if (destination.Position != endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 

@@ -47,15 +47,20 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            long startpos = destination.Length;
-
+            // Read Header
             source.MatchThrow(_identifier);
             _ = source.ReadUInt32();
             uint compressedSize = source.ReadUInt32();
             uint decompressedSize = source.ReadUInt32();
 
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Perform the decompression
             LZSS.DecompressHeaderless(source, destination, decompressedSize, LZSS.Lzss0Properties);
-            source.Seek(startpos + compressedSize + 0x10, SeekOrigin.Begin);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, compressedSize);
         }
 
         /// <inheritdoc/>

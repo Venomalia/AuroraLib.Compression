@@ -101,11 +101,11 @@ namespace AuroraLib.Compression.Algorithms
                         buffer.WriteByte(source.ReadUInt8());
                     }
                 }
+            }
 
-                if (destination.Position + buffer.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                }
+            if (destination.Position > endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 
@@ -113,25 +113,23 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
 
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(destination, Endian.Big);
+            while (sourcePointer < source.Length)
             {
-                while (sourcePointer < source.Length)
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                 {
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                    {
-                        LzMatch match = matches[matchPointer++];
+                    LzMatch match = matches[matchPointer++];
 
-                        flag.Buffer.Write((ushort)((match.Length - 3) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
-                        sourcePointer += match.Length;
-                        flag.WriteBit(true);
+                    flag.Buffer.Write((ushort)((match.Length - 3) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                    sourcePointer += match.Length;
+                    flag.WriteBit(true);
 
-                    }
-                    else
-                    {
-                        flag.Buffer.WriteByte(source[sourcePointer++]);
-                        flag.WriteBit(false);
-                    }
+                }
+                else
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(false);
                 }
             }
         }

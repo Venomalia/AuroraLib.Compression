@@ -54,25 +54,28 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Read Header
             source.MatchThrow(_identifier);
             Span<byte> flags = stackalloc byte[4];
             source.Read(flags);
             uint decompressedSize = source.ReadUInt32();
 
-            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>(decompressedSize))
-            {
-                DecompressHeaderless(source, buffer, flags);
-                destination.Write(buffer);
-            }
+            // Perform the decompression
+            using SpanBuffer<byte> buffer = new SpanBuffer<byte>(decompressedSize);
+            DecompressHeaderless(source, buffer, flags);
+            destination.Write(buffer);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Write Header
             destination.Write(_identifier);
             Span<byte> flags = stackalloc byte[4] { 0, LzCopyBits, LzDistanceBits, LzLengthBits };
             destination.Write(flags);
             destination.Write(source.Length);
+
+            // Perform the compression
             CompressHeaderless(source, destination, flags, true, level);
         }
 
@@ -118,47 +121,45 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(destination, Endian.Little);
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+            foreach (LzMatch match in matches)
             {
-                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-                foreach (LzMatch match in matches)
+                plainSize = match.Offset - sourcePointer;
+                if (plainSize > 0)
                 {
-                    plainSize = match.Offset - sourcePointer;
-                    if (plainSize > 0)
-                    {
-                        flag.WriteBit(false);
-                        WriteALFlag(flags[3], plainSize - 1);
-                        flag.Buffer.Write(source.Slice(sourcePointer, plainSize));
-                        sourcePointer += plainSize;
-                        flag.FlushIfNecessary();
-                    }
-                    else
-                    {
-                        flag.WriteBit(true);
-                    }
-
-                    WriteALFlag(flags[2], match.Distance - 1);
-                    WriteALFlag(flags[1], match.Length - 3);
-                    sourcePointer += match.Length;
-                }
-
-                return;
-
-                void WriteALFlag(int startBits, int value)
-                {
-                    int bitMask = 0, bits = startBits;
-
-                    while (bitMask + ((1 << bits) - 1) < value)
-                    {
-                        bits++;
-                        bitMask = ((1 << (bits - startBits)) - 1) << startBits;
-                        flag.WriteBit(true);
-                    }
                     flag.WriteBit(false);
-                    value -= bitMask;
-                    flag.WriteInt(value, bits);
+                    WriteALFlag(flags[3], plainSize - 1);
+                    flag.Buffer.Write(source.Slice(sourcePointer, plainSize));
+                    sourcePointer += plainSize;
+                    flag.FlushIfNecessary();
                 }
+                else
+                {
+                    flag.WriteBit(true);
+                }
+
+                WriteALFlag(flags[2], match.Distance - 1);
+                WriteALFlag(flags[1], match.Length - 3);
+                sourcePointer += match.Length;
+            }
+
+            return;
+
+            void WriteALFlag(int startBits, int value)
+            {
+                int bitMask = 0, bits = startBits;
+
+                while (bitMask + ((1 << bits) - 1) < value)
+                {
+                    bits++;
+                    bitMask = ((1 << (bits - startBits)) - 1) << startBits;
+                    flag.WriteBit(true);
+                }
+                flag.WriteBit(false);
+                value -= bitMask;
+                flag.WriteInt(value, bits);
             }
         }
     }

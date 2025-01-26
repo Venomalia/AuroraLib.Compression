@@ -57,10 +57,8 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Big, 128, 4, Endian.Big))
-            {
-                Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, level);
-            }
+            using FlagWriter flag = new FlagWriter(destination, Endian.Big, 128, 4, Endian.Big);
+            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, level);
         }
     }
 }

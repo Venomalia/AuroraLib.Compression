@@ -72,38 +72,30 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using (MemoryPoolStream compressedData = new MemoryPoolStream(1024),
-                uncompressedData = new MemoryPoolStream(1024),
-                flagData = new MemoryPoolStream(512))
-            {
+            using MemoryPoolStream compressedData = new MemoryPoolStream(1024);
+            using MemoryPoolStream uncompressedData = new MemoryPoolStream(1024);
+            using MemoryPoolStream flagData = new MemoryPoolStream(512);
 
-                CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, level);
+            CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, level);
 
-                uint startPosition = (uint)destination.Position;
-                destination.Write(_identifier);
-                destination.Write(source.Length, FormatByteOrder);
-                destination.Write((uint)(0x10 + flagData.Length - startPosition), FormatByteOrder);
-                destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), FormatByteOrder);
-                flagData.WriteTo(destination);
-                compressedData.WriteTo(destination);
-                uncompressedData.WriteTo(destination);
-            }
+            uint startPosition = (uint)destination.Position;
+            destination.Write(_identifier);
+            destination.Write(source.Length, FormatByteOrder);
+            destination.Write((uint)(0x10 + flagData.Length - startPosition), FormatByteOrder);
+            destination.Write((uint)(0x10 + flagData.Length + compressedData.Length - startPosition), FormatByteOrder);
+            flagData.WriteTo(destination);
+            compressedData.WriteTo(destination);
+            uncompressedData.WriteTo(destination);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
-            using (SpanBuffer<byte> data = new SpanBuffer<byte>((int)(source.Length - source.Position)))
-            {
-#if NET20_OR_GREATER
-                source.Read(data.GetBuffer(), 0, data.Length);
-#else
-                source.Read(data);
-#endif
+            using SpanBuffer<byte> data = new SpanBuffer<byte>((int)(source.Length - source.Position));
+            source.Read(data.GetBuffer(), 0, data.Length);
 
-                int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
-                if (source.CanSeek)
-                    source.Position -= data.Length - read;
-            }
+            int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
+            if (source.CanSeek)
+                source.Position -= data.Length - read;
         }
 
 #if !(NETSTANDARD || NET20_OR_GREATER)
@@ -113,46 +105,44 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+
+            int flagDataPointer = 0;
+            int maskBitCounter = 0, currentMask = 0;
+
+            while (destination.Position + buffer.Position < endPosition)
             {
-
-                int flagDataPointer = 0;
-                int maskBitCounter = 0, currentMask = 0;
-
-                while (destination.Position + buffer.Position < endPosition)
+                // If we're out of bits, get the next mask.
+                if (maskBitCounter == 0)
                 {
-                    // If we're out of bits, get the next mask.
-                    if (maskBitCounter == 0)
-                    {
-                        currentMask = source[flagDataPointer++];
-                        maskBitCounter = 8;
-                    }
-
-                    if ((currentMask & 0x80) == 0x80)
-                    {
-                        buffer.WriteByte(source[uncompressedDataPointer++]);
-                    }
-                    else
-                    {
-                        byte b1 = source[compressedDataPointer++];
-                        byte b2 = source[compressedDataPointer++];
-
-                        // Calculate the match distance & length
-                        int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
-                        int length = (b1 >> 4) + 3;
-
-                        buffer.BackCopy(distance, length);
-                    }
-
-                    // Get the next bit in the mask.
-                    currentMask <<= 1;
-                    maskBitCounter--;
+                    currentMask = source[flagDataPointer++];
+                    maskBitCounter = 8;
                 }
 
-                if (destination.Position + buffer.Position > endPosition)
+                if ((currentMask & 0x80) == 0x80)
                 {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                    buffer.WriteByte(source[uncompressedDataPointer++]);
                 }
+                else
+                {
+                    byte b1 = source[compressedDataPointer++];
+                    byte b2 = source[compressedDataPointer++];
+
+                    // Calculate the match distance & length
+                    int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
+                    int length = (b1 >> 4) + 3;
+
+                    buffer.BackCopy(distance, length);
+                }
+
+                // Get the next bit in the mask.
+                currentMask <<= 1;
+                maskBitCounter--;
+            }
+
+            if (destination.Position + buffer.Position > endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
             }
             return Math.Max(compressedDataPointer, uncompressedDataPointer);
         }
@@ -160,11 +150,9 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(flagData, Endian.Big))
-            {
-                CompressHeaderless(source, compressedData, uncompressedData, flag, matches);
-            }
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(flagData, Endian.Big);
+            CompressHeaderless(source, compressedData, uncompressedData, flag, matches);
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, IReadOnlyList<LzMatch> matches)

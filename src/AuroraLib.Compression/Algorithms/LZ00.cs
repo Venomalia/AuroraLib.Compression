@@ -55,18 +55,24 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Read Header
             source.MatchThrow(_identifier);
             uint sourceLength = source.ReadUInt32();
             source.Position += 8;
-
             Name = source.ReadString(32);
-
             uint decompressedSize = source.ReadUInt32();
             uint key = source.ReadUInt32();
             source.Position += 8;
 
+            // Perform the decompression
             StreamTransformer transformSource = new StreamTransformer(source, key);
             LZSS.DecompressHeaderless(transformSource, destination, decompressedSize, _lz);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, sourceLength);
         }
 
         /// <inheritdoc/>
@@ -80,7 +86,10 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, uint key, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
+
+            // Write Header
             destination.Write(_identifier);
             destination.Write(0); // Compressed length (will be filled in later)
             destination.Write(0);
@@ -93,6 +102,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0);
             destination.Write(0);
 
+            // Perform the compression
             StreamTransformer transformDestination = new StreamTransformer(destination, key);
             LZSS.CompressHeaderless(source, transformDestination, _lz, LookAhead, level);
 

@@ -57,8 +57,6 @@ namespace AuroraLib.Compression.Algorithms
 
         private static uint InternalGetDecompressedSize(Stream source, out DataType type)
         {
-            Debug.Assert(!(source is null));
-
             type = source!.Read<DataType>();
             if (!Enum.IsDefined(typeof(DataType), type))
                 throw new InvalidIdentifierException(type.ToString("X"), "1 or 2");
@@ -90,37 +88,35 @@ namespace AuroraLib.Compression.Algorithms
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             FlagReader flag = new FlagReader(source, Endian.Big);
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+            while (source.Position < source.Length)
             {
-                while (source.Position < source.Length)
+                if (flag.Readbit()) // Compressed
                 {
-                    if (flag.Readbit()) // Compressed
-                    {
-                        // DDDDLLLL DDDDDDDD
-                        byte b1 = source.ReadUInt8();
-                        byte b2 = source.ReadUInt8();
-                        int distance = (b1 & 0xF0) << 4 | b2;
-                        int length = (b1 & 0xF) + 1; // 1-16 length
+                    // DDDDLLLL DDDDDDDD
+                    byte b1 = source.ReadUInt8();
+                    byte b2 = source.ReadUInt8();
+                    int distance = (b1 & 0xF0) << 4 | b2;
+                    int length = (b1 & 0xF) + 1; // 1-16 length
 
-                        if (length == 1)
+                    if (length == 1)
+                    {
+                        if (distance == 0)
                         {
-                            if (distance == 0)
+                            if (destination.Position + buffer.Position > endPosition)
                             {
-                                if (destination.Position + buffer.Position > endPosition)
-                                {
-                                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                                }
-                                return;
+                                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
                             }
-                            length = source.ReadUInt8() + 17; // 17-272 length
+                            return;
                         }
+                        length = source.ReadUInt8() + 17; // 17-272 length
+                    }
 
-                        buffer.BackCopy(distance, length);
-                    }
-                    else // Not compressed
-                    {
-                        buffer.WriteByte(source.ReadUInt8());
-                    }
+                    buffer.BackCopy(distance, length);
+                }
+                else // Not compressed
+                {
+                    buffer.WriteByte(source.ReadUInt8());
                 }
             }
             throw new EndOfStreamException();
@@ -130,35 +126,33 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
 
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Big))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(destination, Endian.Big);
+            while (sourcePointer < source.Length)
             {
-                while (sourcePointer < source.Length)
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                 {
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                    {
-                        LzMatch match = matches[matchPointer++];
+                    LzMatch match = matches[matchPointer++];
 
-                        int length = match.Length > 16 ? 0 : match.Length - 1;
-                        flag.Buffer.WriteByte((byte)((match.Distance >> 8 << 4) | length));
-                        flag.Buffer.WriteByte((byte)(match.Distance & 0xFF));
-                        if (length == 0)
-                            flag.Buffer.WriteByte((byte)(match.Length - 17));
+                    int length = match.Length > 16 ? 0 : match.Length - 1;
+                    flag.Buffer.WriteByte((byte)((match.Distance >> 8 << 4) | length));
+                    flag.Buffer.WriteByte((byte)(match.Distance & 0xFF));
+                    if (length == 0)
+                        flag.Buffer.WriteByte((byte)(match.Length - 17));
 
-                        sourcePointer += match.Length;
-                        flag.WriteBit(true);
+                    sourcePointer += match.Length;
+                    flag.WriteBit(true);
 
-                    }
-                    else
-                    {
-                        flag.Buffer.WriteByte(source[sourcePointer++]);
-                        flag.WriteBit(false);
-                    }
                 }
-                flag.Buffer.Write(0);
-                flag.Buffer.Write(0);
-                flag.WriteBit(true);
+                else
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(false);
+                }
             }
+            flag.Buffer.Write(0);
+            flag.Buffer.Write(0);
+            flag.WriteBit(true);
         }
     }
 }

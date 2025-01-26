@@ -64,46 +64,44 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless(Stream source, Stream destination, Endian order)
         {
-            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+            FlagReader Flag = new FlagReader(source, order);
+
+            while (source.Position < source.Length)
             {
-                FlagReader Flag = new FlagReader(source, order);
-
-                while (source.Position < source.Length)
+                if (Flag.Readbit())  // Uncompressed value
                 {
-                    if (Flag.Readbit())  // Uncompressed value
+                    buffer.WriteByte(source.ReadUInt8());
+                }
+                else
+                {
+                    int distance, length;
+                    if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
                     {
-                        buffer.WriteByte(source.ReadUInt8());
+                        distance = source.ReadUInt16(order);
+
+                        if (distance == 0)
+                        {
+                            return;
+                        }
+
+                        length = distance & 7;
+                        distance = 0x2000 - (distance >> 3);
+                        if (length == 0) // L 1-0x100
+                        {
+                            length = source.ReadUInt8() + 1;
+                        }
+                        else // L 3-9
+                        {
+                            length += 2;
+                        }
                     }
-                    else
+                    else // Compressed value D 1-0x100 L 2-5
                     {
-                        int distance, length;
-                        if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
-                        {
-                            distance = source.ReadUInt16(order);
-
-                            if (distance == 0)
-                            {
-                                return;
-                            }
-
-                            length = distance & 7;
-                            distance = 0x2000 - (distance >> 3);
-                            if (length == 0) // L 1-0x100
-                            {
-                                length = source.ReadUInt8() + 1;
-                            }
-                            else // L 3-9
-                            {
-                                length += 2;
-                            }
-                        }
-                        else // Compressed value D 1-0x100 L 2-5
-                        {
-                            length = Flag.ReadInt(2, true) + 2;
-                            distance = 0x100 - source.ReadUInt8();
-                        }
-                        buffer.BackCopy(distance, length);
+                        length = Flag.ReadInt(2, true) + 2;
+                        distance = 0x100 - source.ReadUInt8();
                     }
+                    buffer.BackCopy(distance, length);
                 }
             }
             throw new EndOfStreamException();
@@ -113,56 +111,54 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0, matchPointer = 0;
 
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(destination, order))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(destination, order);
+            while (sourcePointer < source.Length)
             {
-                while (sourcePointer < source.Length)
-                {
-                    LzMatch match;
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                        match = matches[matchPointer++];
-                    else
-                        match = default;
+                LzMatch match;
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
+                    match = matches[matchPointer++];
+                else
+                    match = default;
 
-                    if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
+                if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(true);
+                }
+                else
+                {
+                    sourcePointer += match.Length;
+                    int distance = match.Distance * -1;
+                    int length = match.Length;
+
+                    flag.WriteBit(false);
+                    if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
                     {
-                        flag.Buffer.WriteByte(source[sourcePointer++]);
+                        flag.WriteBit(false);
+                        flag.WriteInt(length - 2, 2, true);
+                        flag.Buffer.WriteByte((byte)distance);
+                        flag.FlushIfNecessary();
+                    }
+                    else
+                    {
+                        if (length > 9) // L 1-0x100
+                        {
+                            flag.Buffer.Write((ushort)(distance << 3), order);
+                            flag.Buffer.WriteByte((byte)(length - 1));
+                        }
+                        else // L 3-9
+                        {
+                            flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
+                        }
                         flag.WriteBit(true);
                     }
-                    else
-                    {
-                        sourcePointer += match.Length;
-                        int distance = match.Distance * -1;
-                        int length = match.Length;
-
-                        flag.WriteBit(false);
-                        if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
-                        {
-                            flag.WriteBit(false);
-                            flag.WriteInt(length - 2, 2, true);
-                            flag.Buffer.WriteByte((byte)distance);
-                            flag.FlushIfNecessary();
-                        }
-                        else
-                        {
-                            if (length > 9) // L 1-0x100
-                            {
-                                flag.Buffer.Write((ushort)(distance << 3), order);
-                                flag.Buffer.WriteByte((byte)(length - 1));
-                            }
-                            else // L 3-9
-                            {
-                                flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
-                            }
-                            flag.WriteBit(true);
-                        }
-                    }
                 }
-                flag.WriteBit(false);
-                flag.Buffer.WriteByte(0);
-                flag.Buffer.WriteByte(0);
-                flag.WriteBit(true);
             }
+            flag.WriteBit(false);
+            flag.Buffer.WriteByte(0);
+            flag.Buffer.WriteByte(0);
+            flag.WriteBit(true);
         }
 
         internal static Endian? GetByteOrder(Stream stream)

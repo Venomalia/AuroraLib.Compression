@@ -54,7 +54,7 @@ namespace AuroraLib.Compression.Algorithms
         public void Decompress(Stream source, Stream destination)
         {
             uint uncompressedSize = InternalGetDecompressedSize(source);
-            DecompressHeaderless(source, destination, (int)uncompressedSize);
+            DecompressHeaderless(source, destination, uncompressedSize);
         }
 
         /// <inheritdoc/>
@@ -74,10 +74,7 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-        public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
+        public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
@@ -87,7 +84,7 @@ namespace AuroraLib.Compression.Algorithms
             {
                 int flag = source.ReadByte();
                 int length = (flag & MaxLength) + MinLength;
-                Span<byte> section = bytes.Slice(0, length);
+                Span<byte> section = bytes;
                 if (flag >= FlagMask)
                 {
                     section = bytes.Slice(0, length + 2);
@@ -95,6 +92,7 @@ namespace AuroraLib.Compression.Algorithms
                 }
                 else
                 {
+                    section = bytes.Slice(0, length);
                     if (source.Read(section) != length)
                         throw new EndOfStreamException();
                 }

@@ -8,8 +8,6 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -29,7 +27,16 @@ namespace AuroraLib.Compression.Algorithms
         /// <summary>
         /// Specifies the type of Huffman compression used.
         /// </summary>
-        public CompressionType Type = CompressionType.Huffman8bits;
+        public CompressionType Type
+        {
+            get => type;
+            set
+            {
+                ThrowIf.InvalidEnum(value);
+                type = value;
+            }
+        }
+        private CompressionType type = CompressionType.Huffman8bits;
 
         public enum CompressionType : byte
         {
@@ -51,7 +58,6 @@ namespace AuroraLib.Compression.Algorithms
 
         private static uint InternalGetDecompressedSize(Stream source, out CompressionType type)
         {
-            Debug.Assert(!(source is null));
             type = (CompressionType)source!.ReadUInt8();
             if (!Enum.IsDefined(typeof(CompressionType), type))
                 throw new InvalidIdentifierException(type.ToString("X"), "24 or 28");
@@ -65,43 +71,47 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            uint decompressedSize = InternalGetDecompressedSize(source, out Type);
-            DecompressHeaderless(source, destination, (int)decompressedSize, (int)Type - 0x20, Endian.Little);
+            uint decompressedSize = InternalGetDecompressedSize(source, out type);
+            DecompressHeaderless(source, destination, (int)decompressedSize, (int)type - 0x20, Endian.Little);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Write Header
             if (source.Length <= 0xFFFFFF)
             {
-                destination.Write((byte)Type | (source.Length << 8));
+                destination.Write((byte)type | (source.Length << 8));
             }
             else
             {
-                destination.Write((byte)Type | 0);
+                destination.Write((byte)type | 0);
                 destination.Write(source.Length);
             }
-            CompressHeaderless(source, destination, (int)Type - 0x20, Endian.Little);
+
+            // Perform the compression
+            CompressHeaderless(source, destination, (int)type - 0x20, Endian.Little);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength, int bitDepth, Endian order = Endian.Little)
         {
+            ThrowIf.Negative(decomLength);
+
             byte treeSize = source.ReadUInt8();
             byte treeRoot = source.ReadUInt8();
             Span<byte> tree = stackalloc byte[treeSize * 2];
             source.Read(tree);
 
-            using (SpanBuffer<byte> bufferPool = new SpanBuffer<byte>(decomLength))
-            {
-                DecompressHeaderless(source, bufferPool, tree, treeRoot, bitDepth, order);
-                destination.Write(bufferPool.GetBuffer(), 0, decomLength);
-            }
+            using SpanBuffer<byte> bufferPool = new SpanBuffer<byte>(decomLength);
+            DecompressHeaderless(source, bufferPool, tree, treeRoot, bitDepth, order);
+            destination.Write(bufferPool.GetBuffer(), 0, decomLength);
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> tree, byte treeRoot, int bitDepth, Endian order = Endian.Little)
         {
             int flag = 0, next = 0, treePos = treeRoot, i = 0, bitsRemaining = 0, symbolsToDecompress = destination.Length * 8 / bitDepth;
 
+            ThrowIfInvalidBitDepth(bitDepth);
             // The target buffer must be clean if we have to write nibble.
             if (bitDepth != 8)
                 destination.Clear();
@@ -154,24 +164,24 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, HuffmanNode<int> tree, int bitDepth, Endian order = Endian.Little)
         {
+            ThrowIfInvalidBitDepth(bitDepth);
+
             Dictionary<int, string> bitCodes = tree.GetCodeDictionary();
-            using (FlagWriter Flag = new FlagWriter(destination, Endian.Big, 0, 4, Endian.Little))
+            using FlagWriter Flag = new FlagWriter(destination, Endian.Big, 0, 4, Endian.Little);
+            if (bitDepth == 8)
             {
-                if (bitDepth == 8)
+                foreach (byte data in source)
+                    foreach (var bit in bitCodes[data])
+                        Flag.WriteBit(bit == '1');
+            }
+            else
+            {
+                foreach (byte data in source)
                 {
-                    foreach (byte data in source)
-                        foreach (var bit in bitCodes[data])
-                            Flag.WriteBit(bit == '1');
-                }
-                else
-                {
-                    foreach (byte data in source)
-                    {
-                        foreach (var bit in bitCodes[order == Endian.Little ? data & 0xF : data >> 4])
-                            Flag.WriteBit(bit == '1');
-                        foreach (var bit in bitCodes[order == Endian.Little ? data >> 4 : data & 0xF])
-                            Flag.WriteBit(bit == '1');
-                    }
+                    foreach (var bit in bitCodes[order == Endian.Little ? data & 0xF : data >> 4])
+                        Flag.WriteBit(bit == '1');
+                    foreach (var bit in bitCodes[order == Endian.Little ? data >> 4 : data & 0xF])
+                        Flag.WriteBit(bit == '1');
                 }
             }
         }
@@ -214,6 +224,12 @@ namespace AuroraLib.Compression.Algorithms
                 }
             }
             return labelList;
+        }
+
+        private static void ThrowIfInvalidBitDepth(int bitDepth)
+        {
+            if (bitDepth != 4 && bitDepth != 8)
+                throw new ArgumentOutOfRangeException($"Bit depth \"{bitDepth}\" not supported.");
         }
     }
 }

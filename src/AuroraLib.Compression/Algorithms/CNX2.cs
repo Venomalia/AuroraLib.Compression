@@ -58,22 +58,35 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Read Header
             source.MatchThrow(_identifier);
             Extension = source.ReadString(4, 0x10);
-            long endPosition = source.Position + source.ReadUInt32(Endian.Big) + 8;
+            uint compressedSize = source.ReadUInt32(Endian.Big);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
+
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Perform the decompression
             DecompressHeaderless(source, destination, (int)decompressedSize);
+
+            // Verify compressed size and handle mismatches
+            Helper.TraceIfCompressedSizeMismatch(source.Position - compressedStartPosition, compressedSize);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Mark the initial positions of the destination
             long StartPosition = destination.Position;
+
+            // Write Header
             destination.Write(_identifier);
             destination.WriteString(Extension.AsSpan(), 4, 0x10);
             destination.Write(0, Endian.Big); // Compressed length (will be filled in later)
             destination.Write(source.Length, Endian.Big);
 
+            // Perform the compression
             CompressHeaderless(source, destination, LookAhead, level);
 
             // Go back to the beginning of the file and write out the compressed length
@@ -121,11 +134,12 @@ namespace AuroraLib.Compression.Algorithms
                             break;
                     }
                 }
+            }
 
-                if (destination.Position + buffer.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                }
+            // Verify decompressed size
+            if (destination.Position != endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 

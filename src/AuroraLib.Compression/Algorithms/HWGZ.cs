@@ -60,14 +60,17 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            long destStart = destination.Position;
-
+            // Read Header
             if (!Header.TryRead(source, out Header header, out Endian order))
                 throw new InvalidOperationException("Header a Invalidate");
 
             source.Align(4 * header.ChunkCount, SeekOrigin.Current, 128);
 
+            // Mark the initial positions of the destination
+            long destinationStartPosition = destination.Position;
+
             ZLib zLib = new ZLib();
+            // Decompress each chunk
             for (int i = 0; i < header.ChunkCount; i++)
             {
                 int chunkDataSize = source.ReadInt32(FormatByteOrder);
@@ -75,19 +78,20 @@ namespace AuroraLib.Compression.Algorithms
                 source.Align(128);
             }
 
-            if (destination.Position - destStart != header.DecompressedSize)
-            {
-                throw new DecompressedSizeException(header.DecompressedSize, destination.Position - destStart);
-            }
+            // Verify decompressed size
+            DecompressedSizeException.ThrowIfMismatch(destination.Position - destinationStartPosition, header.DecompressedSize);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Mark the initial positions of the destination
             long destStart = destination.Position;
+
             int chunkCount = (source.Length + ChunkSize - 1) / ChunkSize;
             uint[] chunkSizes = new uint[chunkCount];
 
+            // Write Header
             destination.Write(ChunkSize, FormatByteOrder);
             destination.Write(chunkCount, FormatByteOrder);
             destination.Write(source.Length, FormatByteOrder);
@@ -96,6 +100,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.WriteAlign(128);
 
             ZLib zLib = new ZLib();
+            // Compress each chunk
             using (MemoryPoolStream buffer = new MemoryPoolStream(ChunkSize))
             {
                 for (int i = 0; i < chunkCount; i++)

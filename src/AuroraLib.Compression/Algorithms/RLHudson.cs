@@ -54,9 +54,6 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination);
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
         {
             long endPosition = destination.Position + decomLength;
@@ -86,9 +83,6 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination)
         {
             int sourcePointer = 0x0;

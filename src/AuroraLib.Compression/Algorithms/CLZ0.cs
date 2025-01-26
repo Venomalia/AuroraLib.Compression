@@ -53,20 +53,26 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
+            // Read Header
             source.MatchThrow(_identifier);
             _ = source.ReadUInt32(Endian.Big);
             _ = source.ReadUInt32(Endian.Big);
             uint decompressedSize = source.ReadUInt32(Endian.Big);
+
+            // Perform the decompression
             DecompressHeaderless(source, destination, (int)decompressedSize);
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
+            // Write Header
             destination.Write(_identifier);
             destination.Write(source.Length, Endian.Big);
             destination.Write(0, Endian.Big);
             destination.Write(source.Length, Endian.Big);
+
+            // Perform the compression
             CompressHeaderless(source, destination, LookAhead, level);
         }
 
@@ -95,38 +101,37 @@ namespace AuroraLib.Compression.Algorithms
                         buffer.WriteByte(source.ReadUInt8());
                     }
                 }
+            }
 
-                if (destination.Position + buffer.Position > endPosition)
-                {
-                    throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
-                }
+            // Verify decompressed size
+            if (destination.Position != endPosition)
+            {
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (FlagWriter flag = new FlagWriter(destination, Endian.Little))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using FlagWriter flag = new FlagWriter(destination, Endian.Little);
+            while (sourcePointer < source.Length)
             {
-                while (sourcePointer < source.Length)
+                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
                 {
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                    {
-                        LzMatch match = matches[matchPointer++];
+                    LzMatch match = matches[matchPointer++];
 
-                        int delta = 0x1000 - match.Distance;
-                        flag.Buffer.WriteByte((byte)delta);
-                        flag.Buffer.WriteByte((byte)((match.Length - 3) | (delta >> 8 << 4)));
-                        sourcePointer += match.Length;
-                        flag.WriteBit(true);
+                    int delta = 0x1000 - match.Distance;
+                    flag.Buffer.WriteByte((byte)delta);
+                    flag.Buffer.WriteByte((byte)((match.Length - 3) | (delta >> 8 << 4)));
+                    sourcePointer += match.Length;
+                    flag.WriteBit(true);
 
-                    }
-                    else
-                    {
-                        flag.Buffer.WriteByte(source[sourcePointer++]);
-                        flag.WriteBit(false);
-                    }
+                }
+                else
+                {
+                    flag.Buffer.WriteByte(source[sourcePointer++]);
+                    flag.WriteBit(false);
                 }
             }
         }

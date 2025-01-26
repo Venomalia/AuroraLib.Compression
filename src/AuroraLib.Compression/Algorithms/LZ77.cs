@@ -106,13 +106,14 @@ namespace AuroraLib.Compression.Algorithms
             uint decompressedSize = source.ReadUInt24();
             if (decompressedSize == 0) decompressedSize = source.ReadUInt32();
 
-            long destinationEndPosition = destination.Position + decompressedSize;
             switch (type)
             {
                 case CompressionType.LZ10:
                     DecompressHeaderless(source, destination, decompressedSize);
                     break;
                 case CompressionType.ChunkLZ10:
+                    long destinationEndPosition = destination.Position + decompressedSize;
+
                     List<ushort> segmentEndOffsets = new List<ushort>();
                     do
                     {
@@ -126,14 +127,14 @@ namespace AuroraLib.Compression.Algorithms
                         base.Decompress(source, destination);
                         source.Seek(segmentEndOffsets[i] + headerEndOffset, SeekOrigin.Begin);
                     }
+
+                    if (destination.Position > destinationEndPosition)
+                    {
+                        throw new DecompressedSizeException(decompressedSize, destination.Position - (destinationEndPosition - decompressedSize));
+                    }
                     break;
                 default:
                     throw new NotSupportedException($"{nameof(LZ77)} compression type {type} not supported.");
-            }
-
-            if (destination.Position > destinationEndPosition)
-            {
-                throw new DecompressedSizeException(decompressedSize, destination.Position - (destinationEndPosition - decompressedSize));
             }
         }
 

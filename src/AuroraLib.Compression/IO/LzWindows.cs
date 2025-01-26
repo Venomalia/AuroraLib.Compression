@@ -1,4 +1,4 @@
-﻿using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
 using System.Diagnostics;
@@ -25,14 +25,11 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void BackCopy(int distance, int length)
         {
-            // optimization
-            if (distance - length >= 0 && Position - distance >= 0)
-            {
+            // Optimization: Ensure distance and position are valid for the operation.
+            if (distance >= length && distance <= Position)
                 Write(_Buffer.AsSpan((int)(Position - distance), length));
-                return;
-            }
-
-            OffsetCopy((int)(Length + Position - distance), length);
+            else
+                OffsetCopy((int)(Length + Position - distance), length);
         }
 
         /// <summary>
@@ -88,8 +85,9 @@ namespace AuroraLib.Compression.IO
             {
                 // Partially write and wrap around.
                 int left = (int)(Length - (Position));
-                destination.Write(_Buffer.AsSpan(0, (int)Position));
-                destination.Write(buffer.Slice(0, left));
+                destination.Write(_Buffer, 0, (int)Position);
+                if (left != 0)
+                    destination.Write(buffer.Slice(0, left));
                 base.Write(buffer);
             }
         }
@@ -104,8 +102,18 @@ namespace AuroraLib.Compression.IO
                 FlushToDestination((int)Length);
         }
 
+        /// <inheritdoc/>
+        public override void Flush()
+        {
+            if (Position != 0)
+            {
+                FlushToDestination((int)Position);
+                Position = 0;
+            }
+        }
+
         private void FlushToDestination(int length)
-                => destination.Write(_Buffer.AsSpan(0, length));
+                => destination.Write(_Buffer, 0, length);
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
