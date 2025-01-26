@@ -7,6 +7,7 @@ using AuroraLib.Core.IO;
 using HashDepot;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -28,10 +29,18 @@ namespace CompressionTest
             using (FileStream compressData = new FileStream("Test.lz", FileMode.Open, FileAccess.Read))
             {
                 LZSS lz = new LZSS(new LzProperties((byte)10, 6, 2));
-                using (MemoryPoolStream decompressData = lz.Decompress(compressData))
+                int decompressedSize = (int)lz.GetDecompressedSize(compressData);
+                byte[] data = ArrayPool<byte>.Shared.Rent(decompressedSize);
+                try
                 {
-                    ulong decompressDataHash = XXHash.Hash64(decompressData.UnsafeAsSpan());
+                    Span<byte> buffer = data.AsSpan(0, decompressedSize);
+                    lz.Decompress(compressData, buffer);
+                    ulong decompressDataHash = XXHash.Hash64(buffer);
                     Assert.AreEqual(11520079745250749767, decompressDataHash);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(data);
                 }
             }
         }
