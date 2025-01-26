@@ -10,7 +10,7 @@ namespace AuroraLib.Compression.Interfaces
     public interface IProvidesDecompressedSize : ICompressionDecoder
     {
         /// <summary>
-        /// Reads the provided stream to determine the size of the decompressed data.
+        /// Reads the provided <paramref name="source"/> <see cref="Stream"/> to determine the size of the decompressed data.
         /// </summary>
         /// <param name="source">The stream containing the compressed data.</param>
         /// <returns>The size of the decompressed data, in bytes.</returns>

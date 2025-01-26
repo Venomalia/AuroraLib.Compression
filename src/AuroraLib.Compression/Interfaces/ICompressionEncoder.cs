@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.IO.Compression;
 
@@ -10,11 +10,14 @@ namespace AuroraLib.Compression.Interfaces
     public interface ICompressionEncoder
     {
         /// <summary>
-        /// Compresses the specified data with the specified compression level and writes the compressed result to a data stream.
+        /// Compresses data from the <paramref name="source"/> span and writes the compressed data to the <paramref name="destination"/> <see cref="Stream"/>.
         /// </summary>
-        /// <param name="source">The data to be compressed as a read-only span of bytes.</param>
-        /// <param name="destination">The data stream where the compressed data should be written.</param>
-        /// <param name="level">The compression level to be applied (optional, defaults to CompressionLevel.Optimal).</param>
+        /// <param name="source">The ReadOnlySpan containing the data to be compressed.</param>
+        /// <param name="destination">The Stream to write the compressed data to.</param>
+        /// <param name="level">The CompressionLevel to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <exception cref="ArgumentNullException">Thrown if the <paramref name="source"/> or <paramref name="destination"/> is null.</exception>
+        /// <exception cref="NotSupportedException">Thrown if the <paramref name="destination"/> stream does not support writing.</exception>
         void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal);
+
     }
 }
