@@ -11,62 +11,69 @@ namespace AuroraLib.Compression.IO
     /// </summary>
     public sealed class FlagWriter : IDisposable
     {
-        private int CurrentFlag;
         public int BitsLeft { get; private set; }
-        private readonly int FlagSize;
-        public readonly Stream Base;
+
+        private int CurrentFlag;
+        private readonly int _FlagSize;
+        private readonly bool _BitOrderIsBe;
+        private readonly Endian _ByteOrder;
+
+        private readonly Stream _Base;
         public readonly MemoryPoolStream Buffer;
-        public readonly Endian BitOrder;
-        private readonly Action<int> WriteFlag;
+        private readonly Action<int>? WriteFlagDelegate;
 
-
-        public FlagWriter(Stream destination, Endian bitOrder, Action<int> writeFlag, int bufferCapacity = 0x100, byte flagSize = 1)
+        public FlagWriter(Stream destination, Endian bitOrder, byte flagSize = 1, Endian byteOrder = Endian.Little, int bufferCapacity = 0x100)
         {
-            Base = destination;
-            BitOrder = bitOrder;
+            ThrowIf.Null(destination, nameof(destination));
+            ThrowIf.NegativeOrZero(flagSize, nameof(flagSize));
+
+            _FlagSize = BitsLeft = 8 * flagSize;
+            _BitOrderIsBe = bitOrder == Endian.Big;
+            _ByteOrder = byteOrder;
+
+            _Base = destination;
             Buffer = new MemoryPoolStream(bufferCapacity);
-            CurrentFlag = 0;
-            FlagSize = BitsLeft = 8 * flagSize;
-            WriteFlag = writeFlag;
         }
 
-        public FlagWriter(Stream destination, Endian bitOrder, int bufferCapacity = 0x100, byte flagSize = 1, Endian byteOrder = Endian.Little) : this(destination, bitOrder, null!, bufferCapacity, flagSize)
+        public FlagWriter(Stream destination, Endian bitOrder, Action<int> writeFlagDelegate, byte flagSize, int bufferCapacity = 0x100) : this(destination, bitOrder, flagSize, default, bufferCapacity)
+            => WriteFlagDelegate = writeFlagDelegate;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteFlag(int value)
         {
-            switch (flagSize)
+            switch (_FlagSize)
             {
-                case 1:
-                    WriteFlag = i => destination.WriteByte((byte)i);
-                    break;
-                case 2:
-                    WriteFlag = i => destination.Write((ushort)i, byteOrder);
-                    break;
-                case 3:
-                    WriteFlag = i => destination.Write((UInt24)i, byteOrder);
-                    break;
-                case 4:
-                    WriteFlag = i => destination.Write(i, byteOrder);
-                    break;
+                case 8:
+                    _Base.WriteByte((byte)value);
+                    return;
+                case 16:
+                    _Base.Write((ushort)value, _ByteOrder);
+                    return;
+                case 24:
+                    _Base.Write((UInt24)value, _ByteOrder);
+                    return;
+                case 32:
+                    _Base.Write(value, _ByteOrder);
+                    return;
                 default:
-                    throw new NotImplementedException();
-            }
+                    throw new NotImplementedException($"Unsupported flag size: {_FlagSize}");
+            };
         }
 
         /// <summary>
         /// Writes a single bit as a flag. The bits are accumulated in a byte and flushed to the destination stream when necessary.
         /// </summary>
         /// <param name="bit">The bit value to write (true for 1, false for 0).</param>
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteBit(bool bit)
         {
             if (bit)
             {
-                int shiftAmount = BitOrder == Endian.Little ? FlagSize - BitsLeft : BitsLeft - 1;
+                int shiftAmount = _BitOrderIsBe ? BitsLeft - 1 : _FlagSize - BitsLeft;
                 CurrentFlag |= (1 << shiftAmount);
             }
-
-            if (--BitsLeft == 0)
+            BitsLeft--;
+            if (BitsLeft == 0)
                 Flush();
         }
 
@@ -101,15 +108,18 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         public void Flush()
         {
-            if (BitsLeft != FlagSize)
+            if (BitsLeft != _FlagSize)
             {
-                WriteFlag(CurrentFlag);
-                BitsLeft = FlagSize;
+                if (WriteFlagDelegate is null)
+                    WriteFlag(CurrentFlag);
+                else
+                    WriteFlagDelegate(CurrentFlag);
+                BitsLeft = _FlagSize;
                 CurrentFlag = 0;
             }
             if (Buffer.Length != 0)
             {
-                Buffer.WriteTo(Base);
+                Buffer.WriteTo(_Base);
                 Buffer.SetLength(0);
             }
         }
@@ -119,9 +129,9 @@ namespace AuroraLib.Compression.IO
         /// </summary>
         public void FlushIfNecessary()
         {
-            if (BitsLeft == FlagSize && Buffer.Length != 0)
+            if (BitsLeft == _FlagSize && Buffer.Length != 0)
             {
-                Buffer.WriteTo(Base);
+                Buffer.WriteTo(_Base);
                 Buffer.SetLength(0);
             }
         }

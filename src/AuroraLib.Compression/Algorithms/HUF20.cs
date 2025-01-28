@@ -164,24 +164,25 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, HuffmanNode<int> tree, int bitDepth, Endian order = Endian.Little)
         {
+            const char char1 = '1';
             ThrowIfInvalidBitDepth(bitDepth);
 
             Dictionary<int, string> bitCodes = tree.GetCodeDictionary();
-            using FlagWriter Flag = new FlagWriter(destination, Endian.Big, 0, 4, Endian.Little);
+            using FlagWriter Flag = new FlagWriter(destination, Endian.Big, 4, Endian.Little);
             if (bitDepth == 8)
             {
                 foreach (byte data in source)
                     foreach (var bit in bitCodes[data])
-                        Flag.WriteBit(bit == '1');
+                        Flag.WriteBit(bit == char1);
             }
             else
             {
                 foreach (byte data in source)
                 {
                     foreach (var bit in bitCodes[order == Endian.Little ? data & 0xF : data >> 4])
-                        Flag.WriteBit(bit == '1');
+                        Flag.WriteBit(bit == char1);
                     foreach (var bit in bitCodes[order == Endian.Little ? data >> 4 : data & 0xF])
-                        Flag.WriteBit(bit == '1');
+                        Flag.WriteBit(bit == char1);
                 }
             }
         }

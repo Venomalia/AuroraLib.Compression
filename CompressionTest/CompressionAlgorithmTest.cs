@@ -61,7 +61,7 @@ namespace CompressionTest
             using (MemoryPoolStream compressData = algorithm.Compress(testData, CompressionLevel.NoCompression))
             {
                 ReadOnlySpan<char> fileNameAndExtension = $"Test.bmp.{algorithm.GetType().Name}".AsSpan();
-                if (Formats.Identify(compressData, fileNameAndExtension, out IFormatInfo format) && format.Class != null && typeof(ICompressionAlgorithm).IsAssignableFrom(format.Class))
+                if (Formats.Identify(compressData, fileNameAndExtension, out IFormatInfo? format) && format!.Class != null && typeof(ICompressionAlgorithm).IsAssignableFrom(format.Class))
                 {
                     Assert.AreEqual(format.Class, algorithm.GetType());
                 }

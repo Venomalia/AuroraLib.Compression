@@ -161,7 +161,7 @@ namespace AuroraLib.Compression.Algorithms
             flag.WriteBit(true);
         }
 
-        internal static Endian? GetByteOrder(Stream stream)
+        private static Endian? GetByteOrder(Stream stream)
         {
             byte flag = stream.PeekByte();
             if (flag > 12 && (flag & 0x1) == 1 && ValidateByteOrder(stream, Endian.Little))
@@ -172,7 +172,7 @@ namespace AuroraLib.Compression.Algorithms
             return null;
         }
 
-        internal static bool ValidateByteOrder(Stream stream, Endian order)
+        private static bool ValidateByteOrder(Stream stream, Endian order)
         {
             long startPos = stream.Position;
             FlagReader Flag = new FlagReader(stream, order);

@@ -11,51 +11,54 @@ namespace AuroraLib.Compression.IO
     /// </summary>
     public sealed class FlagReader
     {
-        private int CurrentFlag;
         public int BitsLeft { get; private set; }
-        private readonly int FlagSize;
-        public readonly Stream Base;
-        public readonly Endian BitOrder;
-        private readonly Func<int> ReadFlag;
+
+        private int CurrentFlag;
+        private readonly int _FlagSize;
+        private readonly bool _BitOrderIsBe;
+        private readonly Endian _ByteOrder;
+        private readonly Stream _Base;
+        private readonly Func<int>? ReadFlagDelegate;
 
         public FlagReader(Stream source, Endian bitOrder, byte flagSize = 1, Endian byteOrder = Endian.Little)
         {
-            Base = source;
-            BitOrder = bitOrder;
+            ThrowIf.Null(source, nameof(source));
+            ThrowIf.NegativeOrZero(flagSize, nameof(flagSize));
 
-            FlagSize = flagSize * 8;
-            switch (flagSize)
-            {
-                case 1:
-                    ReadFlag = () => Base.ReadInt8();
-                    break;
-                case 2:
-                    ReadFlag = () => Base.ReadUInt16(byteOrder);
-                    break;
-                case 3:
-                    ReadFlag = () => Base.ReadUInt24(byteOrder);
-                    break;
-                case 4:
-                    ReadFlag = () => Base.ReadInt32(byteOrder);
-                    break;
-                default:
-                    throw new NotImplementedException();
-            }
+            _Base = source;
+            _BitOrderIsBe = bitOrder == Endian.Big;
+
+            _FlagSize = flagSize * 8;
+            _ByteOrder = byteOrder;
         }
+
+        public FlagReader(Stream source, Endian bitOrder, Func<int> readFlagDelegate, byte flagSize) : this(source, bitOrder, flagSize)
+            => ReadFlagDelegate = readFlagDelegate;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private int ReadNextFlag() => _FlagSize switch
+        {
+            8 => _Base.ReadInt8(),
+            16 => _Base.ReadUInt16(_ByteOrder),
+            24 => _Base.ReadUInt24(_ByteOrder),
+            32 => _Base.ReadInt32(_ByteOrder),
+            _ => throw new NotImplementedException($"Unsupported flag size: {_FlagSize}")
+        };
 
         /// <summary>
         /// Reads a single bit from the stream.
         /// </summary>
         /// <returns>The value of the read bit.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Readbit()
         {
             if (BitsLeft == 0)
             {
-                CurrentFlag = ReadFlag();
-                BitsLeft = FlagSize;
+                CurrentFlag = ReadFlagDelegate is null ? ReadNextFlag() : ReadFlagDelegate();
+                BitsLeft = _FlagSize;
             }
 
-            int shiftAmount = BitOrder == Endian.Little ? FlagSize - BitsLeft : BitsLeft - 1;
+            int shiftAmount = _BitOrderIsBe ? BitsLeft - 1 : _FlagSize - BitsLeft;
             BitsLeft--;
 
             return (CurrentFlag & (1 << shiftAmount)) != 0;

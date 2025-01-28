@@ -134,7 +134,7 @@ namespace AuroraLib.Compression.Algorithms
             int sourcePointer = 0x0, matchPointer = 0x0;
 
             using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            using FlagWriter flag = new FlagWriter(destination, Endian.Big, i => destination.WriteByte((byte)-i));
+            using FlagWriter flag = new FlagWriter(destination, Endian.Big, i => destination.WriteByte((byte)-i), 1);
             while (sourcePointer < source.Length)
             {
                 if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)

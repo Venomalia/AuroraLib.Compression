@@ -111,33 +111,35 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
-            while (destination.Position + buffer.Position < endPosition)
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-                if (flag.Readbit())
+                while (destination.Position + buffer.Position < endPosition)
                 {
-                    buffer.WriteByte(uncompressedSource.ReadUInt8());
-                }
-                else
-                {
-                    byte b1 = compressedSource.ReadUInt8();
-                    byte b2 = compressedSource.ReadUInt8();
-                    // Calculate the match distance & length
-                    int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
-                    int length = b1 >> 4;
-
-                    if (length == 0)
-                        length = uncompressedSource.ReadByte() + 0x12;
+                    if (flag.Readbit())
+                    {
+                        buffer.WriteByte(uncompressedSource.ReadUInt8());
+                    }
                     else
-                        length += 2;
+                    {
+                        byte b1 = compressedSource.ReadUInt8();
+                        byte b2 = compressedSource.ReadUInt8();
+                        // Calculate the match distance & length
+                        int distance = (((byte)(b1 & 0x0F) << 8) | b2) + 0x1;
+                        int length = b1 >> 4;
 
-                    buffer.BackCopy(distance, length);
+                        if (length == 0)
+                            length = uncompressedSource.ReadByte() + 0x12;
+                        else
+                            length += 2;
+
+                        buffer.BackCopy(distance, length);
+                    }
                 }
             }
 
-            if (destination.Position + buffer.Position > endPosition)
+            if (destination.Position > endPosition)
             {
-                throw new DecompressedSizeException(decomLength, destination.Position + buffer.Position - (endPosition - decomLength));
+                throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
 
