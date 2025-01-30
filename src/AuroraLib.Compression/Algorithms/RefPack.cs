@@ -4,9 +4,11 @@ using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Runtime.CompilerServices;
@@ -19,6 +21,8 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class RefPack : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
+        private const byte Identifier = 0xFB;
+
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
@@ -26,6 +30,11 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
+
+        /// <summary>
+        /// Set specific <see cref="RefPack"/> encode options.
+        /// </summary>
+        public OptionFlags Options = OptionFlags.Default | OptionFlags.UsePreHeader;
 
         private static readonly LzProperties _lz = new LzProperties(0x20000, 1028, 3);
 
@@ -35,36 +44,129 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Read<Header>().IsValid && s.ReadInt24(Endian.Big) != 0);
+            => stream.Position + 0x8 < stream.Length && (
+            stream.Peek(s => ((OptionFlags)s.ReadByte()).HasFlag(OptionFlags.Default) && s.ReadByte() == Identifier && s.ReadInt24(Endian.Big) != 0) || // Version 1 & 3
+            stream.Peek(s => s.ReadInt32() != 0 && s.ReadUInt16(Endian.Big) == 0x10FB && s.ReadInt24(Endian.Big) != 0)); // Version 2
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
-                Header header = s.Read<Header>();
-                return header.IsInt32 ? s.ReadUInt32(Endian.Big) : s.ReadUInt24(Endian.Big);
+                _ = InternalReadHeader(source, out uint decompressedSize, out uint _);
+                return decompressedSize;
             });
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            Header header = source.Read<Header>();
-            uint uncompressedSize = header.IsInt32 ? source.ReadUInt32(Endian.Big) : source.ReadUInt24(Endian.Big);
-            uint compressedSize = 0;
-            if (header.HasCompressedSize)
+            // Read Header
+            Options = InternalReadHeader(source, out uint decompressedSize, out uint compressedSize);
+
+            // Mark the initial positions of the streams
+            long compressedStartPosition = source.Position;
+
+            // Perform the decompression
+            DecompressHeaderless(source, destination, (int)decompressedSize);
+        }
+
+        private static OptionFlags InternalReadHeader(Stream source, out uint decompressedSize, out uint compressedSize)
+        {
+            OptionFlags flag = (OptionFlags)source.ReadByte();
+            byte identifier = source.ReadUInt8();
+            if (identifier != Identifier)
             {
-                compressedSize = header.IsInt32 ? source.ReadUInt32(Endian.Big) : source.ReadUInt24(Endian.Big);
+                source.Position -= 0x2;
+                compressedSize = source.ReadUInt32();
+                // test Is version 2
+                if (source.Peek<ushort>(Endian.Big) == 0x10FB)
+                    return InternalReadHeader(source, out decompressedSize, out _);
+                else
+                    throw new InvalidIdentifierException(identifier.ToString("X"), Identifier.ToString("X"));
             }
 
-            DecompressHeaderless(source, destination, (int)uncompressedSize);
+            if (!flag.HasFlag(OptionFlags.Default))
+                throw new NotSupportedException($"No supported Flag {flag}");
+
+            bool IsInt32 = flag.HasFlag(OptionFlags.UseInt32);
+            decompressedSize = IsInt32 ? source.ReadUInt32(Endian.Big) : source.ReadUInt24(Endian.Big);
+            if (flag.HasFlag(OptionFlags.StoresCompressedSize))
+                compressedSize = IsInt32 ? source.ReadUInt32(Endian.Big) : source.ReadUInt24(Endian.Big);
+            else
+                compressedSize = 0;
+            return flag;
         }
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            destination.Write(new Header(true, false));
-            destination.Write(source.Length, Endian.Big);
-            CompressHeaderless(source, destination, LookAhead, level);
+            if (Options.HasFlag(OptionFlags.UsePreHeader))
+            {
+                // Write Header Version 2
+                if (source.Length >= 0xFFFFFF)
+                    throw new NotSupportedException("RefPack Version 2 does not support files over 16MB.");
+
+                long compressedSizesOffset = destination.Position;
+
+                destination.Write(0); //Write CompressedSize Placeholder
+                destination.WriteByte(0x10);
+                destination.WriteByte(Identifier);
+                destination.Write((UInt24)source.Length, Endian.Big);
+
+                // Perform the compression
+                CompressHeaderless(source, destination, LookAhead, level);
+
+                // Go back to the beginning of the file and write out the compressed length
+                destination.At(compressedSizesOffset, s => s.Write((uint)(destination.Length - compressedSizesOffset - 4)));
+            }
+            else
+            {
+                // Write Header Version 1 or 3
+                Options |= OptionFlags.Default;
+                bool IsInt32 = Options.HasFlag(OptionFlags.UseInt32);
+                bool StoresCompressedSize = Options.HasFlag(OptionFlags.StoresCompressedSize);
+                if (!IsInt32 && source.Length >= 0xFFFFFF)
+                {
+                    Options |= OptionFlags.UseInt32;
+                    IsInt32 = true;
+                    Trace.WriteLine("File size exceeds 16MB. Switching to 32-bit Mode RefPack Version 3.");
+                }
+
+                destination.WriteByte((byte)Options);
+                destination.WriteByte(Identifier);
+
+                //Write DecompressedSize
+                if (IsInt32)
+                    destination.Write(source.Length, Endian.Big);
+                else
+                    destination.Write((UInt24)source.Length, Endian.Big);
+
+                // Mark the CompressedSize positions
+                long compressedSizesOffset = destination.Position;
+
+                //Write CompressedSize Placeholder
+                if (StoresCompressedSize)
+                    if (IsInt32)
+                        destination.Write(0);
+                    else
+                        destination.Write((UInt24)0);
+
+                // Perform the compression
+                CompressHeaderless(source, destination, LookAhead, level);
+
+                // Go back to the beginning of the file and write out the compressed length
+                if (StoresCompressedSize)
+                {
+                    uint compressedSizes = (uint)(destination.Length - compressedSizesOffset - (IsInt32 ? 4 : 3));
+                    destination.At(compressedSizesOffset, s =>
+                    {
+                        if (IsInt32)
+                            s.Write(compressedSizes, Endian.Big);
+                        else
+                            s.Write((UInt24)compressedSizes, Endian.Big);
+                    });
+                }
+
+            }
         }
 
 #if !(NETSTANDARD || NET20_OR_GREATER)
@@ -185,24 +287,40 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write((byte)(0xFC | plainSize)); // 111111PP
         }
 
-        private readonly struct Header
+        /// <summary>
+        /// All support <see cref="RefPack"/> options.
+        /// </summary>
+        [Flags]
+        public enum OptionFlags : byte
         {
-            internal readonly byte value1;
-            internal readonly byte value2;
+            /// <summary>
+            /// Saves the compressed size of the file.
+            /// </summary>
+            StoresCompressedSize = 0x01,
 
-            public Header(bool isInt32 = true, bool hasCompressedSize = false, bool unkFlag = false)
-            {
-                value1 = 0x10;
-                if (isInt32) value1 |= 0x80;
-                if (hasCompressedSize) value1 |= 0x1;
-                if (unkFlag) value1 |= 0x40;
-                value2 = 0xFB;
-            }
+            /// <summary>
+            /// Use header type version 2.
+            /// </summary>
+            UsePreHeader = 0x02,
 
-            public bool HasCompressedSize => (value1 & 0x1) != 0;
-            public bool UnkFlag => (value1 & 0x40) != 0;
-            public bool IsInt32 => (value1 & 0x80) != 0;
-            public bool IsValid => (value1 & 0x3E) == 0x10 || (value2 == 0xFB);
+            /// <summary>
+            /// Use RefPack Encoding (Always set)
+            /// </summary>
+            Default = 0x10,
+
+            //Huffman = 0x20 | Default,
+
+            //RunLength = 0x4A,
+
+            /// <summary>
+            /// Unknown, only for header version 3.
+            /// </summary>
+            Unknown = 0x40,
+
+            /// <summary>
+            /// Saves the uncompressed and compressed size as int32, only for header version 3.
+            /// </summary>
+            UseInt32 = 0x80,
         }
     }
 }
