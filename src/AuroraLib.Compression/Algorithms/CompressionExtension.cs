@@ -108,7 +108,8 @@ namespace AuroraLib.Compression.Algorithms
             if (algorithm is IProvidesDecompressedSize providesDecompressed)
             {
                 destination = new byte[providesDecompressed.GetDecompressedSize(source)];
-                providesDecompressed.Decompress(source, destination);
+                MemoryStream ms = new MemoryStream(destination);
+                providesDecompressed.Decompress(source, ms);
             }
             else
             {
