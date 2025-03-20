@@ -1,6 +1,6 @@
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -10,11 +10,44 @@ namespace AuroraLib.Compression.IO
     /// <summary>
     /// Represents a circular window buffer used in LZ compression.
     /// </summary>
-    public sealed class LzWindows : CircularBuffer
+    public sealed class LzWindows : PoolStream
     {
         private readonly Stream destination;
 
-        public LzWindows(Stream destination, int capacity) : base(capacity)
+        private long _Position;
+
+        /// <inheritdoc/>
+        public override long Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            [DebuggerStepThrough]
+            get
+            {
+                return _Position;
+            }
+            [DebuggerStepThrough]
+            set
+            {
+                if (value < 0)
+                {
+                    _Position = Length + value;
+                }
+                else if (value >= Length)
+                {
+                    _Position = value % Length;
+                }
+                else
+                {
+                    _Position = value;
+                }
+            }
+        }
+
+        public LzWindows(Stream destination, int capacity) : this(destination, ArrayPool<byte>.Shared, capacity)
+        { }
+
+
+        public LzWindows(Stream destination, ArrayPool<byte> aPool, int capacity) : base(aPool, aPool.Rent(capacity), capacity)
             => this.destination = destination;
 
         /// <summary>
@@ -52,9 +85,6 @@ namespace AuroraLib.Compression.IO
         /// <param name="source">The source stream containing data to copy.</param>
         /// <param name="length">The number of bytes to copy.</param>
         [DebuggerStepThrough]
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public void CopyFrom(Stream source, int length)
         {
             while (length != 0)
@@ -70,25 +100,58 @@ namespace AuroraLib.Compression.IO
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
-        public override void Write(ReadOnlySpan<byte> buffer)
+        public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
+
+        /// <inheritdoc/>
+        [DebuggerStepThrough]
+        public override int Read(Span<byte> buffer)
         {
-            if (Length > Position + buffer.Length)
+            int num;
+            for (int i = 0; buffer.Length > i; i += num)
+            {
+                num = (int)Math.Min(Length - Position, buffer.Length);
+                _Buffer.AsSpan((int)Position, num).CopyTo(buffer.Slice(i, num));
+                Position += num;
+            }
+
+            return buffer.Length;
+        }
+
+        /// <inheritdoc/>
+        [DebuggerStepThrough]
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+
+        /// <inheritdoc/>
+        [DebuggerStepThrough]
+        public unsafe override void Write(ReadOnlySpan<byte> buffer)
+        {
+            int position = (int)_Position;
+            if (Length > position + buffer.Length)
             {
                 // The entire buffer fits without wrapping around.
-                buffer.CopyTo(_Buffer.AsSpan((int)Position));
-                Position += buffer.Length;
+                buffer.CopyTo(_Buffer.AsSpan(position));
+                _Position += buffer.Length;
             }
             else
             {
                 // Partially write and wrap around.
-                int left = (int)(Length - (Position));
-                destination.Write(_Buffer, 0, (int)Position);
+                int left = (int)(Length - position);
+                int copy = (int)Math.Min(Length, buffer.Length);
+
+                destination.Write(_Buffer, 0, position);
                 if (left != 0)
+                {
                     destination.Write(buffer.Slice(0, left));
-                base.Write(buffer);
+                    buffer.Slice(buffer.Length - copy, left).CopyTo(_Buffer.AsSpan(position, left));
+                }
+
+                if (copy > left)
+                {
+                    int remaining = copy - left;
+                    buffer.Slice(buffer.Length - remaining, remaining).CopyTo(_Buffer.AsSpan(0, remaining));
+                }
+
+                Position += copy;
             }
         }
 
@@ -114,6 +177,14 @@ namespace AuroraLib.Compression.IO
 
         private void FlushToDestination(int length)
                 => destination.Write(_Buffer, 0, length);
+
+        /// <inheritdoc/>
+        protected override Span<byte> InternalBufferAsSpan(int start, int length)
+            => _Buffer.AsSpan(start, length);
+
+        /// <inheritdoc/>
+        protected override void ExpandBuffer(int minimumLength)
+            => throw new NotSupportedException();
 
         /// <inheritdoc/>
         [DebuggerStepThrough]

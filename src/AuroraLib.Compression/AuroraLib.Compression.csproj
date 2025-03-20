@@ -38,7 +38,7 @@ like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AuroraLib.Core" Version="1.6.0.1" />
+    <PackageReference Include="AuroraLib.Core" Version="1.6.2" />
   </ItemGroup>
 
 </Project>
