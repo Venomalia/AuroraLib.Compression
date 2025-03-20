@@ -8,6 +8,7 @@
     <IsTestProject>true</IsTestProject>
     <StartupObject></StartupObject>
     <OutputType>Library</OutputType>
+    <Configurations>Debug;Release;Optimized</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(TargetFramework)'=='net472'">
@@ -21,8 +22,13 @@
     <PackageReference Include="MSTest.TestFramework" Version="2.2.10" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' != 'Release'">
+    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
     <ProjectReference Include="..\src\AuroraLib.Compression\AuroraLib.Compression.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
   </ItemGroup>
 
   <ItemGroup>

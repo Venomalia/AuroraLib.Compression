@@ -2,33 +2,34 @@
 
   <PropertyGroup>
     <TargetFrameworks>net8.0;net6.0;netstandard2.0;netstandard2.1;net472;</TargetFrameworks>
+    <RootNamespace>AuroraLib.Compression</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-    <Title>AuroraLib.Compression</Title>
-    <Version>1.5.0.0</Version>
+    <Title>AuroraLib.Compression-Extended</Title>
+    <Version>1.0.0.0</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
-    <PackageIcon>icon.png</PackageIcon>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon-ex.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
     <PackageProjectUrl>https://github.com/Venomalia/AuroraLib.Compression</PackageProjectUrl>
     <Copyright>Venomalia</Copyright>
-    <Description>Supports a wide range of compression algorithms mainly used in video games,
-like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
+    <Description>
+      Has additional specific compression algorithms that are rarely used.
+    </Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NETFrameworks>|netstandard2.0|net481|net48|net472|NET471|NET47|NET462|NET461|</NETFrameworks>
-    <Configurations>Debug;Release</Configurations>
+    <Configurations>Debug;Release;Optimized</Configurations>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
-
+  
   <ItemGroup>
-    <None Include="..\..\icon.png">
+    <None Include="..\..\icon-ex.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
@@ -37,9 +38,19 @@ like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
+  
+  <ItemGroup Condition="'$(Configuration)' != 'Release'">
+    <ProjectReference Include="..\AuroraLib.Compression\AuroraLib.Compression.csproj" />
+  </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="AuroraLib.Core" Version="1.6.2" />
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <PackageReference Include="AuroraLib.Compression" Version="1.5.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)'=='Optimized'">
+    <PackageReference Include="AuroraLib.Compression">
+      <Version>1.5.0</Version>
+    </PackageReference>
   </ItemGroup>
 
 </Project>

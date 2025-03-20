@@ -8,7 +8,6 @@ using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 

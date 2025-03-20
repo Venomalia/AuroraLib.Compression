@@ -3,18 +3,16 @@
 AuroraLib.Compression is a high-performance, memory-efficient library for a broad range of compression algorithms primarily used in video games.
 Designed for seamless use across multiple .NET versions. Written entirely in managed C#, it eliminates the need for external C++ libraries while offering fast decompression and compression.
 
-[![NuGet Package](https://img.shields.io/nuget/v/AuroraLib.Compression.svg?style=flat-square&label=NuGet%20Package)](https://www.nuget.org/packages/AuroraLib.Compression)
-
-[Benchmarks](https://github.com/Venomalia/AuroraLib.Compression/blob/main/Benchmarks.md)
-
 ## Supported Algorithms
+
+### AuroraLib.Compression
+
+[![NuGet Package](https://img.shields.io/nuget/v/AuroraLib.Compression.svg?style=flat-square&label=NuGet%20Package)](https://www.nuget.org/packages/AuroraLib.Compression)
 
 | Algorithm      | Description                                                                |
 |----------------|----------------------------------------------------------------------------|
 | LZ10           | Nintendo LZ10 compression used in various GBA, DS and WII games.           |
 | LZ11           | Nintendo LZ11 compression used in various DS and WII games.                |
-| LZ40           | Nintendo LZ40 compression mainly used in DS games.                         |
-| LZ60           | Nintendo LZ60 corresponds to LZ40 algorithm.                               |
 | LZ77           | Nintendo LZ77 based on LZ10 used in WII games and data.                    |
 | MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
 | Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
@@ -22,9 +20,25 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
 | HUF20          | Nintendo Huffman compression algorithm, mainly used in GBA and DS games.   |
 | RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
-| LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
-| HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
+| ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
+| LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
+| LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
+| RefPack        | RefPack compression algorithm used in some EA games.                       |
+| GZip           | GZip based on DEFLATE compression algorithm.                               |
+| ZLib           | ZLib based on DEFLATE compression algorithm.                               |
+
+ `*` Big-endian and little-endian version are supported.
+ 
+### AuroraLib.Compression-Extended
+
+[![NuGet Package](https://img.shields.io/nuget/v/AuroraLib.Compression-Extended.svg?style=flat-square&label=NuGet%20Package)](https://www.nuget.org/packages/AuroraLib.Compression-Extended)
+
+| Algorithm      | Description                                                                |
+|----------------|----------------------------------------------------------------------------|
+| LZ40           | Nintendo LZ40 compression mainly used in DS games.                         |
+| LZ60           | Nintendo LZ60 corresponds to LZ40 algorithm.                               |
+| HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
 | COMP           | Sega COMP based on LZ11 algorithm, used in some Puyo Puyo.                 |
@@ -41,13 +55,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | RLHudson       | A RLE based compression algorithm used in Mario Party 4-7.                 |
 | LZShrek        | LZShrek compression algorithm used in Shrek Super Slam.                    |
 | LZSS           | LZSS compression algorithm used in many games.                             |
-| RefPack        | RefPack compression algorithm used in some EA games.                       |
-| GZip           | GZip based on DEFLATE compression algorithm.                               |
-| ZLib           | ZLib based on DEFLATE compression algorithm.                               |
 | AsuraZlb       | AsuraZlb based on ZLib compression algorithm used in Simpsons The Game.    |
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
-| ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
-| LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
 | LZ4            | LZ4 is similar to LZO focused on decompression speed.                      |
 | MDF0           | Konami MDF0 based on ZLib used in Castlevania: The Adventure ReBirth.      |
 | Level5         | Level5 compression algorithm, mainly used in Level5 3ds games.             |
@@ -56,6 +65,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 
  `*` Big-endian and little-endian version are supported.
  
+[Benchmarks](https://github.com/Venomalia/AuroraLib.Compression/blob/main/Benchmarks.md)
+
 ## How To Use
 
 ### Decompress a File Using a Specific Algorithm

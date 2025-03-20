@@ -6,16 +6,22 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Configurations>Debug;Release;Optimized</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' != 'Release'">
+    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
     <ProjectReference Include="..\src\AuroraLib.Compression\AuroraLib.Compression.csproj" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
+  </ItemGroup>
+  
   <ItemGroup>
     <None Update="Test.bmp">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
