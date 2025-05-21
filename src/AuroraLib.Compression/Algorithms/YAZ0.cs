@@ -32,6 +32,15 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
 
+        /// <summary>
+        /// Gets or sets the memory alignment for the initialized buffer.<br/>
+        /// Must be <c>0</c> or a power of <c>two</c>.
+        /// <para/>
+        /// This setting is only supported in select titles starting with the Wii U generation.
+        /// It has no effect on compression.
+        /// </summary>
+        public uint MemoryAlignment { get; set; } = 0;
+
         /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
@@ -53,7 +62,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             source.MatchThrow(Identifier);
             uint decompressedSize = source.ReadUInt32(FormatByteOrder);
-            _ = source.ReadUInt32(FormatByteOrder);
+            MemoryAlignment = source.ReadUInt32(FormatByteOrder);
             _ = source.ReadUInt32(FormatByteOrder);
 
             long sourceDataStartPosition = source.Position;
@@ -67,6 +76,7 @@ namespace AuroraLib.Compression.Algorithms
                 source.Seek(sourceDataStartPosition, SeekOrigin.Begin);
                 destination.Seek(destinationStartPosition, SeekOrigin.Begin);
                 decompressedSize = BitConverterX.ReverseEndianness(decompressedSize);
+                MemoryAlignment = BitConverterX.ReverseEndianness(MemoryAlignment);
                 DecompressHeaderless(source, destination, decompressedSize);
             }
         }
@@ -76,7 +86,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             destination.Write(Identifier.AsSpan());
             destination.Write(source.Length, FormatByteOrder);
-            destination.Write(0);
+            destination.Write(MemoryAlignment);
             destination.Write(0);
             CompressHeaderless(source, destination, LookAhead, level);
         }
