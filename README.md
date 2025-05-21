@@ -62,6 +62,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | Level5         | Level5 compression algorithm, mainly used in Level5 3ds games.             |
 | SSZL           | Level5 SSZL algorithm base on LZSS, used in Inazuma Eleven 3.              |
 | IECP           | IECP algorithm base on LZSS, used in Fate/Extra.                           |
+| ECD            | Rocket Company ECD algorithm base on LZSS, used in Kanken Training 2.      |
 
  `*` Big-endian and little-endian version are supported.
  
