@@ -5,6 +5,7 @@ using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Compression;
 
@@ -45,7 +46,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             fixed (byte* ptr = destination)
             {
-                Stream destinationStream = new UnmanagedMemoryStream(ptr, destination.Length, destination.Length, FileAccess.Write);
+                var destinationStream = new UnmanagedMemoryStream(ptr, destination.Length, destination.Length, FileAccess.Write);
                 algorithm.Decompress(source, destinationStream);
             }
         }
@@ -192,9 +193,44 @@ namespace AuroraLib.Compression.Algorithms
         /// <exception cref="NotSupportedException"></exception>
         public static void Compress(this ICompressionEncoder algorithm, Stream source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using SpanBuffer<byte> bytes = new SpanBuffer<byte>((int)(source.Length - source.Position));
-            source.Read(bytes);
-            algorithm.Compress(bytes, destination, level);
+            long remaining = source.Length - source.Position;
+            if (remaining > int.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(source), "Stream too large to read into memory.");
+
+            Span<byte> bytes;
+            if (source is PoolStream ps)
+            {
+                bytes = ps.UnsafeAsSpan((int)source.Position);
+                algorithm.Compress(bytes, destination, level);
+            }
+            else if (source is MemoryStream ms && ms.TryGetBuffer(out var buffer))
+            {
+                bytes = buffer.AsSpan((int)source.Position);
+                algorithm.Compress(bytes, destination, level);
+            }
+            else if (source is UnmanagedMemoryStream ums)
+            {
+                unsafe
+                {
+                    bytes = new Span<byte>(ums.PositionPointer, (int)remaining);
+                    algorithm.Compress(bytes, destination, level);
+                }
+            }
+            else
+            {
+                byte[] arraybuffer = ArrayPool<byte>.Shared.Rent((int)remaining);
+                try
+                {
+                    if (source.Read(arraybuffer, 0, (int)remaining) != remaining)
+                        throw new EndOfStreamException(nameof(source));
+
+                    algorithm.Compress(arraybuffer.AsSpan(0, (int)remaining), destination, level);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(arraybuffer);
+                }
+            }
         }
 
         /// <summary>
