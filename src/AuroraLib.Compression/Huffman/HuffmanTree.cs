@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Huffman
         /// <param name="input">A read-only span of bytes representing the data to be compressed using Huffman coding.</param>
         /// <param name="bitDepth">The number of bits per symbol (default is 8, which means each byte is a symbol).</param>
         /// <returns>The root node of the generated Huffman tree.</returns>
-        public static HuffmanNode<int> Build(ReadOnlySpan<byte> input, int bitDepth = 8)
+        public static HuffmanNode<byte> Build(ReadOnlySpan<byte> input, int bitDepth = 8)
             => CreateTree(GetFrequencies(input, bitDepth));
 
         /// <summary>
@@ -23,7 +23,7 @@ namespace AuroraLib.Compression.Huffman
         public static HuffmanNode<T> Build<T>(ReadOnlySpan<T> input) where T : notnull
             => CreateTree(GetFrequencies(input));
 
-        private static List<HuffmanNode<int>> GetFrequencies(ReadOnlySpan<byte> input, int bitDepth)
+        private static List<HuffmanNode<byte>> GetFrequencies(ReadOnlySpan<byte> input, int bitDepth)
         {
             if (bitDepth != 4 && bitDepth != 8)
                 throw new ArgumentException($"bitDepth {bitDepth}");
@@ -45,11 +45,11 @@ namespace AuroraLib.Compression.Huffman
             }
 
             // Convert each frequency into a Huffman node and add it to the list.
-            List<HuffmanNode<int>> tree = new List<HuffmanNode<int>>(frequency.Length);
+            List<HuffmanNode<byte>> tree = new List<HuffmanNode<byte>>(frequency.Length);
             for (int i = 0; i < frequency.Length; i++)
             {
                 if (frequency[i] != 0)
-                    tree.Add(new HuffmanNode<int>(i, frequency[i]));
+                    tree.Add(new HuffmanNode<byte>((byte)i, frequency[i]));
             }
             return tree;
         }

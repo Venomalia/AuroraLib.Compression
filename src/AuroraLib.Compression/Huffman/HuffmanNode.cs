@@ -41,23 +41,24 @@ namespace AuroraLib.Compression.Huffman
             Children = (childrenLeft, childrenRight);
         }
 
-        public Dictionary<T, string> GetCodeDictionary()
+        public Dictionary<T, (int code, short len)> GetCodeDictionary()
         {
-            var result = new Dictionary<T, string>();
-            GetCodeDictionary(string.Empty, result);
+            var result = new Dictionary<T, (int, short)>();
+            BuildCodeDictionary(0, 0, result);
             return result;
         }
 
-        private void GetCodeDictionary(string path, Dictionary<T, string> result)
+        private void BuildCodeDictionary(int code, short len, Dictionary<T, (int code, short len)> result)
         {
             if (IsLeaf)
             {
-                result.Add(Value, path);
+                result.Add(Value, (code, len));
             }
             else
             {
-                Children.Left!.GetCodeDictionary(path + '0', result);
-                Children.Right!.GetCodeDictionary(path + '1', result);
+                len++;
+                Children.Left!.BuildCodeDictionary((code << 1), len, result);
+                Children.Right!.BuildCodeDictionary((code << 1) | 1, len, result);
             }
         }
 

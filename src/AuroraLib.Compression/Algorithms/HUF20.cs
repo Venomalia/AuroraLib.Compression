@@ -148,8 +148,8 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, int bitDepth, Endian order = Endian.Little)
         {
-            HuffmanNode<int> tree = HuffmanTree.Build(source, bitDepth);
-            List<HuffmanNode<int>> labelList = BuildLabelTreeList(tree);
+            HuffmanNode<byte> tree = HuffmanTree.Build(source, bitDepth);
+            List<HuffmanNode<byte>> labelList = BuildLabelTreeList(tree);
 
             destination.WriteByte((byte)labelList.Count); // Write Tree Size 
             destination.WriteByte((byte)labelList[0].Value); // Write Tree Root
@@ -162,46 +162,53 @@ namespace AuroraLib.Compression.Algorithms
             CompressHeaderless(source, destination, tree, bitDepth, order);
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, HuffmanNode<int> tree, int bitDepth, Endian order = Endian.Little)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, HuffmanNode<byte> tree, int bitDepth, Endian order = Endian.Little)
         {
-            const char char1 = '1';
             ThrowIfInvalidBitDepth(bitDepth);
 
-            Dictionary<int, string> bitCodes = tree.GetCodeDictionary();
+            Span<(int code, int len)> lookup = stackalloc (int, int)[(1 << bitDepth)];
+            foreach (var kvp in tree.GetCodeDictionary())
+                lookup[kvp.Key] = kvp.Value;
+
             using FlagWriter Flag = new FlagWriter(destination, Endian.Big, 4, Endian.Little);
             if (bitDepth == 8)
             {
                 foreach (byte data in source)
-                    foreach (var bit in bitCodes[data])
-                        Flag.WriteBit(bit == char1);
+                {
+                    var (code, len) = lookup[data];
+                    Flag.WriteInt(code, len, true);
+                }
             }
             else
             {
+                int lowMask = order == Endian.Little ? 0xF : 0xF0;
+                int highShift = order == Endian.Little ? 4 : 0;
                 foreach (byte data in source)
                 {
-                    foreach (var bit in bitCodes[order == Endian.Little ? data & 0xF : data >> 4])
-                        Flag.WriteBit(bit == char1);
-                    foreach (var bit in bitCodes[order == Endian.Little ? data >> 4 : data & 0xF])
-                        Flag.WriteBit(bit == char1);
+                    var (code, len) = lookup[(data & lowMask) >> highShift];
+                    Flag.WriteInt(code, len, true);
+
+                    (code, len) = lookup[(data & ~lowMask) >> (4 - highShift)];
+                    Flag.WriteInt(code, len, true);
                 }
             }
         }
 
-        private static List<HuffmanNode<int>> BuildLabelTreeList(HuffmanNode<int> rootNode)
+        private static List<HuffmanNode<byte>> BuildLabelTreeList(HuffmanNode<byte> rootNode)
         {
-            var labelList = new List<HuffmanNode<int>>();
-            var frequencies = new List<HuffmanNode<int>> { rootNode };
+            var labelList = new List<HuffmanNode<byte>>();
+            var frequencies = new List<HuffmanNode<byte>> { rootNode };
 
             while (frequencies.Count > 0)
             {
-                HuffmanNode<int> node = frequencies
+                HuffmanNode<byte> node = frequencies
                     .Select((freq, i) => new { Node = freq, Score = freq.Value - i })
                     .OrderBy(freq => freq.Score)
                     .First().Node;
 
                 frequencies.Remove(node);
 
-                node.Value = labelList.Count - node.Value;
+                node.Value = (byte)(labelList.Count - node.Value);
                 labelList.Add(node);
 
                 // Loop through all children that aren't leaves
@@ -211,7 +218,7 @@ namespace AuroraLib.Compression.Algorithms
                 }
                 else
                 {
-                    node.Children.Left.Value = labelList.Count;
+                    node.Children.Left.Value = (byte)labelList.Count;
                     frequencies.Add(node.Children.Left);
                 }
                 if (node.Children.Right!.IsLeaf)
@@ -220,7 +227,7 @@ namespace AuroraLib.Compression.Algorithms
                 }
                 else
                 {
-                    node.Children.Right.Value = labelList.Count;
+                    node.Children.Right.Value = (byte)labelList.Count;
                     frequencies.Add(node.Children.Right);
                 }
             }
