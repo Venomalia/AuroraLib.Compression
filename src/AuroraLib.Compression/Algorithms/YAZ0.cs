@@ -86,7 +86,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             destination.Write(Identifier.AsSpan());
             destination.Write(source.Length, FormatByteOrder);
-            destination.Write(MemoryAlignment);
+            destination.Write(MemoryAlignment, FormatByteOrder);
             destination.Write(0);
             CompressHeaderless(source, destination, LookAhead, level);
         }
