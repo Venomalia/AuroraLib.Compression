@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Benchmarks", "Benchmarks\Be
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuroraLib.Compression-Extended", "src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj", "{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuroraLib.Compression.CLI", "src\AuroraLib.Compression.CLI\AuroraLib.Compression.CLI.csproj", "{77A38D6D-50EC-4940-9797-9260E58E6766}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,6 +44,12 @@ Global
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Optimized|Any CPU.Build.0 = Optimized|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Optimized|Any CPU.ActiveCfg = Debug|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Optimized|Any CPU.Build.0 = Debug|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{77A38D6D-50EC-4940-9797-9260E58E6766}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -47,10 +47,4 @@
     <PackageReference Include="AuroraLib.Compression" Version="1.5.1" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)'=='Optimized'">
-    <PackageReference Include="AuroraLib.Compression">
-      <Version>1.5.0</Version>
-    </PackageReference>
-  </ItemGroup>
-
 </Project>

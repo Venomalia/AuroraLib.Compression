@@ -1,7 +1,6 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.IO;
 using System;

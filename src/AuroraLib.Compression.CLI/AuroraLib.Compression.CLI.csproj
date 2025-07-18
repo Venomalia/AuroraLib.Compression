@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net8.0;net6.0;net472</TargetFrameworks>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>auracomp</AssemblyName>
+    <Title>AuroraLib.Compression.CLI</Title>
+    <RootNamespace>AuroraLib.Compression.CLI</RootNamespace>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Venomalia/AuroraLib.Compression</PackageProjectUrl>
+    <Copyright>Venomalia</Copyright>
+    <Description>auracomp is a lightweight command-line compression and decompression tool built on AuroraLib.Compression.</Description>
+    <NETFrameworks>|netstandard2.0|net481|net48|net472|NET471|NET47|NET462|NET461|</NETFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
+    <LangVersion>10.0</LangVersion>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
+  </ItemGroup>
+
+</Project>
