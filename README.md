@@ -66,6 +66,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 
  `*` Big-endian and little-endian version are supported.
  
+[Command line tool](https://github.com/Venomalia/AuroraLib.Compression/releases)
+
 [Benchmarks](https://github.com/Venomalia/AuroraLib.Compression/blob/main/Benchmarks.md)
 
 ## How To Use
