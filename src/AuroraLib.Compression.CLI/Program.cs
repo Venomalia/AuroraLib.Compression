@@ -323,6 +323,8 @@ class Program
             }
 
             compressionEncoder.Compress(source, destination, level);
+            Console.WriteLine($"{source.Length / (1024.0 * 1024):F2} MB input, {destination.Length / (1024.0 * 1024):F2} MB output, compression ratio: {(100.0 * destination.Length / source.Length):F2}%");
+
             return;
         }
         throw new InvalidOperationException($"Format '{format?.FullName}' does not support compression.");
