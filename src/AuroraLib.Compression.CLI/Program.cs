@@ -4,6 +4,7 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
+using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,11 +28,12 @@ class Program
         Compress,
         Decompress,
         In,
-        Out,
+        OUt,
         Algo,
         Level,
         LookAhead,
         Endian,
+        Overwrite,
     }
 
     static Program()
@@ -53,7 +55,7 @@ class Program
         {
             Flags flag = (Flags)flagob;
 #else
-            foreach (var flag in Enum.GetValues<Flags>())
+        foreach (var flag in Enum.GetValues<Flags>())
         {
 #endif
             string name = flag.ToString();
@@ -89,12 +91,15 @@ class Program
             Console.WriteLine($"Decompressing '{input}' to '{output}'.");
             Decompress(input, output);
             Console.WriteLine("Decompression completed successfully.");
+            Console.ReadKey();
             return;
         }
 
         // Parse arguments into a dictionary
         var argsDict = ParseArgs(args);
+#if !DEBUG
         try
+#endif
         {
             // Validate input file
             string input = GetRequiredArg(argsDict, Flags.In);
@@ -107,13 +112,13 @@ class Program
             }
 
             // Validate output file
-            if (!argsDict.TryGetValue(Flags.Out, out var output))
+            if (!argsDict.TryGetValue(Flags.OUt, out var output))
                 output = input + "~output";
 
-            if (File.Exists(output))
+            if (File.Exists(output) && new FileInfo(output).Length > 0 && !argsDict.ContainsKey(Flags.Overwrite))
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: Output file already exists: \"{output}\"");
+                Console.WriteLine($"Error: Output file already exists: \"{output}\" use -o to overwrite.");
                 Console.ResetColor();
                 return;
             }
@@ -155,6 +160,7 @@ class Program
                 return;
             }
         }
+#if !DEBUG
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -162,6 +168,7 @@ class Program
             Console.ResetColor();
             return;
         }
+#endif
     }
 
     static string GetRequiredArg(Dictionary<Flags, string?> args, Flags key)
@@ -198,28 +205,24 @@ class Program
         return result;
     }
 
-    string GetAllUppercaseLetters(Enum flag)
-    {
-        string name = flag.ToString();
-        return new string(name.Where(char.IsUpper).ToArray());
-    }
-
     static void ShowHelp()
     {
         Console.WriteLine("Usage:");
 
         ConsoleFlag(Flags.Decompress, null, "Decompress a file.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
-        ConsoleFlag(Flags.Out, "file", "Output file path. [optional]");
+        ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
         ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type [optional]");
 
         ConsoleFlag(Flags.Compress, null, "Compress a file using the specified algorithm.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
-        ConsoleFlag(Flags.Out, "file", "Output file path. [optional]");
+        ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
         ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type");
         ConsoleFlag(Flags.Level, "level", $"CompressionLevel <{string.Join(", ", Enum.GetNames(typeof(CompressionLevel)))}> [optional]");
         ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
         ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
+
+        ConsoleFlag(Flags.Overwrite, null, "Overwrite output file if already exists.");
 
         ConsoleFlag(Flags.Help, null, "Show this help.");
 
