@@ -15,15 +15,17 @@ namespace AuroraLib.Compression.MatchFinder
         // Properties related to the LZ compression parameters
         private readonly int _minMatchLength;
         private readonly int _maxMatchLength;
+        private readonly int _minDistance;
         private readonly int _windowsSize;
         private readonly bool _lookAhead;
 
-        private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true)
+        private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true, int minDistance = 1)
         {
             _lookAhead = lookAhead;
             _minMatchLength = minLength;
             _maxMatchLength = maxLength;
             _windowsSize = windowsSize;
+            _minDistance = minDistance;
         }
 
         /// <summary>
@@ -40,25 +42,25 @@ namespace AuroraLib.Compression.MatchFinder
             if (level == CompressionLevel.NoCompression)
                 return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
 
             fixed (byte* dataPtr = source)
                 return finder.FindMatches(dataPtr, source.Length, blockSize);
         }
 
         /// <inheritdoc cref="FindMatchesParallel(ReadOnlySpan{byte}, LzProperties, bool, CompressionLevel, int)"/>
-        public static List<LzMatch> FindMatches(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static PoolList<LzMatch> FindMatches(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             if (level == CompressionLevel.NoCompression)
-                return new List<LzMatch>();
+                return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
             return finder.FindMatches(source);
         }
 
-        internal List<LzMatch> FindMatches(ReadOnlySpan<byte> data)
+        internal PoolList<LzMatch> FindMatches(ReadOnlySpan<byte> data)
         {
-            var matchResults = new List<LzMatch>();
+            var matchResults = new PoolList<LzMatch>();
             fixed (byte* dataPtr = data)
                 FindMatchesInBlock(dataPtr, data.Length, 0, data.Length, matchResults);
             return matchResults;
@@ -75,6 +77,7 @@ namespace AuroraLib.Compression.MatchFinder
                 var lzMatches = new PoolList<LzMatch>();
                 int start = blockIndex * blockSize;
                 int end = Math.Min(start + blockSize, length);
+
                 FindMatchesInBlock(data, length, start, end, lzMatches);
                 blockMatches[blockIndex] = lzMatches;
             });
@@ -135,14 +138,14 @@ namespace AuroraLib.Compression.MatchFinder
 
             for (int i = start; i < end; i++)
             {
-                int matchStart = Math.Max(0, i - _windowsSize);
+                int matchStart = Math.Max(0, i - (_windowsSize));
                 int maxBestLength = _lookAhead
                     ? Math.Min(_maxMatchLength, length - i)
                     : Math.Min(Math.Min(_maxMatchLength, end - i), i);
 
                 int bestLength = 0, bestDistance = 0;
 
-                for (int j = i - 1; j >= matchStart; j--)
+                for (int j = i - _minDistance; j >= matchStart; j--)
                 {
                     // Use ushort comparison for the first two bytes for faster matching
                     if (*(ushort*)(dataPtr + i) == *(ushort*)(dataPtr + j))
@@ -174,5 +177,7 @@ namespace AuroraLib.Compression.MatchFinder
                 }
             }
         }
+
+
     }
 }
