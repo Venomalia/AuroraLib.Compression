@@ -36,10 +36,12 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 
 | Algorithm      | Description                                                                |
 |----------------|----------------------------------------------------------------------------|
-| LZ40           | Nintendo LZ40 compression mainly used in DS games.                         |
+| BLZ            | Nintendo BLZ compression, mainly used on the 3ds games.                    |
+| LZ40           | Nintendo LZ40 compression, mainly used in DS games.                        |
 | LZ60           | Nintendo LZ60 corresponds to LZ40 algorithm.                               |
 | HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
+| CRILAYLA       | Algorithm by CRI Middleware, used in games built with the CRIWARE toolset. |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
 | COMP           | Sega COMP based on LZ11 algorithm, used in some Puyo Puyo.                 |
 | CXLZ           | Sega CXLZ based on LZ10 algorithm, used in some Puyo Puyo.                 |
