@@ -1,3 +1,4 @@
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Collections;
@@ -41,6 +42,26 @@ namespace AuroraLib.Compression.Algorithms
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Length > 0x10 && stream.Peek(s => s.Match(_identifier));
 
+        /// <summary>
+        /// Reads up to 0x100 bytes of the uncompressed file header into the provided span.
+        /// </summary>
+        /// <param name="source">The CRILAYLA stream.</param>
+        /// <param name="header">A span where the header bytes will be written.</param>
+        public void GetHeader(Stream source, Span<byte> header)
+        {
+            if (header.Length > HeaderSize)
+                header = header.Slice(0, HeaderSize);
+
+            long start = source.Position;
+
+            source.MatchThrow(_identifier);
+            _ = source.ReadUInt32();
+            uint compressedSize = source.ReadUInt32();
+            source.Seek(compressedSize, SeekOrigin.Current);
+            source.Read(header);
+            source.Seek(start, SeekOrigin.Begin);
+        }
+
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
@@ -56,19 +77,27 @@ namespace AuroraLib.Compression.Algorithms
 
             uint decompressedSize = source.ReadUInt32();
             uint compressedSize = source.ReadUInt32();
+            int fullSize = (int)(decompressedSize + HeaderSize);
 
-            byte[] destinationBuffer = ArrayPool<byte>.Shared.Rent((int)decompressedSize + HeaderSize);
+            byte[] destinationBuffer = ArrayPool<byte>.Shared.Rent(fullSize);
             byte[] sourceBuffer = ArrayPool<byte>.Shared.Rent((int)compressedSize);
             try
             {
                 source.Read(sourceBuffer, 0, (int)compressedSize);
                 source.Read(destinationBuffer, 0, HeaderSize); // Read Header
 
-                Span<byte> destinationSpan = destinationBuffer.AsSpan(HeaderSize, (int)decompressedSize);
+                //Sometimes parts of the head are overwritten, so we provide the full destination size.
+                Span<byte> destinationSpan = destinationBuffer.AsSpan(0, fullSize);
                 Span<byte> sourceSpan = sourceBuffer.AsSpan(0, (int)compressedSize);
-                DecompressHeaderless(sourceSpan, destinationSpan);
+                int written = DecompressHeaderless(sourceSpan, destinationSpan);
 
                 destination.Write(destinationBuffer, 0, (int)decompressedSize + HeaderSize);
+
+                // Verify decompressed size
+                if (written < decompressedSize)
+                {
+                    throw new DecompressedSizeException(fullSize, written + HeaderSize);
+                }
             }
             finally
             {
@@ -103,7 +132,7 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void DecompressHeaderless(ReadOnlySpan<byte> source, Span<byte> destination)
+        public static int DecompressHeaderless(ReadOnlySpan<byte> source, Span<byte> destination)
         {
             int sourcePointer = source.Length - 1;
             int destinationPointer = destination.Length - 1;
@@ -112,7 +141,7 @@ namespace AuroraLib.Compression.Algorithms
             ReadOnlySpan<int> vleLevels = stackalloc int[4] { 2, 3, 5, 8 };
             ReadOnlySpan<int> vleFlags = stackalloc int[4] { 0x3, 0x7, 0x1F, 0xFF };
 
-            while (destinationPointer >= 0)
+            while (sourcePointer >= 0)
             {
                 if (GetBits(source, ref sourcePointer, ref bitBuffer, ref bitsLeft, 1) == 1)
                 {
@@ -140,7 +169,9 @@ namespace AuroraLib.Compression.Algorithms
                 {
                     destination[destinationPointer--] = (byte)GetBits(source, ref sourcePointer, ref bitBuffer, ref bitsLeft, 8);
                 }
+
             }
+            return destination.Length - destinationPointer - 1;
         }
 
         private static ushort GetBits(ReadOnlySpan<byte> input, ref int inputPointer, ref byte flag, ref int flagBitsLeft, int bitCount)
