@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Level5 SSZL algorithm base on LZSS, first used in Inazuma Eleven 3.
     /// </summary>
-    public class SSZL : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public class Level5LZSS : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -22,7 +22,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<SSZL>("Level5 lzss", new MediaType(MIMEType.Application, "x-lzss+level5"), string.Empty, _identifier);
+        private static readonly IFormatInfo _info = new FormatInfo<Level5LZSS>("Level5 lzss", new MediaType(MIMEType.Application, "x-lzss+level5"), string.Empty, _identifier);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
