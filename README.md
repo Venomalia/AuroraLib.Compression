@@ -62,7 +62,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | LZ4            | LZ4 is similar to LZO focused on decompression speed.                      |
 | MDF0           | Konami MDF0 based on ZLib used in Castlevania: The Adventure ReBirth.      |
 | Level5         | Level5 compression algorithm, mainly used in Level5 3ds games.             |
-| SSZL           | Level5 SSZL algorithm base on LZSS, used in Inazuma Eleven 3.              |
+| Level5LZSS     | Level5 SSZL algorithm base on LZSS, used in Inazuma Eleven 3.              |
+| SSZL           | SynSophiaZip based on Zlib with Mersenne Twister xor encryption.           |
 | IECP           | IECP algorithm base on LZSS, used in Fate/Extra.                           |
 | ECD            | Rocket Company ECD algorithm base on LZSS, used in Kanken Training 2.      |
 
