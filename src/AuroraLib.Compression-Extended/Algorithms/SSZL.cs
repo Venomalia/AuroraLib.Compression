@@ -273,9 +273,9 @@ namespace AuroraLib.Compression.Algorithms
             {
                 uint t1 = (next >> 11) ^ next;
                 uint t2 = (t1 & B) << 7;
-                uint t3 = t2 ^ ((next >> 11) ^ next);
+                uint t3= t2 ^ t1;
                 uint t4 = (t3 & C) << 15;
-                uint t5 = t4 ^ t2 ^ (next >> 11) ^ next;
+                uint t5 = t4 ^ t3;
 
                 // Cast to int to replicate C's arithmetic right shift on signed 32-bit
                 // Note: Using ((t5 ^ (t5 >> 18)) & uintMask) directly would produce incorrect results!
