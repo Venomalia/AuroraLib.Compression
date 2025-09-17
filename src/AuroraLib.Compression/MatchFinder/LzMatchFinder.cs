@@ -19,6 +19,29 @@ namespace AuroraLib.Compression.MatchFinder
         private readonly int _windowsSize;
         private readonly bool _lookAhead;
 
+        private readonly LzProperties[] _lzProperties;
+
+        private LZMatchFinder(LzProperties[] lzProperties, int maxWindowsSize, bool lookAhead = true)
+        {
+            _lzProperties = lzProperties;
+            _lookAhead = lookAhead;
+            _windowsSize = maxWindowsSize;
+            _minMatchLength = int.MaxValue;
+            _maxMatchLength = 0;
+            _minDistance = int.MaxValue;
+            foreach (var prop in _lzProperties)
+            {
+                if (_minMatchLength > prop.MinLength)
+                    _minMatchLength = prop.MinLength;
+
+                if (_maxMatchLength < prop.MaxLength)
+                    _maxMatchLength = prop.MaxLength;
+
+                if (_minDistance > prop.MinDistance)
+                    _minDistance = prop.MinDistance;
+            }
+        }
+
         private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true, int minDistance = 1)
         {
             _lookAhead = lookAhead;
@@ -48,6 +71,18 @@ namespace AuroraLib.Compression.MatchFinder
                 return finder.FindMatches(dataPtr, source.Length, blockSize);
         }
 
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties[] lzs, int maxWindowsSize, bool lookAhead = true, int blockSize = 0x8000)
+        {
+            if (maxWindowsSize <= 0)
+                return new PoolList<LzMatch>();
+
+            LZMatchFinder finder = new LZMatchFinder(lzs, maxWindowsSize, lookAhead);
+
+            fixed (byte* dataPtr = source)
+                return finder.FindMatches(dataPtr, source.Length, blockSize);
+        }
+
+#if DEBUG
         /// <inheritdoc cref="FindMatchesParallel(ReadOnlySpan{byte}, LzProperties, bool, CompressionLevel, int)"/>
         public static PoolList<LzMatch> FindMatches(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
@@ -65,6 +100,7 @@ namespace AuroraLib.Compression.MatchFinder
                 FindMatchesInBlock(dataPtr, data.Length, 0, data.Length, matchResults);
             return matchResults;
         }
+#endif
 
         internal PoolList<LzMatch> FindMatches(byte* data, int length, int blockSize)
         {
@@ -150,17 +186,18 @@ namespace AuroraLib.Compression.MatchFinder
                     // Use ushort comparison for the first two bytes for faster matching
                     if (*(ushort*)(dataPtr + i) == *(ushort*)(dataPtr + j))
                     {
+                        int currentDistance = i - j;
                         int currentLength = 2;
-                        int currentBestLength = _lookAhead ? maxBestLength : Math.Min(maxBestLength, i - j);
+                        int currentBestLength = _lookAhead ? maxBestLength : Math.Min(maxBestLength, currentDistance);
                         // Check additional bytes for a match
                         while (currentLength < currentBestLength && dataPtr[i + currentLength] == dataPtr[j + currentLength])
                             currentLength++;
 
                         // Update if a better match is found
-                        if (currentLength > bestLength)
+                        if (currentLength > bestLength && IsValidMatch(ref currentLength, currentDistance))
                         {
                             bestLength = currentLength;
-                            bestDistance = i - j;
+                            bestDistance = currentDistance;
 
                             // Stop if the maximum match length is reached
                             if (bestLength == maxBestLength)
@@ -178,6 +215,21 @@ namespace AuroraLib.Compression.MatchFinder
             }
         }
 
+        private bool IsValidMatch(ref int length, int distance)
+        {
+            if (_lzProperties == null)
+                return true;
 
+            foreach (var propertie in _lzProperties)
+            {
+                if (distance <= propertie.WindowsSize && length >= propertie.MinLength && distance >= propertie.MinDistance)
+                {
+                    if (length > propertie.MaxLength)
+                        length = propertie.MaxLength;
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 }
