@@ -28,7 +28,7 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly IFormatInfo _info = new FormatInfo<aPLib>("Ibsen Software aPLib pack", new MediaType(MIMEType.Application, "x-aplib"), string.Empty);
 
-        private static LzProperties[] lzProperties = new LzProperties[]
+        private static readonly LzProperties[] lzProperties = new LzProperties[]
         {
             new LzProperties(0x200000, int.MaxValue, 8, 0, 2),
             new LzProperties(0x500, int.MaxValue, 3, 0, 2),

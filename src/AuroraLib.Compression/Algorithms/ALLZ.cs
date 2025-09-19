@@ -28,10 +28,15 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly IFormatInfo _info = new FormatInfo<ALLZ>("Aqualead LZ", new MediaType(MIMEType.Application, "x-aqualead-lz"), string.Empty, _identifier);
 
-        internal static readonly LzProperties _lz = new LzProperties(0x20000, 0x40000, 3); //A larger window is possible but will take a lot longer.
+        private static readonly LzProperties[] lzProperties = new LzProperties[]
+        {
+            new LzProperties(0x20000, 0x40000, 7),
+            new LzProperties(0x2000, 0x40000, 3),
+            new LzProperties(0x8000, 0x40000, 5),
+        };
 
         public byte LzCopyBits = 0;
-        public byte LzDistanceBits = 14;
+        public byte LzDistanceBits = 10;
         public byte LzLengthBits = 1;
 
         /// <inheritdoc/>
@@ -76,7 +81,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Length);
 
             // Perform the compression
-            CompressHeaderless(source, destination, flags, true, level);
+            CompressHeaderless(source, destination, flags, true, lzProperties[0].GetWindowsLevel(level));
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
@@ -118,10 +123,10 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, int maxWindowsSize = 0x200000)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
             matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
             foreach (LzMatch match in matches)

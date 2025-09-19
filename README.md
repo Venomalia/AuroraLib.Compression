@@ -66,6 +66,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | SSZL           | SynSophiaZip based on Zlib with Mersenne Twister xor encryption.           |
 | IECP           | IECP algorithm base on LZSS, used in Fate/Extra.                           |
 | ECD            | Rocket Company ECD algorithm base on LZSS, used in Kanken Training 2.      |
+| aPLib          | aPLib is a pure LZ-based compression algorithm by Jørgen Ibsen.            |
 
  `*` Big-endian and little-endian version are supported.
  
