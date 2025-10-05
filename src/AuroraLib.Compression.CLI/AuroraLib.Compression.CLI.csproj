@@ -5,6 +5,8 @@
     <TargetFrameworks>net8.0;net6.0;net472</TargetFrameworks>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Version>1.0.1.0</Version>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
     <AssemblyName>auracomp</AssemblyName>
     <Title>AuroraLib.Compression.CLI</Title>
     <RootNamespace>AuroraLib.Compression.CLI</RootNamespace>
