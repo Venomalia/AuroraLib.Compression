@@ -107,7 +107,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 
 ### Automatically Detect and Decompress Using a Recognized Algorithm
 ``` csharp
-    FormatDictionary formats = new FormatDictionary(AppDomain.CurrentDomain.GetAssemblies());
+    FormatDictionary formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended });
 
     using FileStream source = new("input.dat", FileMode.Open, FileAccess.Read, FileShare.Read);
     ReadOnlySpan<char> fileName = Path.GetFileName("input.dat");
