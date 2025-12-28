@@ -21,6 +21,10 @@
   <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
     <LangVersion>10.0</LangVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.6" />
+  </ItemGroup>
   
   <ItemGroup>
     <ProjectReference Include="..\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />

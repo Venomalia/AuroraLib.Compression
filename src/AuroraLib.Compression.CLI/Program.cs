@@ -1,5 +1,6 @@
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI;
+using AuroraLib.Compression.CLI.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
 using AuroraLib.Core.Collections;
@@ -22,6 +23,8 @@ class Program
 
     static readonly Assembly AuroraLib_Compression_Extended = typeof(LZ4).Assembly;
 
+    static readonly Assembly Extern = typeof(Zstd).Assembly;
+
     enum Flags
     {
         Help,
@@ -39,7 +42,7 @@ class Program
 
     static Program()
     {
-        formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended });
+        formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended , Extern });
         formats.Add(new SpezialFormatInfo<HUF20>("Nintendo HUF20 4bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-4bits"), ".huf4", () => new HUF20() { Type = HUF20.CompressionType.Huffman4bits }));
         formats.Add(new SpezialFormatInfo<HUF20>("Nintendo HUF20 8bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-8bits"), ".huf8", () => new HUF20() { Type = HUF20.CompressionType.Huffman8bits }));
         formats.Add(new SpezialFormatInfo<LZ77>("Nintendo LZ77 Chunk", new MediaType(MIMEType.Application, "x-nintendo-lz10+lz77Chunk"), string.Empty, () => new LZ77() { Type = LZ77.CompressionType.ChunkLZ10 }));
