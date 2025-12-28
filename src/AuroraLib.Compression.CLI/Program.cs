@@ -27,6 +27,7 @@ class Program
         Help,
         Compress,
         Decompress,
+        Mime,
         In,
         OUt,
         Algo,
@@ -152,6 +153,12 @@ class Program
                 }
                 Console.WriteLine("Decompression completed successfully.");
             }
+            else if (argsDict.ContainsKey(Flags.Mime))
+            {
+                Console.WriteLine($"Trying to recognize format of '{input}'.");
+                DetectedMimeType(input);
+                return;
+            }
             else
             {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -222,6 +229,9 @@ class Program
         ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
         ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
 
+        ConsoleFlag(Flags.Mime, null, "Try to recognize the file format used.");
+        ConsoleFlag(Flags.In, "file", "Input file path.");
+
         ConsoleFlag(Flags.Overwrite, null, "Overwrite output file if already exists.");
 
         ConsoleFlag(Flags.Help, null, "Show this help.");
@@ -276,17 +286,36 @@ class Program
 
         if (formats.Identify(source, fileName, out IFormatInfo format) && format.Class != null)
         {
+            PrintType(format);
             var decoder = format.CreateInstance();
             if (decoder is ICompressionDecoder compressionDecoder)
             {
                 using FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
-                Console.WriteLine($"Detected format: {format.FullName}");
                 source.Seek(0L, SeekOrigin.Begin);
                 compressionDecoder.Decompress(source, destination);
                 return;
             }
         }
         throw new InvalidOperationException("No suitable decoder found for the file format.");
+    }
+
+    static void DetectedMimeType(string sourceFile)
+    {
+        using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        ReadOnlySpan<char> fileName = Path.GetFileName(sourceFile).AsSpan();
+
+        if (formats.Identify(source, fileName, out IFormatInfo format) && format.Class != null)
+        {
+            PrintType(format);
+            return;
+        }
+        Console.WriteLine("Unknown format.");
+    }
+
+    static void PrintType(IFormatInfo format)
+    {
+        Console.WriteLine($"Detected format: {format.FullName}");
+        Console.WriteLine($"MIME: {format.MIMEType}");
     }
 
     static void Decompress(string algo, string sourceFile, string destinationFile)
