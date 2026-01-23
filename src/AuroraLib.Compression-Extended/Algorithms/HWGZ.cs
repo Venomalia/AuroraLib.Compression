@@ -43,7 +43,7 @@ namespace AuroraLib.Compression.Algorithms
                 return false;
 
             source.Align(4 * header.ChunkCount, SeekOrigin.Current, 128);
-            bool result = source.At(4, SeekOrigin.Current, s => s.Read<ZLib.Header>().Validate());
+            bool result = source.At(4, SeekOrigin.Current, s => ZLib.IsMatchStatic(s));
             source.Position = pos;
             return result;
         }

@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -25,22 +24,14 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Peek<Header>().Validate();
+            => stream.Position + 0x4 < stream.Length && CheckZlibHeaderAndFirstBlock(stream.Peek<uint>());
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-#if NET6_0_OR_GREATER
-            using ZLibStream algo = new(source, CompressionMode.Decompress, true);
+            using ZLibStream algo = new ZLibStream(source, CompressionMode.Decompress, true);
             algo.CopyTo(destination);
-#else
-            Header header = source.Read<Header>();
-            using (DeflateStream dflStream = new DeflateStream(source, CompressionMode.Decompress, true))
-                dflStream.CopyTo(destination);
-#endif
-            source.Position = source.Length;
         }
-
 
         public void Decompress(Stream source, Stream destination, int sourceSize)
             => Decompress(new SubStream(source, sourceSize), destination);
@@ -48,80 +39,34 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
-#if NET6_0_OR_GREATER
-            using ZLibStream algo = new(destination, level, true);
+            using ZLibStream algo = new ZLibStream(destination, level, true);
             algo.Write(source);
         }
-#else
-            destination.Write(new Header(level));
-            using (DeflateStream dflStream = new DeflateStream(destination, level, true))
-                dflStream.Write(source);
 
-            destination.Write(ComputeAdler32(source), Endian.Big);
-        }
-
-        private static uint ComputeAdler32(ReadOnlySpan<byte> source)
+        internal static bool CheckZlibHeaderAndFirstBlock(uint header4Bytes)
         {
-            const uint MOD_ADLER = 65521;
-            uint a = 1, b = 0;
+            byte cmf = (byte)((header4Bytes >> 0) & 0xFF);  // CMF
+            byte flg = (byte)((header4Bytes >> 8) & 0xFF);  // FLG
+            byte d1 = (byte)((header4Bytes >> 16) & 0xFF); // first byte Compressed Data
+            byte d2 = (byte)((header4Bytes >> 24) & 0xFF); // second byte Compressed Data
 
-            foreach (byte byteValue in source)
+            if ((cmf & 0x0F) != 8) return false; // CM != deflate
+            if (((cmf >> 4) & 0x0F) > 7) return false; // CINFO > 7 (max window 32KB)
+            if ((cmf * 256 + flg) % 31 != 0) return false; // checksum
+
+            bool bfinal = (d1 & 1) != 0;
+            int btype = (d1 >> 1) & 0x03;
+
+            if (btype == 3 || bfinal) return false; // invalid or empty
+
+            if (btype == 0)
             {
-                a = (a + byteValue) % MOD_ADLER;
-                b = (b + a) % MOD_ADLER;
+                ushort len = (ushort)(d1 | (d2 << 8));
+                ushort nlen = (ushort)~len;
+                if ((len ^ nlen) != 0xFFFF) return false;
+                if (len == 0) return false;
             }
-
-            return (b << 16) | a;
-        }
-#endif
-
-        public readonly struct Header
-        {
-            private readonly byte cmf;
-            private readonly byte flg;
-
-            public Header(CompressionLevel level)
-            {
-                cmf = 0x78;
-                switch (level)
-                {
-                    case System.IO.Compression.CompressionLevel.NoCompression:
-                    case System.IO.Compression.CompressionLevel.Fastest:
-                        flg = 0x01;
-                        break;
-                    case System.IO.Compression.CompressionLevel.Optimal:
-                        flg = 0xDA;
-                        break;
-                    default:
-                        flg = 0x9C;
-                        break;
-                }
-            }
-
-            public enum CompressionMethod : byte
-            {
-                Deflate = 8
-            }
-
-            public CompressionMethod Method => (CompressionMethod)(cmf & 0x0F);
-
-            public byte CompressionInfo => (byte)((cmf >> 4) & 0x0F);
-
-            public ushort FletcherChecksum => (ushort)(((flg & 0xFF) << 8) | cmf);
-
-            public bool HasDictionary => ((flg >> 5) & 0x01) != 0;
-
-            public byte CompressionLevel => (byte)((flg >> 6) & 0x03);
-
-            public bool Validate()
-            {
-                ushort checksum = FletcherChecksum;
-
-                if (Method != CompressionMethod.Deflate || CompressionInfo > 7)
-                    return false;
-
-                return checksum % 31 != 0 || checksum % 255 != 0;
-            }
+            return true;
         }
     }
 }

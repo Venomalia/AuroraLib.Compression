@@ -41,7 +41,7 @@ namespace AuroraLib.Compression.Algorithms
 
             uint typeAndSize = stream.ReadUInt32();
             int decompressedSize = (int)(typeAndSize >> 3);
-            bool isZLib = typeAndSize != 0 && stream.PeekByte() == 0x78 && stream.Peek<ZLib.Header>().Validate();
+            bool isZLib = typeAndSize != 0 && stream.PeekByte() == 0x78 && ZLib.IsMatchStatic(stream);
             stream.Position -= 4;
             return isZLib || (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0;
         }
