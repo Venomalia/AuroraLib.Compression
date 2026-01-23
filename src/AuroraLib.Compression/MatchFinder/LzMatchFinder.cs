@@ -61,11 +61,14 @@ namespace AuroraLib.Compression.MatchFinder
         /// <param name="blockSize">Size of each block to process in parallel.</param>
         /// <returns>A list of matches found in the source data.</returns>
         public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
+            => FindMatchesParallel(source, lz, lz.GetWindowsLevel(level), lookAhead, blockSize);
+
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, int maxWindowsSize, bool lookAhead = true, int blockSize = 0x8000)
         {
-            if (level == CompressionLevel.NoCompression)
+            if (maxWindowsSize <= 0)
                 return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
+            LZMatchFinder finder = new LZMatchFinder(maxWindowsSize, lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
 
             fixed (byte* dataPtr = source)
                 return finder.FindMatches(dataPtr, source.Length, blockSize);
