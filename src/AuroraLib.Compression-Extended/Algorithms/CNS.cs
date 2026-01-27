@@ -94,9 +94,6 @@ namespace AuroraLib.Compression.Algorithms
             destination.SetLength(endPosition);
             using (LzWindows buffer = new LzWindows(destination, _lz.WindowsSize))
             {
-
-                Span<byte> bytes = stackalloc byte[128];
-
                 while (destination.Position + buffer.Position < endPosition)
                 {
                     int length = source.ReadUInt8();
@@ -104,11 +101,7 @@ namespace AuroraLib.Compression.Algorithms
                     // The first bit is the flag.
                     if ((length & 0x80) == 0) // Uncompressed 1-127
                     {
-                        if (source.Read(bytes.Slice(0, length)) != length)
-                        {
-                            throw new EndOfStreamException();
-                        }
-                        buffer.Write(bytes.Slice(0, length));
+                        buffer.CopyFrom(source, length);
                     }
                     else // Compressed 3-130
                     {
