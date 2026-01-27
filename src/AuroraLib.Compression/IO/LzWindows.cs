@@ -4,6 +4,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace AuroraLib.Compression.IO
 {
@@ -59,10 +60,10 @@ namespace AuroraLib.Compression.IO
         public void BackCopy(int distance, int length)
         {
             // Optimization: Ensure distance and position are valid for the operation.
-            if (distance >= length && distance <= Position)
-                Write(_Buffer.AsSpan((int)(Position - distance), length));
+            if (distance >= length && distance <= _Position)
+                InternWrite(_Buffer.AsSpan((int)(_Position - distance), length));
             else
-                OffsetCopy((int)(Length + Position - distance), length);
+                OffsetCopy((int)(Length + _Position - distance), length);
         }
 
         /// <summary>
@@ -78,6 +79,7 @@ namespace AuroraLib.Compression.IO
                 WriteByte(_Buffer[(Offset + i) % Length]);
             }
         }
+
 
         /// <summary>
         /// Copies data from a <paramref name="source"/> <see cref="Stream"/> to this <see cref="LzWindows"/>.
@@ -125,33 +127,59 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public unsafe override void Write(ReadOnlySpan<byte> buffer)
         {
-            int position = (int)_Position;
-            if (Length > position + buffer.Length)
+            int windows = (int)Length;
+            if (buffer.Length < windows)
+            {
+                InternWrite(buffer);
+                return;
+            }
+
+            int offset = 0;
+            while (buffer.Length - offset >= windows)
+            {
+                InternWrite(buffer.Slice(offset, windows));
+                offset += windows;
+            }
+            if (offset < buffer.Length)
+            {
+                InternWrite(buffer.Slice(offset));
+            }
+        }
+
+        private unsafe void InternWrite(ReadOnlySpan<byte> buffer)
+        {
+            if (buffer.IsEmpty)
+                return;
+
+            ref byte dst = ref MemoryMarshal.GetReference(_Buffer.AsSpan());
+            ref byte src = ref MemoryMarshal.GetReference(buffer);
+
+            uint len = (uint)buffer.Length;
+            uint pos = (uint)_Position;
+            uint windows = (uint)Length;
+
+            if (windows > pos + len)
             {
                 // The entire buffer fits without wrapping around.
-                buffer.CopyTo(_Buffer.AsSpan(position));
-                _Position += buffer.Length;
+                Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, len);
+                _Position += len;
             }
-            else
+            else // Partially write and wrap around.
             {
-                // Partially write and wrap around.
-                int left = (int)(Length - position);
-                int copy = (int)Math.Min(Length, buffer.Length);
+                uint left = windows - pos;
+                uint remaining = len - left;
 
-                destination.Write(_Buffer, 0, position);
-                if (left != 0)
-                {
-                    destination.Write(buffer.Slice(0, left));
-                    buffer.Slice(buffer.Length - copy, left).CopyTo(_Buffer.AsSpan(position, left));
-                }
+                // Fill the remaining window if necessary.
+                if (left > 0) Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, left);
 
-                if (copy > left)
-                {
-                    int remaining = copy - left;
-                    buffer.Slice(buffer.Length - remaining, remaining).CopyTo(_Buffer.AsSpan(0, remaining));
-                }
+                // Flush the entire window onto the underlying stream.
+                destination.Write(_Buffer, 0, (int)windows);
 
-                Position += copy;
+                // Fill the remaining window if necessary.
+                if (remaining != 0) Unsafe.CopyBlockUnaligned(ref dst, ref Unsafe.Add(ref src, len - remaining), remaining);
+
+                // Set position at the beginning of the window
+                _Position = remaining;
             }
         }
 
