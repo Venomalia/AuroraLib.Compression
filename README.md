@@ -11,22 +11,19 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 
 | Algorithm      | Description                                                                |
 |----------------|----------------------------------------------------------------------------|
+| LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
+| LZ4            | LZ4 is similar to LZO focused on decompression speed.                      |
+| LZSS           | LZSS compression algorithm used in many games.                             |
+| GZip           | GZip based on DEFLATE compression algorithm.                               |
+| ZLib           | ZLib based on DEFLATE compression algorithm.                               |
 | LZ10           | Nintendo LZ10 compression used in various GBA, DS and WII games.           |
 | LZ11           | Nintendo LZ11 compression used in various DS and WII games.                |
 | LZ77           | Nintendo LZ77 based on LZ10 used in WII games and data.                    |
-| MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
 | Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
 | Yaz0*          | Nintendo Yaz0 compression used in games from the N64 to Switch era.        |
-| Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
 | HUF20          | Nintendo Huffman compression algorithm, mainly used in GBA and DS games.   |
-| RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
-| ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
-| LZO            | Lempel–Ziv–Oberhumer algorithm, focused on decompression speed             |
-| LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
 | RefPack        | RefPack compression algorithm used in some EA games.                       |
-| GZip           | GZip based on DEFLATE compression algorithm.                               |
-| ZLib           | ZLib based on DEFLATE compression algorithm.                               |
 
  `*` Big-endian and little-endian version are supported.
  
@@ -39,8 +36,15 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | BLZ            | Nintendo BLZ compression, mainly used on the 3ds games.                    |
 | LZ40           | Nintendo LZ40 compression, mainly used in DS games.                        |
 | LZ60           | Nintendo LZ60 corresponds to LZ40 algorithm.                               |
+| SMSR00         | Nintendo SMSR00 compression, mainly used in Yoshi's Story.                 |
+| MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
+| Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
+| RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
+| ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
+| LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
 | HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
+
 | CRILAYLA       | Algorithm by CRI Middleware, used in games built with the CRIWARE toolset. |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
 | COMP           | Sega COMP based on LZ11 algorithm, used in some Puyo Puyo.                 |
@@ -56,10 +60,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | LZHudson       | A LZSS based compression algorithm used in Mario Party 4-7.                |
 | RLHudson       | A RLE based compression algorithm used in Mario Party 4-7.                 |
 | LZShrek        | LZShrek compression algorithm used in Shrek Super Slam.                    |
-| LZSS           | LZSS compression algorithm used in many games.                             |
 | AsuraZlb       | AsuraZlb based on ZLib compression algorithm used in Simpsons The Game.    |
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
-| LZ4            | LZ4 is similar to LZO focused on decompression speed.                      |
 | MDF0           | Konami MDF0 based on ZLib used in Castlevania: The Adventure ReBirth.      |
 | GCZ            | Konami GCZ based on LZSS, mainly used in Konami/Bemani music games.        |
 | Level5         | Level5 compression algorithm, mainly used in Level5 3ds games.             |

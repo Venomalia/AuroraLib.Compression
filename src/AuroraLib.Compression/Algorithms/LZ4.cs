@@ -7,6 +7,7 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -64,17 +65,10 @@ namespace AuroraLib.Compression.Algorithms
                 switch (magic)
                 {
                     case FrameTypes.Legacy:
-                        blockSize = source.ReadUInt32();
-                        do
-                        {
-                            DecompressBlockHeaderless(source, destination, blockSize);
+                        blockSize = ReadLZ4L(source, destination);
+                        if (blockSize == 0) // EOF
+                            return;
 
-                            if ((sbyte)source.ReadByte() == -1) // EOF
-                                return;
-                            source.Position--;
-
-                            blockSize = source.ReadUInt32();
-                        } while (!Enum.IsDefined(typeof(FrameTypes), blockSize));
                         Trace.WriteLine("Mixed LZ4 Legacy and LZ4 Frame");
                         magic = (FrameTypes)blockSize;
                         goto SwitchStart;
@@ -105,6 +99,23 @@ namespace AuroraLib.Compression.Algorithms
                         return;
                 }
             }
+        }
+
+        private static uint ReadLZ4L(Stream source, Stream destination)
+        {
+            uint blockSize = source.ReadUInt32();
+            do
+            {
+                DecompressBlockHeaderless(source, destination, blockSize);
+
+                if ((sbyte)source.ReadByte() == -1) // EOF
+                    return 0;
+                source.Position--;
+
+                blockSize = source.ReadUInt32();
+            } while (!Enum.IsDefined(typeof(FrameTypes), blockSize));
+
+            return blockSize;
         }
 
         /// <inheritdoc/>
@@ -165,7 +176,6 @@ namespace AuroraLib.Compression.Algorithms
                 DecompressBlockHeaderless(sourceBlock, windows);
             }
         }
-
         public static void DecompressBlockHeaderless(ReadOnlySpan<byte> source, LzWindows buffer)
         {
             int sourcePointer = 0;
