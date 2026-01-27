@@ -174,35 +174,50 @@ namespace AuroraLib.Compression.Algorithms
 
         private static bool ValidateByteOrder(Stream stream, Endian order)
         {
+            int i = 3;
             long startPos = stream.Position;
             FlagReader Flag = new FlagReader(stream, order);
             int Buffer = 0;
-            while (stream.Position < stream.Length)
+            try
             {
-                if (Flag.Readbit())  // Uncompressed value
+                while (stream.Position < stream.Length)
                 {
-                    stream.Position++;
-                    Buffer++;
-                }
-                else
-                {
-                    int distance;
-                    if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
+                    if (Flag.Readbit())  // Uncompressed value
                     {
-                        distance = stream.ReadUInt16(order);
-                        distance = 0x2000 - (distance >> 3);
+                        stream.Position++;
+                        Buffer++;
                     }
-                    else // Compressed value D 1-0x100 L 2-5
+                    else
                     {
-                        _ = Flag.ReadInt(2, true) + 2;
-                        distance = 0x100 - stream.ReadUInt8();
+
+                        int distance, length;
+                        if (Flag.Readbit()) // Compressed value D 1-0x2000 L 3-0x100
+                        {
+                            distance = stream.ReadUInt16(order);
+                            if (distance == 0) return true;
+
+                            length = distance & 7;
+                            distance = 0x2000 - (distance >> 3);
+                            length = length == 0 ? stream.ReadUInt8() + 1 : length + 2;
+                        }
+                        else // Compressed value D 1-0x100 L 2-5
+                        {
+                            length = Flag.ReadInt(2, true) + 2;
+                            distance = 0x100 - stream.ReadUInt8();
+                        }
+                        if (distance >= Buffer) return false;
+                        if (i == 0) return true;
+                        i--;
+                        Buffer += length;
                     }
-                    stream.Position = startPos;
-                    return distance < Buffer;
                 }
+                return false;
             }
-            stream.Position = startPos;
-            return false;
+            finally
+            {
+                stream.Position = startPos;
+            }
+
         }
     }
 }

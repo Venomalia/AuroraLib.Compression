@@ -36,8 +36,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            // Has no distinct header, recognition is inaccurate!
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && (s.ReadUInt8() & 0xC0) == 0);
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && Validate(s));
 
         /// <inheritdoc/>
         public virtual uint GetDecompressedSize(Stream source)
@@ -132,6 +131,34 @@ namespace AuroraLib.Compression.Algorithms
                     flag.WriteBit(false);
                 }
             }
+        }
+
+        private static bool Validate(Stream source)
+        {
+            int i = 3;
+            int Buffer = 0;
+            FlagReader flag = new FlagReader(source, Endian.Big);
+            while (source.Position < source.Length)
+            {
+                if (flag.Readbit()) // Compressed
+                {
+                    byte b1 = source.ReadUInt8();
+                    byte b2 = source.ReadUInt8();
+                    int distance = ((b1 & 0xf) << 8 | b2) + 1;
+                    int length = (b1 >> 4) + 3;
+
+                    if (distance >= Buffer) return false;
+                    if (i == 0) return true;
+                    i--;
+                    Buffer += length;
+                }
+                else // Not compressed
+                {
+                    source.Position++;
+                    Buffer++;
+                }
+            }
+            return true;
         }
     }
 }
