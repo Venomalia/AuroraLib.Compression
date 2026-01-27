@@ -176,7 +176,7 @@ namespace AuroraLib.Compression.Algorithms
 
                 // Plain copy
                 int plainLength = token >> 4;
-                plainLength = ReadExtension(source, plainLength, ref sourcePointer);
+                ReadExtension(source, ref plainLength, ref sourcePointer);
                 buffer.Write(source.Slice(sourcePointer, plainLength));
                 sourcePointer += plainLength;
 
@@ -187,7 +187,7 @@ namespace AuroraLib.Compression.Algorithms
                 int matchLength = token & 0xF;
                 int matchDistance = source[sourcePointer++] | source[sourcePointer++] << 8;
 
-                matchLength = ReadExtension(source, matchLength, ref sourcePointer);
+                ReadExtension(source, ref matchLength, ref sourcePointer);
                 buffer.BackCopy(matchDistance, matchLength + 4);
             }
         }
@@ -196,48 +196,47 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0, plainLength, token;
             // The last sequence contains at last 5 bytes of literals.
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level))
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
+
+            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+
+            foreach (LzMatch match in matches)
             {
+                plainLength = match.Offset - sourcePointer;
 
-                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+                // Write token
+                token = (plainLength > 0xF ? 0xF : plainLength) << 4;
+                if (match.Length != 0)
+                    token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
+                destination.WriteByte((byte)token);
 
-                foreach (LzMatch match in matches)
-                {
-                    plainLength = match.Offset - sourcePointer;
+                // Plain copy
+                WriteExtension(destination, plainLength);
+                destination.Write(source.Slice(sourcePointer, plainLength));
+                sourcePointer += plainLength;
 
-                    // Write token
-                    token = (plainLength > 0xF ? 0xF : plainLength) << 4;
-                    if (match.Length != 0)
-                        token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
-                    destination.WriteByte((byte)token);
+                if (sourcePointer >= source.Length)
+                    break;
 
-                    // Plain copy
-                    WriteExtension(destination, plainLength);
-                    destination.Write(source.Slice(sourcePointer, plainLength));
-                    sourcePointer += plainLength;
-
-                    if (sourcePointer >= source.Length)
-                        break;
-
-                    // Distance copy
-                    destination.Write((ushort)match.Distance);
-                    WriteExtension(destination, match.Length - 4);
-                    sourcePointer += match.Length;
-                }
+                // Distance copy
+                destination.Write((ushort)match.Distance);
+                WriteExtension(destination, match.Length - 4);
+                sourcePointer += match.Length;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int ReadExtension(ReadOnlySpan<byte> source, int length, ref int sourcePointer)
+        private static void ReadExtension(ReadOnlySpan<byte> source, ref int length, ref int sourcePointer)
         {
             if (length == 0xF)
             {
-                do
+                int b;
+                while ((b = source[sourcePointer++]) == byte.MaxValue)
                 {
-                    length += source[sourcePointer];
-                } while (source[sourcePointer++] == 0xFF);
+                    length += byte.MaxValue;
+                }
+                length += b;
             }
-            return length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
