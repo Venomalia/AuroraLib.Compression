@@ -52,9 +52,6 @@ namespace AuroraLib.Compression.Algorithms
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
             => CompressHeaderless(source, destination, LookAhead, level);
 
-#if !(NETSTANDARD || NET20_OR_GREATER)
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-#endif
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
             int flag, length, distance, plain = 0;
@@ -62,19 +59,20 @@ namespace AuroraLib.Compression.Algorithms
             using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
 
             // Read the first flage.
-            if ((flag = source.ReadByte()) != -1)
-            {
-                // special case if the first flag is greater than 17
-                if (flag > 17)
-                {
-                    length = flag - 17;
-                    buffer.CopyFrom(source, length);
-                    flag = source.ReadByte();
-                }
+            flag = source.ReadInt8();
 
-                do // We read a new flag at the end.
-                {
-                    int flagcode = flag >> 4;
+            // special case if the first flag is greater than 17
+            if (flag > 17)
+            {
+                length = flag - 17;
+                buffer.CopyFrom(source, length);
+                flag = source.ReadInt8();
+            }
+
+            do
+            {
+                // We read a new flag at the end.
+                int flagcode = flag >> 4;
                     if (flagcode == 0)
                     {
                         // Plain copy or special case depending on the number of plain bytes last read.   
@@ -138,12 +136,11 @@ namespace AuroraLib.Compression.Algorithms
                         distance = source.ReadByte();
                         distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
                     }
-                    plain = flag & 0x3;
-                    buffer.BackCopy(distance, length);
-                    buffer.CopyFrom(source, plain);
+                plain = flag & 0x3;
+                buffer.BackCopy(distance, length);
+                buffer.CopyFrom(source, plain);
 
-                } while ((flag = source.ReadByte()) != -1);
-            }
+            } while ((flag = source.ReadByte()) != -1);// Read a new flag at the end.
             throw new EndOfStreamException();
         }
 
@@ -259,7 +256,6 @@ namespace AuroraLib.Compression.Algorithms
 
             return length + b;
         }
-
         private static void WriteExtendedInt(Stream destination, int vaule)
         {
             while (vaule > byte.MaxValue)
