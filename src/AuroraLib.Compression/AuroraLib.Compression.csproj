@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>AuroraLib.Compression</Title>
-    <Version>1.5.4.0</Version>
+    <Version>1.6.0.0</Version>
     <AssemblyVersion>$(Version)</AssemblyVersion>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
@@ -16,7 +16,7 @@
     <PackageProjectUrl>https://github.com/Venomalia/AuroraLib.Compression</PackageProjectUrl>
     <Copyright>Venomalia</Copyright>
     <Description>Supports a wide range of compression algorithms mainly used in video games,
-like LZSS, LZ10, LZ11, MIO0, YAZ0, YAY0, PRS, LZ0, ZLib and more.</Description>
+like LZSS, LZ10, LZ11, YAZ0, YAY0, PRS, LZ0, LZ4, ZLib and more.</Description>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NETFrameworks>|netstandard2.0|net481|net48|net472|NET471|NET47|NET462|NET461|</NETFrameworks>

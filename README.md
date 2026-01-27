@@ -22,6 +22,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | Yay0*          | Nintendo YAY0 compression used in some Nintendo 64 and GameCube games.     |
 | Yaz0*          | Nintendo Yaz0 compression used in games from the N64 to Switch era.        |
 | HUF20          | Nintendo Huffman compression algorithm, mainly used in GBA and DS games.   |
+| RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
 | RefPack        | RefPack compression algorithm used in some EA games.                       |
 
@@ -39,12 +40,11 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | SMSR00         | Nintendo SMSR00 compression, mainly used in Yoshi's Story.                 |
 | MIO0*          | Nintendo MIO0 compression mainly used in early Nintendo 64 games.          |
 | Yaz1*          | Identical to Yaz0 used for data on the N64DD.                              |
-| RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | ALLZ           | Aqualead LZ compression algorithm used by a handful of games.              |
 | LZOn           | Nintendo LZOn compression algorithm mainly used in DS Download Games.      |
 | HWGZ*          | Hyrule Warriors GZ compression format based on ZLib.                       |
+| RareZip        | Rareware Zip based on DEFLATE, used in banjo-kazooie.                      |
 | LZSega         | A LZSS based compression algorithm used in some Sega GameCube games.       |
-
 | CRILAYLA       | Algorithm by CRI Middleware, used in games built with the CRIWARE toolset. |
 | CNX2           | Sega CNX2 algorithm, used in some Puyo Puyo.                               |
 | COMP           | Sega COMP based on LZ11 algorithm, used in some Puyo Puyo.                 |
@@ -139,3 +139,6 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 - [KirbyUK](https://github.com/ShrekBoards/shrek-superslam/blob/master/src/compression.rs#L66) reference for LZShrek algorithm.
 - [Brolijah](https://github.com/Brolijah/Aqualead_LZSS) reference for ALLZ algorithm.thm.
 - [CUE](https://www.romhacking.net/utilities/826/) reference for LZ40 algorithm.
+- [LZ4](https://github.com/lz4/lz4/tree/dev/doc) reference for LZ4 algorithm.
+- [hack64](https://hack64.net/wiki/doku.php?id=yoshis_story:smsr00_compression) reference for SMSR00 algorithm.
+- [RareZip](https://github.com/MittenzHugg/rarezip/tree/2c4ba146c1b2fec851d3db8cf455c6af090bc544) reference for RareZip algorithm.
