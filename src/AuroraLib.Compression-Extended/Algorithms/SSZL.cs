@@ -53,7 +53,7 @@ namespace AuroraLib.Compression.Algorithms
             /// <summary>
             /// Use Gzib instead of Zlib compression
             /// </summary>
-            UseGzip = Compressed | 0x2,
+            UseGzip = 0x2,
             /// <summary>
             /// Unknown or reserved flag (internal use).
             /// </summary>
@@ -99,9 +99,7 @@ namespace AuroraLib.Compression.Algorithms
             bool isEncrypted = (Options & Option.Encrypted) != 0;
             bool isCompressed = (Options & Option.Compressed) != 0;
             using Stream decrypted = isEncrypted ? Decrypt(source) : new SubStream(source);
-            decrypted.CopyTo(destination);
             decrypted.Position = 0;
-            destination.Position = 0;
             if (isCompressed)
             {
                 bool isGzip = decrypted.Peek<ushort>() == 0x8B1F;
@@ -121,7 +119,7 @@ namespace AuroraLib.Compression.Algorithms
 
             static Stream Decrypt(Stream source)
             {
-                MemoryPoolStream buffer = new MemoryPoolStream();
+                MemoryPoolStream buffer = new MemoryPoolStream((int)(source.Length- source.Position),true);
                 source.CopyTo(buffer);
                 buffer.Position = 0;
                 MTXorTransform(buffer.UnsafeAsSpan(), _seed);

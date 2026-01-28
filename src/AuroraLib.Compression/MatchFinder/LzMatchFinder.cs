@@ -17,6 +17,7 @@ namespace AuroraLib.Compression.MatchFinder
         private readonly int _maxMatchLength;
         private readonly int _minDistance;
         private readonly int _windowsSize;
+        private readonly int _goodMatch;
         private readonly bool _lookAhead;
 
         private readonly LzProperties[] _lzProperties;
@@ -175,7 +176,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (start == 0)
                 start = _lookAhead ? 1 : _minMatchLength;
 
-            for (int i = start; i < end; i++)
+            for (int i = start; i < end-3; i++)
             {
                 int matchStart = Math.Max(0, i - (_windowsSize));
                 int maxBestLength = _lookAhead
@@ -203,7 +204,7 @@ namespace AuroraLib.Compression.MatchFinder
                             bestDistance = currentDistance;
 
                             // Stop if the maximum match length is reached
-                            if (bestLength == maxBestLength)
+                            if (bestLength >= maxBestLength)
                                 break;
                         }
                     }

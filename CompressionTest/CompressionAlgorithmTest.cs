@@ -76,23 +76,57 @@ namespace CompressionTest
                 }
             }
         }
+        [TestMethod]
+        [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
+        public void EncodingAndDecodingMatchTest_1kb_Optimal(ICompressionAlgorithm algorithm)
+        {
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.Optimal);
+        }
 
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
-        public void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm)
+        public void EncodingAndDecodingMatchTest_1kb_Fastest(ICompressionAlgorithm algorithm)
         {
-            using (FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read))
-            using (SpanBuffer<byte> testDataBytes = new SpanBuffer<byte>((int)testData.Length))
-            {
-                testData.Read(testDataBytes);
-                ulong expectedHash = XXHash.Hash64(testDataBytes);
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.Fastest);
+        }
 
-                using (Stream compressData = algorithm.Compress(testDataBytes))
-                using (MemoryPoolStream decompressData = algorithm.Decompress(compressData))
-                {
-                    ulong decompressDataHash = XXHash.Hash64(decompressData.UnsafeAsSpan());
-                    Assert.AreEqual(expectedHash, decompressDataHash);
-                }
+        [TestMethod]
+        [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
+        public void EncodingAndDecodingMatchTest_1kb_NoCompression(ICompressionAlgorithm algorithm)
+        {
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.NoCompression);
+        }
+
+        [TestMethod]
+        [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
+        public void EncodingAndDecodingMatchTest_100kb(ICompressionAlgorithm algorithm)
+        {
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024 * 100, CompressionLevel.Optimal);
+        }
+
+        [TestMethod]
+        [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
+        public void EncodingAndDecodingMatchTest_10b(ICompressionAlgorithm algorithm)
+        {
+            if (algorithm is CRILAYLA) return;
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(algorithm, testData, 10, CompressionLevel.Optimal);
+        }
+        private static void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm, FileStream testData, int size, CompressionLevel level = CompressionLevel.Optimal)
+        {
+            using SpanBuffer<byte> testDataBytes = new SpanBuffer<byte>(size);
+            testData.Read(testDataBytes);
+            ulong expectedHash = XXHash.Hash64(testDataBytes);
+
+            using (Stream compressData = algorithm.Compress(testDataBytes, level))
+            using (MemoryPoolStream decompressData = algorithm.Decompress(compressData))
+            {
+                ulong decompressDataHash = XXHash.Hash64(decompressData.UnsafeAsSpan());
+                Assert.AreEqual(expectedHash, decompressDataHash);
             }
         }
 
@@ -100,7 +134,9 @@ namespace CompressionTest
         public void EncodingAndDecodingMatchTest_LZ4Frame()
         {
             LZ4 LZ4Frame = new LZ4() { FrameType = LZ4.FrameTypes.LZ4FrameHeader, Flags = LZ4.FrameDescriptorFlags.IsVersion1 | LZ4.FrameDescriptorFlags.HasContentSize | LZ4.FrameDescriptorFlags.HasContentChecksum | LZ4.FrameDescriptorFlags.HasBlockChecksum };
-            EncodingAndDecodingMatchTest(LZ4Frame);
+
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            EncodingAndDecodingMatchTest(LZ4Frame,testData, (int)testData.Length);
         }
     }
 }

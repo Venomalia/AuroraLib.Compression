@@ -9,6 +9,7 @@ using System;
 using System.Buffers;
 using System.IO;
 using System.IO.Compression;
+using System.Numerics;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -50,10 +51,10 @@ namespace AuroraLib.Compression.Algorithms
         {
             source.Position = source.Length - 8;
             UInt24 compressedSize = source.ReadUInt24();
-            byte headerSize = source.ReadUInt8();
+            byte headerAndPaddingSize = source.ReadUInt8();
             int decompressedSize = (source.ReadInt32() + compressedSize);
-            int codeSize = compressedSize - headerSize;
-            if (headerSize < 8)
+            int codeSize = compressedSize - headerAndPaddingSize;
+            if (headerAndPaddingSize < 8)
                 throw new Exception("Invalid BLZ header.");
 
             source.Position = source.Length - compressedSize;
@@ -93,7 +94,7 @@ namespace AuroraLib.Compression.Algorithms
 
                 destination.Write((byte)0xff, padding);
                 destination.Write((UInt24)totalSize);                    // compressed size (24-bit)
-                destination.WriteByte(headerSize);                       // header size = 8
+                destination.WriteByte(headerSize);                       // header size = 8 + padding
                 destination.Write((uint)(source.Length - totalSize));  // decompressed size delta
             }
             finally
@@ -147,12 +148,13 @@ namespace AuroraLib.Compression.Algorithms
             // Destination start from end (because data is reversed)
             int src = 0x0, dst = destination.Length - 2, matchPointer = 0x0, flag = 1, flagPos = destination.Length - 1, lzCode;
 
-            byte[] reverseSource = ArrayPool<byte>.Shared.Rent(source.Length);
+            byte[] reverseSourceBuffer = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {
                 // Our LZMatcher only works in one direction.
+                var reverseSource = reverseSourceBuffer.AsSpan(0, source.Length);
                 ReverseSpan(source, reverseSource);
-                source = reverseSource.AsSpan(0, source.Length);
+                source = reverseSource;
                 using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
 
                 while (src < source.Length)
@@ -185,17 +187,28 @@ namespace AuroraLib.Compression.Algorithms
 
                 // Do we still have to write a flag?
                 if (flag != 1)
+#if NET6_0_OR_GREATER
+                    destination[flagPos] = (byte)(flag << (8 - BitOperations.Log2((uint)flag)));
+#else
+                {
+                    do
+                    {
+                        flag <<= 1;
+                    }
+                    while ((flag & 0x100) == 0);
                     destination[flagPos] = (byte)flag;
+                }
+#endif
                 else
                     dst++; // No flag written, one step back!
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(reverseSource);
+                ArrayPool<byte>.Shared.Return(reverseSourceBuffer);
             }
             return destination.Length - dst - 1;
 
-            void ReverseSpan(ReadOnlySpan<byte> source, Span<byte> reversed)
+            static void ReverseSpan(ReadOnlySpan<byte> source, Span<byte> reversed)
             {
                 for (int i = 0; i < source.Length; i++)
                 {

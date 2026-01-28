@@ -90,7 +90,7 @@ namespace AuroraLib.Compression.Algorithms
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             // Determine whether compression should be applied
-            bool isCompressed = level != CompressionLevel.NoCompression;
+            bool isCompressed = level != CompressionLevel.NoCompression && source.Length > 0x10;
             int plainSize = isCompressed ? PlainSize : 0;
 
             // Store the current position in the destination stream (assumes the stream supports seeking)
@@ -112,7 +112,7 @@ namespace AuroraLib.Compression.Algorithms
                 destination.At(startpos + 0x8, s => s.Write(compressedSize, Endian.Big));
 
                 // If compression was ineffective (data grew in size), fall back to uncompressed storage
-                if (compressedSize > source.Length)
+                if (compressedSize >= source.Length)
                 {
                     destination.Position = startpos;
                     destination.SetLength(startpos);

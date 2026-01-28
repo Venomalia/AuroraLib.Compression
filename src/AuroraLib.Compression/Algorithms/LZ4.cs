@@ -206,7 +206,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0, plainLength, token;
             // The last sequence contains at last 5 bytes of literals.
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
+            using PoolList<LzMatch> matches = source.Length <= 0x10 ? new PoolList<LzMatch>() : LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
 
             matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 

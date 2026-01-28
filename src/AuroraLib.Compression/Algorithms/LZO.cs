@@ -147,10 +147,19 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
+            if (source.Length < 0x10)
+            {
+                destination.WriteByte((byte)(17 + source.Length)); // flag
+                destination.Write(source);
+                // end flag
+                destination.WriteByte(0x11);
+                destination.WriteByte(0x0);
+                destination.WriteByte(0x0);
+                return;
+            }
             int sourcePointer = 0x0;
 
             using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
-            using (MemoryPoolStream buffer = new MemoryPoolStream())
             {
                 matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
                 for (int i = 0; i < matches.Count; i++)
