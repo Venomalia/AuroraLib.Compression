@@ -1,7 +1,9 @@
 using AuroraLib.Compression;
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core.Buffers;
+using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using HashDepot;
@@ -9,9 +11,12 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection.Emit;
+using System.Security.Cryptography;
 
 namespace CompressionTest
 {
@@ -21,6 +26,18 @@ namespace CompressionTest
         static CompressionAlgorithmTest()
         {
             LZ4.HashAlgorithm = b => XXHash.Hash32(b);
+        }
+        [TestMethod]
+        public void FindMatchesParallelTest()
+        {
+            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
+            using SpanBuffer<byte> testDataBytes = new SpanBuffer<byte>((int)testData.Length);
+            testData.ReadExactly(testDataBytes);
+
+            LzProperties lz = new LzProperties(0x1000, 0x4000, 3);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(testDataBytes, lz, true, CompressionLevel.Optimal);
+
+            Assert.AreEqual(50370, matches.Count);
         }
 
         [TestMethod]

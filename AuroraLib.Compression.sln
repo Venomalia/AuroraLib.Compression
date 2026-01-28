@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.7.34024.191
+# Visual Studio Version 18
+VisualStudioVersion = 18.2.11415.280 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AuroraLib.Compression", "src\AuroraLib.Compression\AuroraLib.Compression.csproj", "{90CFBCD7-EE97-46B1-A4E1-21521BACFC77}"
 EndProject
@@ -40,8 +40,8 @@ Global
 		{AEF632EF-EF3F-4314-B9DB-A70354AF214F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Optimized|Any CPU.ActiveCfg = Debug|Any CPU
-		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Optimized|Any CPU.Build.0 = Debug|Any CPU
+		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Optimized|Any CPU.ActiveCfg = Optimized|Any CPU
+		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Optimized|Any CPU.Build.0 = Optimized|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0CE9878-C8E9-4E5F-9EEC-E20A504083C5}.Release|Any CPU.Build.0 = Release|Any CPU
 		{77A38D6D-50EC-4940-9797-9260E58E6766}.Debug|Any CPU.ActiveCfg = Debug|Any CPU

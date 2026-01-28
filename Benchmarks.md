@@ -1,50 +1,96 @@
 BenchmarkDotNet v0.14.0, Windows 10, AMD Ryzen 7 3800X, 1 CPU, 16 logical and 8 physical cores. NET SDK 8.0.400
 
-| Method     | Algorithm | MB | Mean         | Error       | StdDev      | Median       | Gen0    | Allocated |
-|----------- |---------- |--- |-------------:|------------:|------------:|-------------:|--------:|----------:|
-| Compress   | ALLZ      | 1  |  75,714.7 us | 1,489.71 us | 2,647.95 us |  75,677.7 us |       - |    7168 B |
-| Decompress | ALLZ      | 1  |   4,275.5 us |    40.64 us |    38.02 us |   4,290.1 us |       - |     147 B |
-| Compress   | BLZ       | 1  |  24,972.9 us |   495.34 us | 1,033.96 us |  25,121.2 us |       - |    6830 B |
-| Decompress | BLZ       | 1  |   1,379.7 us |     5.74 us |     5.09 us |   1,380.0 us |       - |      67 B |
-| Compress   | CLZ0      | 1  |  22,804.9 us |   449.28 us |   614.97 us |  22,691.0 us |       - |    6848 B |
-| Decompress | CLZ0      | 1  |   3,937.0 us |    40.05 us |    37.47 us |   3,937.3 us |       - |     219 B |
-| Compress   | CNS       | 1  |   8,201.9 us |    62.25 us |    58.23 us |   8,195.0 us |       - |    6819 B |
-| Decompress | CNS       | 1  |   3,677.3 us |    65.43 us |    61.21 us |   3,651.5 us |       - |     197 B |
-| Compress   | CNX2      | 1  |  36,117.4 us |   672.60 us |   660.59 us |  36,122.3 us |       - |    7035 B |
-| Decompress | CNX2      | 1  |   3,628.4 us |    45.94 us |    42.98 us |   3,614.0 us |       - |     245 B |
-| Compress   | CRILAYLA  | 1  |  37,350.5 us |   746.28 us | 2,042.93 us |  37,397.5 us |       - |    6972 B |
-| Decompress | CRILAYLA  | 1  |   1,612.0 us |    17.58 us |    16.44 us |   1,612.0 us |       - |      91 B |
-| Compress   | HUF20     | 1  |  13,977.8 us |   187.64 us |   175.52 us |  14,096.8 us | 31.2500 |  375708 B |
-| Decompress | HUF20     | 1  |  10,280.8 us |   205.54 us |   526.88 us |  10,035.6 us |       - |     106 B |
-| Compress   | HWGZ      | 1  |   7,581.6 us |    85.80 us |    76.06 us |   7,582.3 us |       - |    4358 B |
-| Decompress | HWGZ      | 1  |   1,191.0 us |    19.88 us |    18.60 us |   1,178.2 us |       - |    6105 B |
-| Compress   | LZ00      | 1  |  23,839.9 us |   448.53 us |   419.56 us |  23,732.6 us | 62.5000 |  663526 B |
-| Decompress | LZ00      | 1  |   4,300.2 us |    51.14 us |    47.84 us |   4,315.1 us |       - |     299 B |
-| Compress   | LZ02      | 1  |  45,642.0 us |   887.12 us | 1,243.62 us |  45,828.6 us |       - |    6951 B |
-| Decompress | LZ02      | 1  |   3,022.9 us |    34.83 us |    30.88 us |   3,032.6 us |       - |     215 B |
-| Compress   | LZ10      | 1  |  22,105.0 us |   397.05 us |   371.40 us |  22,029.6 us |       - |    6878 B |
-| Decompress | LZ10      | 1  |   3,818.7 us |    50.47 us |    44.74 us |   3,800.1 us |       - |     189 B |
-| Compress   | LZ11      | 1  |  20,759.4 us |   413.34 us |   405.96 us |  20,874.2 us |       - |    6834 B |
-| Decompress | LZ11      | 1  |   3,657.8 us |    39.73 us |    37.16 us |   3,662.2 us |       - |     188 B |
-| Compress   | LZ40      | 1  |  21,245.6 us |   299.13 us |   265.17 us |  21,150.4 us |       - |    6904 B |
-| Decompress | LZ40      | 1  |   3,621.4 us |    60.01 us |    53.20 us |   3,608.0 us |       - |     141 B |
-| Compress   | LZ4Legacy | 1  | 143,278.3 us | 2,795.08 us | 4,268.39 us | 142,447.7 us |       - |    7194 B |
-| Decompress | LZ4Legacy | 1  |   2,655.1 us |    47.02 us |    64.36 us |   2,634.7 us |       - |     141 B |
-| Compress   | LZO       | 1  | 139,482.7 us | 2,773.38 us | 5,209.08 us | 139,316.3 us |       - |    7099 B |
-| Decompress | LZO       | 1  |   3,009.1 us |    20.40 us |    17.04 us |   3,003.4 us |       - |     142 B |
-| Compress   | LZSS      | 1  |  23,267.3 us |   448.13 us |   397.26 us |  23,223.2 us |       - |    6856 B |
-| Decompress | LZSS      | 1  |   3,802.0 us |    47.56 us |    44.48 us |   3,781.4 us |       - |     219 B |
-| Compress   | LZShrek   | 1  |  41,369.1 us |   801.99 us |   787.66 us |  41,310.6 us |       - |    6957 B |
-| Decompress | LZShrek   | 1  |   2,554.9 us |    39.86 us |    35.33 us |   2,565.4 us |       - |     141 B |
-| Compress   | MIO0      | 1  |  23,614.0 us |   375.58 us |   332.94 us |  23,598.2 us |       - |    7076 B |
-| Decompress | MIO0      | 1  |   2,212.2 us |    22.39 us |    20.94 us |   2,204.4 us |       - |     165 B |
-| Compress   | PRS       | 1  |  33,702.6 us |   633.46 us |   592.54 us |  33,703.4 us |       - |    6941 B |
-| Decompress | PRS       | 1  |   2,167.6 us |    40.31 us |    41.39 us |   2,166.0 us |       - |     237 B |
-| Compress   | RLE30     | 1  |   3,868.9 us |    14.47 us |    12.08 us |   3,869.4 us |       - |      91 B |
-| Decompress | RLE30     | 1  |     691.2 us |    13.40 us |    14.33 us |     689.1 us |       - |      65 B |
-| Compress   | RefPack   | 1  |  73,580.7 us | 1,459.71 us | 3,324.50 us |  72,801.7 us |       - |    7209 B |
-| Decompress | RefPack   | 1  |   1,226.9 us |    11.45 us |    10.71 us |   1,221.8 us |       - |     139 B |
-| Compress   | Yay0      | 1  |  41,182.3 us |   724.23 us |   677.45 us |  41,175.7 us |       - |    7119 B |
-| Decompress | Yay0      | 1  |   3,244.1 us |    36.30 us |    33.96 us |   3,223.9 us |       - |     477 B |
-| Compress   | Yaz0      | 1  |  24,175.1 us |   364.94 us |   323.51 us |  24,156.1 us |       - |    6912 B |
-| Decompress | Yaz0      | 1  |   2,631.3 us |    33.32 us |    31.17 us |   2,613.2 us |       - |     213 B |
+| Method     | Algorithm | Level   | Mean         | Error       | StdDev      | Ratio %  | MB/s    | Gen0    | Allocated |
+|----------- |---------- |-------- |-------------:|------------:|------------:|---------:|--------:|--------:|----------:|
+| Compress   | ALLZ      | Optimal | 139,424.3 us | 2,767.59 us | 6,132.80 us |  11.09 % |    7.17 |       - |    7240 B |
+| Decompress | ALLZ      | Optimal |   4,012.7 us |    75.68 us |    67.09 us |  11.09 % |  249.21 |       - |     144 B |
+| Compress   | ALLZ      | Fastest |  89,126.1 us | 1,701.16 us | 3,804.89 us |  11.85 % |   11.22 |       - |    6949 B |
+| Decompress | ALLZ      | Fastest |   4,086.9 us |    59.24 us |    52.52 us |  11.85 % |  244.69 |       - |     147 B |
+| Compress   | BLZ       | Optimal |  30,167.0 us |   601.28 us | 1,307.14 us |  23.04 % |   33.15 |       - |    6750 B |
+| Decompress | BLZ       | Optimal |   1,292.3 us |    25.25 us |    23.62 us |  23.04 % |  773.82 |       - |      66 B |
+| Compress   | BLZ       | Fastest |     30.232 ms|   0.6030 ms |   1.6809 ms |  26.34 % |   33.08 |       - |    6748 B |
+| Decompress | BLZ       | Fastest |      1.347 ms|   0.0218 ms |   0.0204 ms |  26.34 % |  742.27 |       - |      66 B |
+| Compress   | CLZ0      | Optimal |  27,260.7 us |   444.28 us |   415.58 us |  23.01 % |   36.68 |       - |    6734 B |
+| Decompress | CLZ0      | Optimal |   3,837.5 us |    42.87 us |    40.10 us |  23.01 % |  260.59 |       - |     165 B |
+| Compress   | CLZ0      | Fastest |  20,055.8 us |   366.71 us |   343.02 us |  25.99 % |   49.86 |       - |    6816 B |
+| Decompress | CLZ0      | Fastest |   3,804.3 us |    15.31 us |    12.78 us |  25.99 % |  262.86 |       - |     164 B |
+| Compress   | CNS       | Optimal |   6,389.9 us |    67.80 us |    60.10 us |  26.18 % |  156.50 |       - |    6735 B |
+| Decompress | CNS       | Optimal |   3,114.8 us |    21.73 us |    16.97 us |  26.18 % |  321.05 |       - |     196 B |
+| Compress   | CNS       | Fastest |   5,411.6 us |   104.33 us |   102.47 us |  26.19 % |  184.79 |       - |    6618 B |
+| Decompress | CNS       | Fastest |   3,129.1 us |     3.74 us |     3.32 us |  26.19 % |  319.58 |       - |     197 B |
+| Compress   | CNX2      | Optimal |  24,405.9 us |   458.38 us |   406.34 us |  24.48 % |   40.97 |       - |    6668 B |
+| Decompress | CNX2      | Optimal |   3,773.3 us |    28.53 us |    26.68 us |  24.48 % |  265.02 |       - |     196 B |
+| Compress   | CNX2      | Fastest |  26,800.3 us |   459.59 us |   491.75 us |  30.16 % |   37.31 |       - |    6776 B |
+| Decompress | CNX2      | Fastest |   3,054.5 us |    53.06 us |    49.63 us |  30.16 % |  327.39 |       - |     197 B |
+| Compress   | CRILAYLA  | Optimal |  45,516.6 us | 1,043.45 us | 3,043.79 us |  12.32 % |   21.97 |       - |    6921 B |
+| Decompress | CRILAYLA  | Optimal |   1,797.6 us |    24.57 us |    21.78 us |  12.32 % |  556.30 |       - |      90 B |
+| Compress   | CRILAYLA  | Fastest |  44,747.5 us |   944.64 us | 2,679.80 us |  14.52 % |   22.35 |       - |    6887 B |
+| Decompress | CRILAYLA  | Fastest |   1,971.2 us |    22.30 us |    20.86 us |  14.52 % |  507.30 |       - |      92 B |
+| Compress   | HUF20     | Optimal |  15,592.9 us |    39.57 us |    35.08 us |  45.62 % |   64.13 | 31.2500 |  373663 B |
+| Decompress | HUF20     | Optimal |   9,051.3 us |   172.50 us |   224.30 us |  45.62 % |  110.48 |       - |         - |
+| Compress   | HUF20     | Fastest |  15,323.0 us |   134.55 us |   125.86 us |  45.62 % |   65.26 | 31.2500 |  373670 B |
+| Decompress | HUF20     | Fastest |   9,309.3 us |   184.15 us |   302.56 us |  45.62 % |  107.42 |       - |         - |
+| Compress   | HWGZ      | Optimal |   4,453.6 us |    40.40 us |    37.79 us |  11.05 % |  224.54 |       - |    4142 B |
+| Decompress | HWGZ      | Optimal |     551.6 us |     8.91 us |     8.34 us |  11.05 % | 1812.94 |       - |    5952 B |
+| Compress   | HWGZ      | Fastest |   1,511.3 us |    11.07 us |    10.36 us |  17.15 % |  661.66 |       - |    4137 B |
+| Decompress | HWGZ      | Fastest |     660.3 us |     3.61 us |     3.38 us |  17.15 % | 1514.53 |       - |    5953 B |
+| Compress   | LZ00      | Optimal |  39,018.0 us |   759.64 us |   932.90 us |  23.02 % |   25.63 | 76.9231 |  663546 B |
+| Decompress | LZ00      | Optimal |   4,958.1 us |     5.42 us |     4.53 us |  23.02 % |  201.69 |       - |     248 B |
+| Compress   | LZ00      | Fastest |  21,537.4 us |   409.49 us |   420.51 us |  25.99 % |   46.43 | 93.7500 |  821606 B |
+| Decompress | LZ00      | Fastest |   5,067.2 us |    41.91 us |    37.15 us |  25.99 % |  197.35 |       - |     251 B |
+| Compress   | LZ02      | Optimal |  43,340.0 us |   854.65 us |   984.21 us |  16.56 % |   23.07 |       - |    6905 B |
+| Decompress | LZ02      | Optimal |   2,841.7 us |    18.48 us |    16.38 us |  16.56 % |  351.90 |       - |     167 B |
+| Compress   | LZ02      | Fastest |  28,956.6 us |   562.52 us |   625.24 us |  22.57 % |   34.53 |       - |    6888 B |
+| Decompress | LZ02      | Fastest |   2,857.4 us |    17.11 us |    16.01 us |  22.57 % |  349.97 |       - |     167 B |
+| Compress   | LZ10      | Optimal |  38,990.7 us |   626.02 us |   745.23 us |  23.01 % |   25.65 |       - |    6913 B |
+| Decompress | LZ10      | Optimal |   3,889.4 us |    42.12 us |    39.40 us |  23.01 % |  257.11 |       - |     140 B |
+| Compress   | LZ10      | Fastest |  20,987.3 us |   362.82 us |   339.38 us |  25.99 % |   47.65 |       - |    6826 B |
+| Decompress | LZ10      | Fastest |   3,805.7 us |     4.30 us |     4.02 us |  25.99 % |  262.76 |       - |     141 B |
+| Compress   | LZ11      | Optimal |  26,843.1 us |   480.70 us |   449.65 us |  14.37 % |   37.25 |       - |    6716 B |
+| Decompress | LZ11      | Optimal |   3,538.4 us |    46.98 us |    43.94 us |  14.37 % |  282.61 |       - |     140 B |
+| Compress   | LZ11      | Fastest |  19,231.0 us |   368.86 us |   345.04 us |  17.35 % |   52.00 |       - |    6696 B |
+| Decompress | LZ11      | Fastest |   3,459.7 us |     4.63 us |     4.33 us |  17.35 % |  289.04 |       - |     140 B |
+| Compress   | LZ40      | Optimal |  36,785.7 us |   732.65 us |   978.07 us |  14.38 % |   27.18 |       - |    6970 B |
+| Decompress | LZ40      | Optimal |   3,593.9 us |     6.01 us |     5.33 us |  14.38 % |  278.25 |       - |     140 B |
+| Compress   | LZ40      | Fastest |  18,871.0 us |   373.45 us |   383.51 us |  17.35 % |   52.99 |       - |    6892 B |
+| Decompress | LZ40      | Fastest |   3,525.6 us |    13.33 us |    11.81 us |  17.35 % |  283.64 |       - |     140 B |
+| Compress   | LZ4Legacy | Optimal |  98,332.6 us | 1,911.88 us | 3,194.32 us |  12.02 % |   10.17 |       - |    7099 B |
+| Decompress | LZ4Legacy | Optimal |   2,435.6 us |    17.60 us |    16.46 us |  12.02 % |  410.57 |       - |     140 B |
+| Compress   | LZ4Legacy | Fastest |  89,478.6 us | 1,764.68 us | 3,644.37 us |  13.48 % |   11.18 |       - |    7375 B |
+| Decompress | LZ4Legacy | Fastest |   2,430.8 us |    14.17 us |    13.25 us |  13.48 % |  411.39 |       - |     141 B |
+| Compress   | LZO       | Optimal |  93,820.3 us | 1,813.36 us | 2,714.16 us |  12.12 % |   10.66 |       - |    7011 B |
+| Decompress | LZO       | Optimal |   2,605.0 us |    16.16 us |    14.33 us |  12.12 % |  383.88 |       - |     140 B |
+| Compress   | LZO       | Fastest |  82,356.7 us | 1,627.80 us | 2,628.60 us |  13.18 % |   12.14 |       - |    6850 B |
+| Decompress | LZO       | Fastest |   2,522.5 us |    15.92 us |    12.43 us |  13.18 % |  396.43 |       - |     140 B |
+| Compress   | LZSS      | Optimal |  26,766.1 us |   441.93 us |   413.38 us |  23.01 % |   37.36 |       - |    6886 B |
+| Decompress | LZSS      | Optimal |   4,270.1 us |    38.34 us |    35.86 us |  23.01 % |  234.19 |       - |     171 B |
+| Compress   | LZSS      | Fastest |  19,697.7 us |   229.07 us |   214.27 us |  25.99 % |   50.77 |       - |    6930 B |
+| Decompress | LZSS      | Fastest |   4,224.0 us |    35.18 us |    32.91 us |  25.99 % |  236.74 |       - |     171 B |
+| Compress   | LZShrek   | Optimal |  39,276.8 us |   776.46 us |   924.31 us |  19.91 % |   25.46 |       - |    6849 B |
+| Decompress | LZShrek   | Optimal |   2,428.1 us |     6.30 us |     5.59 us |  19.91 % |  411.84 |       - |     141 B |
+| Compress   | LZShrek   | Fastest |  21,041.4 us |   356.73 us |   316.23 us |  21.57 % |   47.53 |       - |    6720 B |
+| Decompress | LZShrek   | Fastest |   2,269.5 us |    24.67 us |    23.07 us |  21.57 % |  440.62 |       - |     141 B |
+| Compress   | MIO0      | Optimal |  38,506.6 us |   724.12 us |   889.28 us |  23.16 % |   25.97 |       - |    7073 B |
+| Decompress | MIO0      | Optimal |   1,964.7 us |     6.77 us |     6.33 us |  23.16 % |  508.98 |       - |     163 B |
+| Compress   | MIO0      | Fastest |  20,232.4 us |   389.41 us |   492.48 us |  26.24 % |   49.43 |       - |    7001 B |
+| Decompress | MIO0      | Fastest |   1,798.2 us |     1.78 us |     1.67 us |  26.24 % |  556.10 |       - |     163 B |
+| Compress   | PRS       | Optimal |  40,604.0 us |   776.35 us |   830.68 us |  14.12 % |   24.63 |       - |    6908 B |
+| Decompress | PRS       | Optimal |   2,098.7 us |     6.63 us |     6.20 us |  14.12 % |  476.48 |       - |     140 B |
+| Compress   | PRS       | Fastest |  40,879.7 us |   812.36 us |   759.88 us |  16.93 % |   24.46 |       - |    6969 B |
+| Decompress | PRS       | Fastest |   2,211.1 us |    17.05 us |    15.95 us |  16.93 % |  452.27 |       - |     140 B |
+| Compress   | RLE30     | Optimal |   2,162.7 us |    13.87 us |    12.97 us | 100.58 % |  462.39 |       - |      67 B |
+| Decompress | RLE30     | Optimal |     782.1 us |     1.25 us |     1.11 us | 100.58 % | 1278.68 |       - |      65 B |
+| Compress   | RLE30     | Fastest |   2,151.2 us |    17.42 us |    16.30 us | 100.58 % |  464.85 |       - |      67 B |
+| Decompress | RLE30     | Fastest |     781.0 us |     1.49 us |     1.32 us | 100.58 % | 1280.42 |       - |      64 B |
+| Compress   | RefPack   | Optimal |  93,755.8 us | 1,861.71 us | 3,404.23 us |  12.90 % |   10.67 |       - |    6888 B |
+| Decompress | RefPack   | Optimal |     821.8 us |     0.60 us |     0.53 us |  12.90 % | 1216.80 |       - |     137 B |
+| Compress   | RefPack   | Fastest |  62,130.8 us | 1,241.48 us | 2,301.17 us |  13.34 % |   16.10 |       - |    6902 B |
+| Decompress | RefPack   | Fastest |     723.5 us |     5.17 us |     4.83 us |  13.34 % | 1382.18 |       - |     137 B |
+| Compress   | Yay0      | Optimal |  39,365.0 us |   749.43 us |   892.15 us |  15.12 % |   25.40 |       - |    7069 B |
+| Decompress | Yay0      | Optimal |   2,692.4 us |    19.91 us |    16.63 us |  15.12 % |  371.42 |       - |     476 B |
+| Compress   | Yay0      | Fastest |  21,728.6 us |   303.28 us |   283.69 us |  18.10 % |   46.02 |       - |    7052 B |
+| Decompress | Yay0      | Fastest |   2,644.7 us |     7.91 us |     7.02 us |  18.10 % |  378.11 |       - |     476 B |
+| Compress   | Yaz0      | Optimal |  29,895.3 us |   596.94 us |   687.43 us |  15.12 % |   33.45 |       - |    6899 B |
+| Decompress | Yaz0      | Optimal |   2,908.1 us |     2.43 us |     2.28 us |  15.12 % |  343.86 |       - |     212 B |
+| Compress   | Yaz0      | Fastest |  22,620.3 us |   428.98 us |   401.27 us |  18.10 % |   44.21 |       - |    6899 B |
+| Decompress | Yaz0      | Fastest |   2,885.8 us |     8.85 us |     8.27 us |  18.10 % |  346.53 |       - |     212 B |
