@@ -19,9 +19,9 @@ class Program
 
     static readonly Dictionary<string, Flags> FlagMap;
 
-    static readonly Assembly AuroraLib_Compression = typeof(Yay0).Assembly;
+    static readonly Assembly AuroraLib_Compression = typeof(LZO).Assembly;
 
-    static readonly Assembly AuroraLib_Compression_Extended = typeof(LZ4).Assembly;
+    static readonly Assembly AuroraLib_Compression_Extended = typeof(AKLZ).Assembly;
 
     static readonly Assembly Extern = typeof(Zstd).Assembly;
 
