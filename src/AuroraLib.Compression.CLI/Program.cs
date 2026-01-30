@@ -8,6 +8,7 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -42,7 +43,7 @@ class Program
 
     static Program()
     {
-        formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended , Extern });
+        formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended, Extern });
         formats.Add(new SpezialFormatInfo<HUF20>("Nintendo HUF20 4bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-4bits"), ".huf4", () => new HUF20() { Type = HUF20.CompressionType.Huffman4bits }));
         formats.Add(new SpezialFormatInfo<HUF20>("Nintendo HUF20 8bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-8bits"), ".huf8", () => new HUF20() { Type = HUF20.CompressionType.Huffman8bits }));
         formats.Add(new SpezialFormatInfo<LZ77>("Nintendo LZ77 Chunk", new MediaType(MIMEType.Application, "x-nintendo-lz10+lz77Chunk"), string.Empty, () => new LZ77() { Type = LZ77.CompressionType.ChunkLZ10 }));
@@ -72,6 +73,15 @@ class Program
 
     static void Main(string[] args)
     {
+        // Parse arguments into a dictionary
+        var argsDict = ParseArgs(args);
+
+        bool isQuiet = argsDict.ContainsKey(Flags.Quiet);
+        if (isQuiet)
+        {
+            Console.SetOut(TextWriter.Null);
+        }
+
         // Display program header with version, OS, and runtime info
         var ALC = AuroraLib_Compression.GetName();
         Console.WriteLine(new string('-', 100));
@@ -99,8 +109,6 @@ class Program
             return;
         }
 
-        // Parse arguments into a dictionary
-        var argsDict = ParseArgs(args);
 #if !DEBUG
         try
 #endif
@@ -109,9 +117,7 @@ class Program
             string input = GetRequiredArg(argsDict, Flags.In);
             if (!File.Exists(input))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine($"Error: Input file not found: \"{input}\"");
-                Console.ResetColor();
+                Error_WriteLineAndExit($"Error: Input file not found: \"{input}\"");
                 return;
             }
 
@@ -121,9 +127,7 @@ class Program
 
             if (File.Exists(output) && new FileInfo(output).Length > 0 && !argsDict.ContainsKey(Flags.Overwrite))
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Error: Output file already exists: \"{output}\" use -o to overwrite.");
-                Console.ResetColor();
+                Error_WriteLineAndExit($"Error: Output file already exists: \"{output}\" use -o to overwrite.");
                 return;
             }
 
@@ -164,9 +168,7 @@ class Program
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine("Unknown command. Use -help for usage.");
-                Console.ResetColor();
+                Error_WriteLineAndExit("Unknown command. Use -help for usage.");
                 return;
             }
         }
@@ -223,6 +225,7 @@ class Program
         ConsoleFlag(Flags.In, "file", "Input file path.");
         ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
         ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type [optional]");
+        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
 
         ConsoleFlag(Flags.Compress, null, "Compress a file using the specified algorithm.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
@@ -231,11 +234,10 @@ class Program
         ConsoleFlag(Flags.Level, "level", $"CompressionLevel <{string.Join(", ", Enum.GetNames(typeof(CompressionLevel)))}> [optional]");
         ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
         ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
+        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
 
         ConsoleFlag(Flags.Mime, null, "Try to recognize the file format used.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
-
-        ConsoleFlag(Flags.Overwrite, null, "Overwrite output file if already exists.");
 
         ConsoleFlag(Flags.Help, null, "Show this help.");
 
@@ -248,6 +250,10 @@ class Program
             {
                 Console.WriteLine();
                 Console.WriteLine($" {longName,-14} {'(' + shortName + ')',-22} {description}");
+            }
+            else if(arg == string.Empty)
+            {
+                Console.WriteLine($"   {longName,-12} {'(' + shortName + ')',-21}  {description}");
             }
             else
             {
@@ -299,7 +305,9 @@ class Program
                 return;
             }
         }
-        throw new InvalidOperationException("No suitable decoder found for the file format.");
+        var error = "No suitable decoder found for the file format!";
+        Console.Error.WriteLine(error);
+        throw new InvalidOperationException(error);
     }
 
     static void DetectedMimeType(string sourceFile)
@@ -333,7 +341,9 @@ class Program
             compressionDecoder.Decompress(source, destination);
             return;
         }
-        throw new InvalidOperationException($"Format '{format?.FullName}' does not support decompression.");
+        var error = $"Format '{format?.FullName}' is not compressed.";
+        Error_WriteLineAndExit(error);
+        throw new InvalidOperationException(error);
     }
 
     static void Compress(string algo, string sourceFile, string destinationFile, CompressionLevel level = CompressionLevel.Optimal, bool? useLookAhead = null, Endian? order = null)
@@ -362,7 +372,9 @@ class Program
 
             return;
         }
-        throw new InvalidOperationException($"Format '{format?.FullName}' does not support compression.");
+        var error = $"Format '{format?.FullName}' is not compressed.";
+        Error_WriteLineAndExit(error);
+        throw new InvalidOperationException(error);
     }
 
     static IFormatInfo GetFormatInfo(string algo)
@@ -374,7 +386,20 @@ class Program
                 return format;
             }
         }
-        throw new ArgumentException($"Unknown format or algorithm: '{algo}'", nameof(algo));
+
+        var error = $"Unknown format or algorithm: '{algo}'.";
+        Error_WriteLineAndExit(error);
+        throw new ArgumentException(error, nameof(algo));
     }
 
+#if NET6_0_OR_GREATER
+    [DoesNotReturn]
+#endif
+    static void Error_WriteLineAndExit(string value)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(value);
+        Console.ResetColor();
+        Environment.Exit(1);
+    }
 }
