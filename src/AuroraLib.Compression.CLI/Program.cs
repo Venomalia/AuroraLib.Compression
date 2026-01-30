@@ -1,3 +1,4 @@
+using AuroraLib.Compression;
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI;
 using AuroraLib.Compression.CLI.Algorithms;
@@ -40,6 +41,9 @@ class Program
         Endian,
         Overwrite,
         Quiet,
+        BruteForce,
+        Size,
+        OFfset
     }
 
     static Program()
@@ -171,6 +175,23 @@ class Program
                 DetectedMimeType(input);
                 return;
             }
+            else if (argsDict.ContainsKey(Flags.BruteForce))
+            {
+                if (!long.TryParse(GetRequiredArg(argsDict, Flags.OFfset), out long offset))
+                    Error_WriteLineAndExit("Invalid offset value.");
+                if (offset < 0)
+                    Error_WriteLineAndExit("Invalid offset value, cannot be negative.");
+
+                if (!long.TryParse(GetRequiredArg(argsDict, Flags.Size), out long expectedSize))
+                    Error_WriteLineAndExit("Invalid decompressed size value.");
+                if (expectedSize <= 0)
+                    Error_WriteLineAndExit("Invalid decompressed size value, cannot be negative or 0.");
+
+                Console.WriteLine($"Trying to brute-force compression algorithm for '{input}' at offset {offset}.");
+                output = Path.Combine(Path.GetDirectoryName(input), "~output" + Path.GetFileNameWithoutExtension(input));
+                BruteForce(input, output, offset, expectedSize);
+                return;
+            }
             else
             {
                 Error_WriteLineAndExit("Unknown command. Use -help for usage.");
@@ -246,6 +267,12 @@ class Program
         ConsoleFlag(Flags.Mime, null, "Try to recognize the file format used.");
         ConsoleFlag(Flags.In, "file path", "Input file path.");
 
+        ConsoleFlag(Flags.BruteForce, null, "Test all algorithms until one matches the expected decompressed size.");
+        ConsoleFlag(Flags.In, "file path", "Input file path.");
+        ConsoleFlag(Flags.Size, "number", "Expected decompressed size in bytes.");
+        ConsoleFlag(Flags.OFfset, "number", "Start offset of compressed data in byte.");
+        ConsoleFlag(Flags.Quiet, string.Empty, "Suppress all output except errors. [optional]");
+
         ConsoleFlag(Flags.Help, null, "Show this help.");
 
         void ConsoleFlag(Flags flag, string? arg, string description)
@@ -258,7 +285,7 @@ class Program
                 Console.WriteLine();
                 Console.WriteLine($" {longName,-14} {'(' + shortName + ')',-22} {description}");
             }
-            else if(arg == string.Empty)
+            else if (arg == string.Empty)
             {
                 Console.WriteLine($"   {longName,-12} {'(' + shortName + ')',-21}  {description}");
             }
@@ -329,6 +356,103 @@ class Program
         }
         Console.WriteLine("Unknown format.");
     }
+
+    static void BruteForce(string sourceFile, string destinationFolder, long offset, long expectedSize)
+    {
+        using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var RawData = new byte[source.Length - offset];
+        var destination = new byte[expectedSize];
+        source.Seek(offset, SeekOrigin.Begin);
+        source.ReadExactly(RawData, 0, RawData.Length);
+
+        foreach (var decoder in GetRawDecodersList())
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Testing {decoder.Name} decoder...");
+            var ms = new MemoryStream(destination, 0, destination.Length, true, true);
+            try
+            {
+                ms.Position = 0;
+                decoder.Decompress(RawData, ms, (uint)expectedSize);
+                if (ms.Position == expectedSize)
+                {
+                    Console.WriteLine($"{decoder.Name} decoder successfully unpacked the file.");
+                    Directory.CreateDirectory(destinationFolder);
+                    var outputFile = Path.Combine(destinationFolder, decoder.Name + ".bin");
+                    File.WriteAllBytes(outputFile, destination);
+                    Console.WriteLine($"Saved to '{outputFile}'.");
+                    // continue in case of false positive.
+                }
+                else
+                {
+                    Console.WriteLine($"{decoder.Name} failed: Output is smaller than expected.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{decoder.Name} failed: {ExplainException(ex)}.");
+            }
+        }
+        Console.WriteLine();
+        Console.WriteLine("All tests completed.");
+
+        static string ExplainException(Exception ex)
+        {
+            if (ex is EndOfStreamException) return "Compressed data ended unexpectedly";
+            if (ex is InvalidDataException or ArgumentOutOfRangeException or IndexOutOfRangeException) return "Invalid compressed data";
+            if (ex is NotSupportedException && ex.Message.Contains("not expandable")) return "Output exceeded expected size";
+
+            return ex.Message;
+        }
+    }
+
+    static List<(string Name, RawDecoder Decompress)> GetRawDecodersList() => new List<(string, RawDecoder)>
+    {
+        // Frequently used
+        ("ZLib",(rawData, destination, expectedSize) => new ZLib().Decompress(new MemoryStream(rawData),destination)),
+        ("GZip",(rawData, destination, expectedSize) => new GZip().Decompress(new MemoryStream(rawData),destination)),
+        ("Zstandard",(rawData, destination, expectedSize) => new Zstd().Decompress(new MemoryStream(rawData),destination)),
+        ("Deflate", Deflate),
+        ("LZO",(rawData, destination, expectedSize) => LZO.DecompressHeaderless(new MemoryStream(rawData),destination)),
+        ("LZ4",(rawData, destination, expectedSize) => LZ4.DecompressBlockHeaderless(new MemoryStream(rawData),destination, (uint)rawData.Length)),
+        ("LZSS (12, 4, 2)",(rawData, destination, expectedSize) => LZSS.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize,LZSS.DefaultProperties)),
+        ("LZSS (12, 4, 3)",(rawData, destination, expectedSize) => LZSS.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize,new LzProperties((byte)12, 4, 3))),
+        ("LZSS (10, 4, 2)",(rawData, destination, expectedSize) => LZSS.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize,new LzProperties((byte)10, 6, 2))),
+        ("LZSS (10, 4, 3)",(rawData, destination, expectedSize) => LZSS.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize,new LzProperties((byte)10, 6, 3))),
+        ("LZSS0",(rawData, destination, expectedSize) => LZSS.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize,LZSS.Lzss0Properties)),
+        ("PRS big",(rawData, destination, expectedSize) => PRS.DecompressHeaderless(new MemoryStream(rawData),destination, Endian.Big)),
+        ("PRS Little",(rawData, destination, expectedSize) => PRS.DecompressHeaderless(new MemoryStream(rawData),destination, Endian.Little)),
+        ("LZ10",(rawData, destination, expectedSize) => LZ10.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("LZ11",(rawData, destination, expectedSize) => LZ11.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        // sometimes used
+        ("Yaz0",(rawData,destination, expectedSize) => Yaz0.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("RefPack",(rawData,destination, expectedSize) => RefPack.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize)),
+        ("LZ02",(rawData,destination, expectedSize) => LZ02.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("HUF20 8bit Little",(rawData,destination, expectedSize) => HUF20.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize, 8, Endian.Little)),
+        ("HUF20 8bit Big",(rawData,destination, expectedSize) => HUF20.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize, 8, Endian.Big)),
+        ("HUF20 4bit Little",(rawData,destination, expectedSize) => HUF20.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize, 4, Endian.Little)),
+        ("HUF20 4bit Big",(rawData,destination, expectedSize) => HUF20.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize, 4, Endian.Big)),
+        ("aPLib",(rawData,destination, expectedSize) => aPLib.DecompressHeaderless(new MemoryStream(rawData),destination)),
+        // rarely used
+        ("RLE30",(rawData,destination, expectedSize) => RLE30.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("LZ40",(rawData,destination, expectedSize) => LZ40.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("BLZ",(rawData,destination, expectedSize) => BLZ.DecompressHeaderless(rawData,destination.GetBuffer())),
+        ("CLZ0",(rawData,destination, expectedSize) => CLZ0.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize)),
+        ("CNS",(rawData,destination, expectedSize) => CNS.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize)),
+        ("LZHudson",(rawData,destination, expectedSize) => LZHudson.DecompressHeaderless(new MemoryStream(rawData),destination, expectedSize)),
+        ("LZShrek",(rawData,destination, expectedSize) => LZShrek.DecompressHeaderless(rawData,destination, (int)expectedSize)),
+        ("RLHudson",(rawData,destination, expectedSize) => RLHudson.DecompressHeaderless(new MemoryStream(rawData),destination, (int)expectedSize)),
+        ("CRILAYLA",(rawData,destination, expectedSize) => CRILAYLA.DecompressHeaderless(rawData,destination.GetBuffer())),
+        ("ALLZ",(rawData,destination, expectedSize) => ALLZ.DecompressHeaderless(((ReadOnlySpan<byte>)rawData.AsSpan(4)).AsReadOnlyStream(),destination.GetBuffer(), rawData.AsSpan(0,4))),
+    };
+
+    private static void Deflate(byte[] RawData, MemoryStream destination, uint expectedSize)
+    {
+        using DeflateStream dflStream = new DeflateStream(new MemoryStream(RawData), CompressionMode.Decompress, true);
+        dflStream.CopyTo(destination);
+    }
+
+    private delegate void RawDecoder(byte[] RawData, MemoryStream destination, uint expectedSize);
 
     static void PrintType(IFormatInfo format)
     {
