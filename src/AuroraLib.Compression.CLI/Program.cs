@@ -68,7 +68,9 @@ class Program
 
             FlagMap.Add("-" + name.ToLower(), flag);
             string shortName = "-" + new string(name.Where(char.IsUpper).ToArray()).ToLower();
-            FlagMap.TryAdd(shortName, flag);
+            if (!FlagMap.TryAdd(shortName, flag))
+
+                throw new Exception($"Key '{shortName}' is Already in use");
         }
     }
 
@@ -225,24 +227,24 @@ class Program
         Console.WriteLine("Usage:");
 
         ConsoleFlag(Flags.Decompress, null, "Decompress a file.");
-        ConsoleFlag(Flags.In, "file", "Input file path.");
-        ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
-        ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type [optional]");
-        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
-        ConsoleFlag(Flags.Quiet, string.Empty, "No output except errors.");
+        ConsoleFlag(Flags.In, "file path", "Input file path.");
+        ConsoleFlag(Flags.OUt, "file path", "Output file path. [optional]");
+        ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type. [optional]");
+        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists. [optional]");
+        ConsoleFlag(Flags.Quiet, string.Empty, "Suppress all output except errors. [optional]");
 
         ConsoleFlag(Flags.Compress, null, "Compress a file using the specified algorithm.");
-        ConsoleFlag(Flags.In, "file", "Input file path.");
-        ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
+        ConsoleFlag(Flags.In, "file path", "Input file path.");
+        ConsoleFlag(Flags.OUt, "file path", "Output file path. [optional]");
         ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type");
         ConsoleFlag(Flags.Level, "level", $"CompressionLevel <{string.Join(", ", Enum.GetNames(typeof(CompressionLevel)))}> [optional]");
         ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
         ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
-        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
-        ConsoleFlag(Flags.Quiet, string.Empty, "No output except errors.");
+        ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists. [optional]");
+        ConsoleFlag(Flags.Quiet, string.Empty, "Suppress all output except errors. [optional]");
 
         ConsoleFlag(Flags.Mime, null, "Try to recognize the file format used.");
-        ConsoleFlag(Flags.In, "file", "Input file path.");
+        ConsoleFlag(Flags.In, "file path", "Input file path.");
 
         ConsoleFlag(Flags.Help, null, "Show this help.");
 
