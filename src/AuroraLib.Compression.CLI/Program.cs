@@ -39,6 +39,7 @@ class Program
         LookAhead,
         Endian,
         Overwrite,
+        Quiet,
     }
 
     static Program()
@@ -89,8 +90,10 @@ class Program
         Console.WriteLine(new string('-', 100));
 
         // Show help if no arguments or help flags are provided
-        if (args.Length == 0 || args.Contains("-help") || args.Contains("-h"))
+        if (args.Length == 0 || argsDict.ContainsKey(Flags.Help))
         {
+            if (isQuiet) return;
+
             ShowHelp();
             Console.ReadKey();
             return;
@@ -226,6 +229,7 @@ class Program
         ConsoleFlag(Flags.OUt, "file", "Output file path. [optional]");
         ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type [optional]");
         ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
+        ConsoleFlag(Flags.Quiet, string.Empty, "No output except errors.");
 
         ConsoleFlag(Flags.Compress, null, "Compress a file using the specified algorithm.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
@@ -235,6 +239,7 @@ class Program
         ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
         ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
         ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists.");
+        ConsoleFlag(Flags.Quiet, string.Empty, "No output except errors.");
 
         ConsoleFlag(Flags.Mime, null, "Try to recognize the file format used.");
         ConsoleFlag(Flags.In, "file", "Input file path.");
