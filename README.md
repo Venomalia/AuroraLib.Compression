@@ -71,6 +71,8 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | IECP           | IECP algorithm base on LZSS, used in Fate/Extra.                           |
 | ECD            | Rocket Company ECD algorithm base on LZSS, used in Kanken Training 2.      |
 | aPLib          | aPLib is a pure LZ-based compression algorithm by Jørgen Ibsen.            |
+| WFLZ           | WayForward's LZ algorithm, focused on decompression speed.                 |
+| ZLWF           | WayForward's LZ chunk header.                                              |
 
  `*` Big-endian and little-endian version are supported.
  
@@ -142,3 +144,4 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 - [LZ4](https://github.com/lz4/lz4/tree/dev/doc) reference for LZ4 algorithm.
 - [hack64](https://hack64.net/wiki/doku.php?id=yoshis_story:smsr00_compression) reference for SMSR00 algorithm.
 - [RareZip](https://github.com/MittenzHugg/rarezip/tree/2c4ba146c1b2fec851d3db8cf455c6af090bc544) reference for RareZip algorithm.
+- [ShaneYCG](https://github.com/ShaneYCG/wflz/tree/master) reference for WFLZ algorithm.
