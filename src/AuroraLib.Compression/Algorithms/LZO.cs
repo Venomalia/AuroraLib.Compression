@@ -8,12 +8,11 @@ using AuroraLib.Core.IO;
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Lempel–Ziv–Oberhumer (LZO) algorithm, focused on decompression speed.
+    /// Lempel–Ziv–Oberhumer (LZO, LZO1X) algorithm, focused on decompression speed.
     /// </summary>
     public sealed class LZO : ICompressionAlgorithm, ILzSettings
     {
