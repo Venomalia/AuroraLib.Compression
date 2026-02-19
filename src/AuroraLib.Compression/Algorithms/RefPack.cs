@@ -11,7 +11,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -83,7 +82,7 @@ namespace AuroraLib.Compression.Algorithms
                 source.Position -= 0x2;
                 compressedSize = source.ReadUInt32();
                 // test Is version 2
-                if (source.Peek<ushort>(Endian.Big) == 0x10FB)
+                if (source.Peek(s => s.ReadInt16BigEndian()) == 0x10FB)
                     return InternalReadHeader(source, out decompressedSize, out _);
                 else
                     throw new InvalidIdentifierException(identifier.ToString("X"), Identifier.ToString("X"));

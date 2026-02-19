@@ -15,11 +15,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo LZ77 extension Header from LZ10 algorithm
     /// </summary>
-    public sealed class LZ77 : LZ10, ICompressionAlgorithm, IHasIdentifier
+    public sealed class LZ77 : LZ10, ICompressionAlgorithm
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("LZ77".AsSpan());
 
         /// <inheritdoc/>

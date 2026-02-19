@@ -19,7 +19,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// WayForward's LZ algorithm, focused on decompression speed.
     /// </summary>
-    public sealed class WFLZ : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize, IEndianDependentFormat
+    public sealed class WFLZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IEndianDependentFormat
     {
         private static readonly LzProperties _lz = new LzProperties(ushort.MaxValue, byte.MaxValue, 4 + 1);
 
@@ -176,7 +176,7 @@ namespace AuroraLib.Compression.Algorithms
             {
 
                 var block = new WFLZ_Block((ushort)lzMatch.Distance, lzMatch.Length == 0 ? byte.MinValue : (byte)(lzMatch.Length - 4), (byte)Math.Min(plain, byte.MaxValue));
-                destination.Write(block, order);
+                destination.Write(order == Endian.Little ? block : block.ReverseEndianness());
                 plain -= block.Plain;
 
                 sourcePointer += lzMatch.Length;

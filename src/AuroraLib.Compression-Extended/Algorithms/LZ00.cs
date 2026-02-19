@@ -1,10 +1,10 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Compression;
 
@@ -13,11 +13,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Sega LZ00 based on LZSS algorithm with encryption
     /// </summary>
-    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IObjectName, IProvidesDecompressedSize
+    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IObjectName, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("LZ00".AsSpan());
 
         /// <inheritdoc/>
@@ -182,24 +179,28 @@ namespace AuroraLib.Compression.Algorithms
 #endif
             public override void Write(byte[] buffer, int offset, int count)
 
-#if !(NET20_OR_GREATER || NETSTANDARD2_0)
                 => Write(buffer.AsSpan(offset, count));
 
+#if !(NET20_OR_GREATER || NETSTANDARD2_0)
             public override void Write(ReadOnlySpan<byte> buffer)
-            {
-                using SpanBuffer<byte> bytes = new SpanBuffer<byte>(buffer);
-                Transform(bytes);
-                Base.Write(bytes);
-            }
+
 #else
+            public void Write(ReadOnlySpan<byte> buffer)
+#endif
             {
-                using (SpanBuffer<byte> bytes = new SpanBuffer<byte>(buffer))
+                byte[] bytes = ArrayPool<byte>.Shared.Rent(buffer.Length);
+                try
                 {
-                    Transform(bytes.Span.Slice(offset, count));
-                    Base.Write(bytes.GetBuffer(), offset, count);
+                    Span<byte> bytesSpan = bytes.AsSpan(0, buffer.Length);
+                    buffer.CopyTo(bytesSpan);
+                    Transform(bytesSpan);
+                    Base.Write(bytes, 0, buffer.Length);
+                }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(bytes);
                 }
             }
-#endif
         }
     }
 }

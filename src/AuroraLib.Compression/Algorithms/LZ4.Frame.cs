@@ -1,8 +1,8 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.IO;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -108,14 +108,17 @@ namespace AuroraLib.Compression.Algorithms
         private void DecompressLZ4FrameHeader(Stream source, Stream destination)
         {
             long destStartPos = destination.Position;
-            FrameDescriptor descriptor = source.Read<FrameDescriptor>();
+            FrameDescriptor descriptor = new FrameDescriptor();
+            descriptor.BinaryDeserialize(source);
 
             if (descriptor.Flags.HasFlag(FrameDescriptorFlags.HasDictID))
                 throw new NotSupportedException("External dictionaries are currently not supported");
 
-            using (SpanBuffer<byte> buffer = new SpanBuffer<byte>((int)descriptor.BlockMaxSize))
-            using (LzWindows windows = new LzWindows(destination, _lz.WindowsSize))
+
+            byte[] buffer = ArrayPool<byte>.Shared.Rent((int)descriptor.BlockMaxSize);
+            try
             {
+                using LzWindows windows = new LzWindows(destination, _lz.WindowsSize);
                 // Decode Blocks
                 while (true)
                 {
@@ -126,7 +129,7 @@ namespace AuroraLib.Compression.Algorithms
 
                     // Check if the block is uncompressed (highest bit = 1)
                     bool isUncompressed = (blockSize & UncompressedFlag) != 0;
-                    Span<byte> blockBuffer = buffer.Span.Slice(0, (int)(blockSize & (UncompressedFlag - 1)));
+                    Span<byte> blockBuffer = buffer.AsSpan(0, (int)(blockSize & (UncompressedFlag - 1)));
 
                     // Read the block content into the buffer
                     source.Read(blockBuffer);
@@ -141,6 +144,10 @@ namespace AuroraLib.Compression.Algorithms
                     else
                         DecompressBlockHeaderless(blockBuffer, windows);
                 }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
             }
 
             // Check the content size, if available.
@@ -178,8 +185,7 @@ namespace AuroraLib.Compression.Algorithms
             Flags &= FrameDescriptorFlags.IsVersion1;
 
             FrameDescriptor descriptor = new FrameDescriptor() { Flags = Flags, BlockMaxSize = BlockSize, ContentSize = destination.Length };
-            destination.Write(descriptor);
-
+            descriptor.BinarySerialize(destination);
 
             int sourcePointer = 0x0;
             using (MemoryPoolStream buffer = new MemoryPoolStream((int)BlockSize))

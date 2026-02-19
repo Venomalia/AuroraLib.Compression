@@ -72,69 +72,69 @@ namespace AuroraLib.Compression.Algorithms
             {
                 // We read a new flag at the end.
                 int flagcode = flag >> 4;
-                    if (flagcode == 0)
+                if (flagcode == 0)
+                {
+                    // Plain copy or special case depending on the number of plain bytes last read.   
+                    if (plain == 0) // 0000 LLLL | plain copy L = 4-18 or 18+
                     {
-                        // Plain copy or special case depending on the number of plain bytes last read.   
-                        if (plain == 0) // 0000 LLLL | plain copy L = 4-18 or 18+
-                        {
-                            length = 3 + flag;
-                            if (length == 3)
-                                length = 18 + ReadExtendedInt(source);
+                        length = 3 + flag;
+                        if (length == 3)
+                            length = 18 + ReadExtendedInt(source);
 
-                            plain = 4;
-                            buffer.CopyFrom(source, length);
-                            // Continue & read a new flag.
-                            continue;
-                        }
-                        else if (plain <= 3) // 0000 DDPP DDDD DDDD | P = 0-3 D = 1-1024 L = 2
-                        {
-                            distance = source.ReadByte();
-                            distance = (distance << 2) + (flag >> 2) + 1;
-                            length = 2;
-                        }
-                        else // 0000 DDPP DDDD DDDD | P = 0-3 D = 2049-3072 L = 3
-                        {
-                            distance = source.ReadByte();
-                            distance = (distance << 2) + (flag >> 2) + (2048 + 1);
-                            length = 3;
-                        }
+                        plain = 4;
+                        buffer.CopyFrom(source, length);
+                        // Continue & read a new flag.
+                        continue;
                     }
-                    else if (flagcode == 1) // 0001 HLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 16385-49151 L = 3-9 or 9+
+                    else if (plain <= 3) // 0000 DDPP DDDD DDDD | P = 0-3 D = 1-1024 L = 2
                     {
-                        length = 2 + (flag & 0x7);
-                        if (length == 2)
-                            length = 9 + ReadExtendedInt(source);
-
-                        distance = 16384 + ((flag & 0x8) << 11);
-                        flag = source.ReadByte();
-                        distance |= (source.ReadByte() << 6 | flag >> 2);
-
-                        // End flag
-                        if (distance == 16384)
-                            return;
-                    }
-                    else if (flagcode <= 3) // 001L LLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 1-16384 L = 3-33 or 33+
-                    {
-                        length = 2 + (flag & 0x1f);
-                        if (length == 2)
-                            length = 33 + ReadExtendedInt(source);
-
-                        flag = source.ReadByte();
                         distance = source.ReadByte();
-                        distance = (distance << 6 | flag >> 2) + 1;
+                        distance = (distance << 2) + (flag >> 2) + 1;
+                        length = 2;
                     }
-                    else if (flagcode <= 7) // 01LD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 3-4
+                    else // 0000 DDPP DDDD DDDD | P = 0-3 D = 2049-3072 L = 3
                     {
-                        length = 3 + ((flag >> 5) & 0x1);
                         distance = source.ReadByte();
-                        distance = (distance << 3) + ((flag >> 2) & 0x7) + 1;
+                        distance = (distance << 2) + (flag >> 2) + (2048 + 1);
+                        length = 3;
                     }
-                    else // 1LLD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 5-8
-                    {
-                        length = 5 + ((flag >> 5) & 0x3);
-                        distance = source.ReadByte();
-                        distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
-                    }
+                }
+                else if (flagcode == 1) // 0001 HLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 16385-49151 L = 3-9 or 9+
+                {
+                    length = 2 + (flag & 0x7);
+                    if (length == 2)
+                        length = 9 + ReadExtendedInt(source);
+
+                    distance = 16384 + ((flag & 0x8) << 11);
+                    flag = source.ReadByte();
+                    distance |= (source.ReadByte() << 6 | flag >> 2);
+
+                    // End flag
+                    if (distance == 16384)
+                        return;
+                }
+                else if (flagcode <= 3) // 001L LLLL ... DDDD DDPP DDDD DDDD | P = 0-3 D = 1-16384 L = 3-33 or 33+
+                {
+                    length = 2 + (flag & 0x1f);
+                    if (length == 2)
+                        length = 33 + ReadExtendedInt(source);
+
+                    flag = source.ReadByte();
+                    distance = source.ReadByte();
+                    distance = (distance << 6 | flag >> 2) + 1;
+                }
+                else if (flagcode <= 7) // 01LD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 3-4
+                {
+                    length = 3 + ((flag >> 5) & 0x1);
+                    distance = source.ReadByte();
+                    distance = (distance << 3) + ((flag >> 2) & 0x7) + 1;
+                }
+                else // 1LLD DDPP DDDD DDDD | P = 0-3 D = 1-2048 L = 5-8
+                {
+                    length = 5 + ((flag >> 5) & 0x3);
+                    distance = source.ReadByte();
+                    distance = (distance << 3) + ((flag & 0x1c) >> 2) + 1;
+                }
                 plain = flag & 0x3;
                 buffer.BackCopy(distance, length);
                 buffer.CopyFrom(source, plain);

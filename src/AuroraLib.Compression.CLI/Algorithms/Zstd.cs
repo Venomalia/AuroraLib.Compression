@@ -9,10 +9,8 @@ using ZstdSharp;
 
 namespace AuroraLib.Compression.CLI.Algorithms
 {
-    public class Zstd : ICompressionAlgorithm, IHasIdentifier
+    public class Zstd : ICompressionAlgorithm
     {
-        public IIdentifier Identifier => _identifier;
-
         public IFormatInfo Info => new FormatInfo<Zstd>("Zstandard", new MediaType(MIMEType.Application, "zstd"), ".zst");
 
         private static readonly Identifier32 _identifier = new(0xFD2FB528);

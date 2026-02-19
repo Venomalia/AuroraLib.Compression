@@ -1,11 +1,9 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 
@@ -14,11 +12,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZO Nintendo mainly used in DS Download Games.
     /// </summary>
-    public sealed class LZOn : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class LZOn : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier64 _identifier = new Identifier64(new Identifier32("LZOn".AsSpan()), new Identifier32(0x00, 0x2F, 0xF1, 0x71));
 
         /// <inheritdoc/>

@@ -9,11 +9,7 @@ namespace AuroraLib.Compression.Interfaces
     /// <summary>
     /// Defines an interface for file decompression.
     /// </summary>
-#if NET8_0_OR_GREATER
-    public interface ICompressionDecoder : IStaticFormatRecognition
-#else
-    public interface ICompressionDecoder : IFormatRecognition
-#endif
+    public interface ICompressionDecoder : IFormatInfoProvider
     {
         /// <summary>
         /// Decompresses data from the <paramref name="source"/> <see cref="Stream"/> and writes the decompressed data to the <paramref name="destination"/> <see cref="Stream"/>.

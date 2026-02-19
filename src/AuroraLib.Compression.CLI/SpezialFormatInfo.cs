@@ -1,4 +1,4 @@
-using AuroraLib.Core;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using System;

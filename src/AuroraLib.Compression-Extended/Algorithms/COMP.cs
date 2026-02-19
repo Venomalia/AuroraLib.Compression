@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -12,11 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// COMP extension header based on LZ11 algorithm used in Puyo Puyo Chronicle.
     /// </summary>
-    public sealed class COMP : LZ11, ICompressionAlgorithm, IHasIdentifier
+    public sealed class COMP : LZ11, ICompressionAlgorithm
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("COMP".AsSpan());
 
         /// <inheritdoc/>

@@ -12,11 +12,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Konami MDF0 based on ZLib compression algorithm used in Castlevania: The Adventure ReBirth.
     /// </summary>
-    public sealed class MDF0 : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class MDF0 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32((byte)'m', (byte)'d', (byte)'f', 0x0);
 
         /// <inheritdoc/>

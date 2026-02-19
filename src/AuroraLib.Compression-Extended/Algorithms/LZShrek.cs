@@ -2,11 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Compression;
 
@@ -51,10 +51,16 @@ namespace AuroraLib.Compression.Algorithms
             uint compLength = source.ReadUInt32();
             source.Seek(offset, SeekOrigin.Begin);
 
-            using SpanBuffer<byte> sourceBuffer = new SpanBuffer<byte>(compLength);
-            source.Read(sourceBuffer.GetBuffer(), 0, sourceBuffer.Length);
-
-            DecompressHeaderless(sourceBuffer, destination, (int)decompressedSize);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent((int)compLength);
+            try
+            {
+                source.ReadExactly(buffer, 0, (int)compLength);
+                DecompressHeaderless(buffer.AsSpan(0, (int)compLength), destination, (int)decompressedSize);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         /// <inheritdoc/>

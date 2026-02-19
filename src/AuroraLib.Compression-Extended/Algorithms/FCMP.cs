@@ -12,11 +12,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// FCMP extension header based on LZSS algorithm used in Muramasa The Demon Blade.
     /// </summary>
-    public sealed class FCMP : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class FCMP : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("FCMP".AsSpan());
 
         /// <inheritdoc/>

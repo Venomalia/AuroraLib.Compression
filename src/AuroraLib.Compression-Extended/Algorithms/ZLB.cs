@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// ZLB based on ZLib compression algorithm used in Star Fox Adventures.
     /// </summary>
-    public sealed class ZLB : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class ZLB : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -42,7 +42,7 @@ namespace AuroraLib.Compression.Algorithms
             => source.Peek(s =>
             {
                 s.MatchThrow(_identifier);
-                return s.Read<Header>(Endian.Big).DecompressedSize;
+                return s.Read<Header>().ReverseEndianness().DecompressedSize;
             });
 
         /// <inheritdoc/>
@@ -50,7 +50,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             // Read Header
             source.MatchThrow(_identifier);
-            Header header = source.Read<Header>(Endian.Big);
+            Header header = source.Read<Header>().ReverseEndianness();
 
             // Validate header version
             if (header.Version != 1)

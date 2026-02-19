@@ -1,6 +1,5 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -13,10 +12,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// AsuraZlb based on ZLib compression algorithm used in The Simpsons Game.
     /// </summary>
-    public sealed class AsuraZlb : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class AsuraZlb : ICompressionAlgorithm, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier64 _identifier = new Identifier64("AsuraZlb".AsSpan());
 

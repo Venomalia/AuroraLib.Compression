@@ -95,7 +95,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(ChunkSize, FormatByteOrder);
             destination.Write(chunkCount, FormatByteOrder);
             destination.Write(source.Length, FormatByteOrder);
-            destination.Write<uint>(chunkSizes, FormatByteOrder); // Placeholder
+            destination.Write<uint>(chunkSizes); // Placeholder
 
             destination.WriteAlign(128);
 
@@ -118,7 +118,17 @@ namespace AuroraLib.Compression.Algorithms
                     destination.WriteAlign(128);
                 }
             }
-            destination.At(destStart + 12, s => s.Write<uint>(chunkSizes, FormatByteOrder));
+
+            if (FormatByteOrder == Endian.Big)
+            {
+#if NET8_0
+                BinaryPrimitives.ReverseEndianness(chunkSizes, chunkSizes);
+#else
+                for (int i = 0; i < chunkSizes.Length; i++)
+                    chunkSizes[0] = BinaryPrimitives.ReverseEndianness(chunkSizes[0]);
+#endif
+            }
+            destination.At(destStart + 12, s => s.Write<uint>(chunkSizes));
         }
 
         private readonly struct Header : IReversibleEndianness<Header>

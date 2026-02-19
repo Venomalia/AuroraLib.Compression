@@ -2,13 +2,12 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -19,10 +18,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo MIO0 compression algorithm, mainly used in early Nintendo 64 games.
     /// </summary>
-    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
+    public sealed class MIO0 : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32("MIO0".AsSpan());
 
@@ -90,12 +87,22 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
-            using SpanBuffer<byte> data = new SpanBuffer<byte>((int)(source.Length - source.Position));
-            source.Read(data.GetBuffer(), 0, data.Length);
 
-            int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
-            if (source.CanSeek)
-                source.Position -= data.Length - read;
+            int bufferLength = (int)(source.Length - source.Position);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(bufferLength);
+            try
+            {
+                source.ReadExactly(buffer, 0, bufferLength);
+
+                int read = DecompressHeaderless(buffer.AsSpan(0, bufferLength), destination, decomLength, compressedDataPointer, uncompressedDataPointer);
+                if (source.CanSeek)
+                    source.Position -= bufferLength - read;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
         }
 
 #if !(NETSTANDARD || NET20_OR_GREATER)

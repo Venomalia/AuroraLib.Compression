@@ -11,10 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// GCLZ extension header based on LZ10 algorithm used in Pandora's Tower.
     /// </summary>
-    public sealed class GCLZ : LZ10, ICompressionAlgorithm, IHasIdentifier
+    public sealed class GCLZ : LZ10, ICompressionAlgorithm
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32("GCLZ".AsSpan());
 

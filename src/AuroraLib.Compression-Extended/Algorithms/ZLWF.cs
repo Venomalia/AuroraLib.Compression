@@ -1,6 +1,5 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
@@ -16,9 +15,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// WayForward's LZ chunk header.
     /// </summary>
-    public sealed class ZLWF : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize, IEndianDependentFormat
-    {/// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
+    public sealed class ZLWF : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IEndianDependentFormat
+    {
 
         private static readonly Identifier32 _identifier = new Identifier32("ZLWF".AsSpan());
 
@@ -69,7 +67,17 @@ namespace AuroraLib.Compression.Algorithms
 
             // Read offsets
             Span<int> offsets = stackalloc int[chunks];
-            source.Read(offsets, FormatByteOrder);
+            source.Read(offsets);
+
+            if (FormatByteOrder == Endian.Big)
+            {
+#if NET8_0
+                BinaryPrimitives.ReverseEndianness(offsets, offsets);
+#else
+                for (int i = 0; i < offsets.Length; i++)
+                    offsets[0] = BinaryPrimitives.ReverseEndianness(offsets[0]);
+#endif
+            }
 
             // set destination length
             long endPosition = destination.Position + decompressedSize;
@@ -120,13 +128,23 @@ namespace AuroraLib.Compression.Algorithms
             }
             destination.WriteAlign(Align);
 
+            if (FormatByteOrder == Endian.Big)
+            {
+#if NET8_0
+                BinaryPrimitives.ReverseEndianness(offsets, offsets);
+#else
+                for (int i = 0; i < offsets.Length; i++)
+                    offsets[0] = BinaryPrimitives.ReverseEndianness(offsets[0]);
+#endif
+            }
+
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);
             destination.Seek(destinationStartPosition + 4, SeekOrigin.Begin);
             destination.Write(destinationLength, FormatByteOrder);
             destination.Skip(8);
-            destination.Write<int>(offsets, FormatByteOrder);
-            destination.Seek(destination.Length,SeekOrigin.Begin);
+            destination.Write<int>(offsets);
+            destination.Seek(destination.Length, SeekOrigin.Begin);
         }
     }
 }

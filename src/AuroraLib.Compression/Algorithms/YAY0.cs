@@ -3,12 +3,12 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Compression;
 
@@ -17,11 +17,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo Yay0 compression algorithm successor to the <see cref="MIO0"/> algorithm with increased match length, used in some Nintendo 64 and GameCube games.
     /// </summary>
-    public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
+    public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("Yay0".AsSpan());
 
         /// <inheritdoc/>
@@ -87,13 +84,21 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)
         {
+            int dataLength = (int)(source.Length - source.Position);
+            byte[] data = ArrayPool<byte>.Shared.Rent(dataLength);
+            try
+            {
+                source.ReadExactly(data, 0, dataLength);
 
-            using SpanBuffer<byte> data = new SpanBuffer<byte>((int)(source.Length - source.Position));
-            source.Read(data.GetBuffer(), 0, data.Length);
+                int read = DecompressHeaderless(data.AsSpan(0, dataLength), destination, decomLength, compressedDataPointer, uncompressedDataPointer);
+                if (source.CanSeek)
+                    source.Position -= dataLength - read;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(data);
+            }
 
-            int read = DecompressHeaderless(data, destination, decomLength, compressedDataPointer, uncompressedDataPointer);
-            if (source.CanSeek)
-                source.Position -= data.Length - read;
         }
 
         public static int DecompressHeaderless(ReadOnlySpan<byte> source, Stream destination, uint decomLength, int compressedDataPointer, int uncompressedDataPointer)

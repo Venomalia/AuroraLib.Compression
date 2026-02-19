@@ -1,12 +1,10 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -34,13 +32,13 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
-            => source.Peek<uint>(Endian.Big);
+            => source.Peek(s => s.ReadUInt32BigEndian());
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            uint uncompressedSize = source.ReadUInt32(Endian.Big);
-            _ = source.ReadUInt32(Endian.Big);
+            uint uncompressedSize = source.ReadUInt32BigEndian();
+            _ = source.ReadUInt32BigEndian();
 
             DecompressHeaderless(source, destination, (int)uncompressedSize);
         }

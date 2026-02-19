@@ -2,8 +2,8 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core;
 using AuroraLib.Core.Collections;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -16,10 +16,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// aPLib is one of the top pure LZ-based compression algorithm by Jørgen Ibsen.
     /// </summary>
-    public sealed class aPLib : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class aPLib : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'A', (byte)'P', (byte)'3', (byte)'2');
 

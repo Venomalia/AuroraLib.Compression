@@ -11,10 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// <see cref="LZ4"/> initial versions of “LZ4Demo”, known as LZ4Legacy.
     /// </summary>
-    public sealed class LZ4Legacy : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed class LZ4Legacy : ICompressionAlgorithm, ILzSettings
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32((uint)LZ4.FrameTypes.Legacy);
 

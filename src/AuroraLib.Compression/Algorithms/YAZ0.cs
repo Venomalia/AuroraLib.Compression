@@ -1,10 +1,10 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.IO.Compression;
 
@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Nintendo Yaz0 compression algorithm successor to the <see cref="Yay0"/> algorithm, used in numerous Nintendo titles from the N64 era to Switch.
     /// </summary>
-    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IEndianDependentFormat, IProvidesDecompressedSize
+    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat, IProvidesDecompressedSize
     {
 
         /// <inheritdoc/>
@@ -53,14 +53,14 @@ namespace AuroraLib.Compression.Algorithms
         public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
-                s.MatchThrow(Identifier);
+                s.MatchThrow(Identifier.AsSpan());
                 return s.ReadUInt32(FormatByteOrder);
             });
 
         /// <inheritdoc/>
         public virtual void Decompress(Stream source, Stream destination)
         {
-            source.MatchThrow(Identifier);
+            source.MatchThrow(Identifier.AsSpan());
             uint decompressedSize = source.ReadUInt32(FormatByteOrder);
             MemoryAlignment = source.ReadUInt32(FormatByteOrder);
             _ = source.ReadUInt32(FormatByteOrder);
@@ -75,8 +75,8 @@ namespace AuroraLib.Compression.Algorithms
             {
                 source.Seek(sourceDataStartPosition, SeekOrigin.Begin);
                 destination.Seek(destinationStartPosition, SeekOrigin.Begin);
-                decompressedSize = BitConverterX.ReverseEndianness(decompressedSize);
-                MemoryAlignment = BitConverterX.ReverseEndianness(MemoryAlignment);
+                decompressedSize = BinaryPrimitives.ReverseEndianness(decompressedSize);
+                MemoryAlignment = BinaryPrimitives.ReverseEndianness(MemoryAlignment);
                 DecompressHeaderless(source, destination, decompressedSize);
             }
         }

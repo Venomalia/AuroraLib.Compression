@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -12,7 +11,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// LZ01 implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class LZ01 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class LZ01 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;

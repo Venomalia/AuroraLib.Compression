@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// TREVA Entertainment SDPC compression based on LZO.
     /// </summary>
-    public sealed class SDPC : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class SDPC : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
