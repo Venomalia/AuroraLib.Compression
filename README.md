@@ -25,6 +25,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | RLE30          | Nintendo RLE compression algorithm used in GBA games.                      |
 | PRS*           | Sega PRS compression algorithm used in various Sega games.                 |
 | RefPack        | RefPack compression algorithm used in some EA games.                       |
+| Brotli         | Brotli by Jyrki Alakuijala and Zoltán Szabadka. (net6 and later)           |
 
  `*` Big-endian and little-endian version are supported.
  
@@ -51,6 +52,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | CXLZ           | Sega CXLZ based on LZ10 algorithm, used in some Puyo Puyo.                 |
 | LZ00           | Sega LZ00 is based on LZSS algorithm with encryption.                      |
 | LZ01           | Sega LZ01 based on LZSS algorithm, used in some Puyo Puyo.                 |
+| MDB4           | Sega MDB4 base on LZSS, used in Typing of the Dead for the PlayStation 2.  |
 | AKLZ           | A LZSS based algorithm used in Skies of Arcadia Legends.                   |
 | CNS            | CNS compression algorithm, used in Games from Red Entertainment.           |
 | CLZ0           | CLZ0 compression algorithm, used in Games from Victor Interactive Software.|
