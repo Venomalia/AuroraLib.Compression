@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -13,12 +12,9 @@ namespace AuroraLib.Compression.Algorithms
     /// Rocket Company Ltd ECD algorithm base on LZSS, used in Kanken Training 2.
     /// </summary>
     // https://github.com/FanTranslatorsInternational/Kuriimu2/blob/8cc3c310a597fdf78209d693c7333009d772c15f/src/Kompression/Implementations/Decoders/LzEcdDecoder.cs
-    public sealed class ECD : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class ECD : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private static readonly LzProperties LZPropertie = new LzProperties(0x400, 0x42, 3, 0x3BE);
-
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier _identifier = new Identifier("ECD");
 

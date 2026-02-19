@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -12,10 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// AKLZ implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class AKLZ : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class AKLZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier _identifier = new Identifier("AKLZ~?Qd=ÌÌÍ");
 

@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
@@ -44,7 +43,7 @@ namespace AuroraLib.Compression.Algorithms
         public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
-                s.Position =+ 4;
+                s.Position = +4;
                 return s.ReadUInt32();
             });
 

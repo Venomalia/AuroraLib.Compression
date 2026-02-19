@@ -176,7 +176,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (start == 0)
                 start = _lookAhead ? 1 : _minMatchLength;
 
-            for (int i = start; i < end-3; i++)
+            for (int i = start; i < end - 3; i++)
             {
                 int matchStart = Math.Max(0, i - (_windowsSize));
                 int maxBestLength = _lookAhead

@@ -1,7 +1,6 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
@@ -19,10 +18,8 @@ namespace AuroraLib.Compression.Algorithms
     /// LZ4 algorithm, similar to LZO focused on decompression speed.
     /// </summary>
     // https://github.com/lz4/lz4/tree/dev/doc
-    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings, IHasIdentifier
+    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32((uint)FrameTypes.LZ4FrameHeader);
 
@@ -169,11 +166,16 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressBlockHeaderless(Stream source, Stream destination, uint compressedBlockSize)
         {
-            using (LzWindows windows = new LzWindows(destination, _lz.WindowsSize))
-            using (SpanBuffer<byte> sourceBlock = new SpanBuffer<byte>(compressedBlockSize))
+            using LzWindows windows = new LzWindows(destination, _lz.WindowsSize);
+            byte[] sourceBlock = ArrayPool<byte>.Shared.Rent((int)compressedBlockSize);
+            try
             {
-                source.Read(sourceBlock);
-                DecompressBlockHeaderless(sourceBlock, windows);
+                source.Read(sourceBlock, 0, (int)compressedBlockSize);
+                DecompressBlockHeaderless(sourceBlock.AsSpan(0, (int)compressedBlockSize), windows);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(sourceBlock);
             }
         }
         public static void DecompressBlockHeaderless(ReadOnlySpan<byte> source, LzWindows buffer)

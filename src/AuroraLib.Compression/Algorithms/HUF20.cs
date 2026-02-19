@@ -1,12 +1,11 @@
 using AuroraLib.Compression.Huffman;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
-using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -102,9 +101,16 @@ namespace AuroraLib.Compression.Algorithms
             Span<byte> tree = stackalloc byte[treeSize * 2];
             source.Read(tree);
 
-            using SpanBuffer<byte> bufferPool = new SpanBuffer<byte>(decomLength);
-            DecompressHeaderless(source, bufferPool, tree, treeRoot, bitDepth, order);
-            destination.Write(bufferPool.GetBuffer(), 0, decomLength);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(decomLength);
+            try
+            {
+                DecompressHeaderless(source, buffer.AsSpan(0, decomLength), tree, treeRoot, bitDepth, order);
+                destination.Write(buffer, 0, decomLength);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> tree, byte treeRoot, int bitDepth, Endian order = Endian.Little)

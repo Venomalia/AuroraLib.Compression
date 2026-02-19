@@ -1,4 +1,5 @@
 using AuroraLib.Core;
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
@@ -57,7 +58,8 @@ namespace AuroraLib.Compression.IO
                     return;
                 default:
                     throw new NotImplementedException($"Unsupported flag size: {_FlagSize}");
-            };
+            }
+            ;
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// SynSophiaZip algorithm Zlib/Gzip-based compression with Mersenne Twister XOR encryption.
     /// </summary>
-    public sealed class SSZL : ICompressionAlgorithm, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class SSZL : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private const uint _buildVersion = 0x2010_11_09;
         private const uint _seed = 0x40c360f3;
@@ -119,7 +119,7 @@ namespace AuroraLib.Compression.Algorithms
 
             static Stream Decrypt(Stream source)
             {
-                MemoryPoolStream buffer = new MemoryPoolStream((int)(source.Length- source.Position),true);
+                MemoryPoolStream buffer = new MemoryPoolStream((int)(source.Length - source.Position), true);
                 source.CopyTo(buffer);
                 buffer.Position = 0;
                 MTXorTransform(buffer.UnsafeAsSpan(), _seed);
@@ -271,7 +271,7 @@ namespace AuroraLib.Compression.Algorithms
             {
                 uint t1 = (next >> 11) ^ next;
                 uint t2 = (t1 & B) << 7;
-                uint t3= t2 ^ t1;
+                uint t3 = t2 ^ t1;
                 uint t4 = (t3 & C) << 15;
                 uint t5 = t4 ^ t3;
 

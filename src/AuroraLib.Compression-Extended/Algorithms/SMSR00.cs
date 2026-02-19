@@ -2,28 +2,25 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
     /// Nintendo SMSR00 compression algorithm, mainly used in Yoshi's Story for the Nintendo 64.
     /// </summary>
-    public sealed class SMSR00 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class SMSR00 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         const int headerSize = 0x10;
-
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier _identifier = new Identifier("SMSR00");
 
@@ -84,10 +81,17 @@ namespace AuroraLib.Compression.Algorithms
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength, int uncompressedDataPointer)
         {
             int codesLength = uncompressedDataPointer;
-            using SpanBuffer<ushort> codes = new SpanBuffer<ushort>(codesLength / 2);
-            source.Read(codes.GetBuffer(), 0, codesLength);
 
-            DecompressHeaderless(source, codes, destination, decomLength);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(codesLength);
+            try
+            {
+                source.ReadExactly(buffer, 0, codesLength);
+                DecompressHeaderless(source, MemoryMarshal.Cast<byte, ushort>(buffer.AsSpan(0, codesLength)), destination, decomLength);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         public static void DecompressHeaderless(Stream uncompressed, ReadOnlySpan<ushort> codes, Stream destination, uint decomLength)

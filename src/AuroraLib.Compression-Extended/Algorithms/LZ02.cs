@@ -39,9 +39,9 @@ namespace AuroraLib.Compression.Algorithms
             // Has no distinct header, recognition is inaccurate!
             => (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase))
 #if NET5_0_OR_GREATER
-                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0 && (s.ReadByte() & 0xE0) == 0);
+                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(s.Read<DataType>()) && s.ReadUInt24BigEndian() != 0 && (s.ReadByte() & 0xE0) == 0);
 #else
-                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(DataType), s.Read<DataType>()) && s.Read<UInt24>(Endian.Big) != 0 && (s.ReadByte() & 0xE0) == 0);
+                && stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(DataType), s.Read<DataType>()) && s.ReadUInt24BigEndian() != 0 && (s.ReadByte() & 0xE0) == 0);
 #endif
 
         private enum DataType : byte

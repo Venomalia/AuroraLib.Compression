@@ -11,10 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// CXLZ extension header based on LZ10 algorithm used in Puyo Puyo.
     /// </summary>
-    public sealed class CXLZ : LZ10, ICompressionAlgorithm, IHasIdentifier
+    public sealed class CXLZ : LZ10, ICompressionAlgorithm
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32("CXLZ".AsSpan());
 

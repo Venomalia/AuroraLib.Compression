@@ -7,7 +7,7 @@ namespace AuroraLib.Compression.Algorithms
 {
     public sealed partial class LZ4
     {
-        private sealed class FrameDescriptor : IBinaryObject
+        private sealed class FrameDescriptor
         {
             public FrameDescriptorFlags Flags;
             public BlockMaxSizes BlockMaxSize;

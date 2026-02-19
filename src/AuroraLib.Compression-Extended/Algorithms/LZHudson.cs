@@ -32,16 +32,16 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && stream.Position + 0x8 < stream.Length && stream.Peek<uint>(Endian.Big) != 0;
+            => (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadUInt32LittleEndian()) != 0;
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
-            => source.Peek<uint>(Endian.Big);
+            => source.Peek(s => s.ReadUInt32BigEndian());
 
         /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
-            uint decompressedSize = source.ReadUInt32(Endian.Big);
+            uint decompressedSize = source.ReadUInt32BigEndian();
             DecompressHeaderless(source, destination, decompressedSize);
         }
 

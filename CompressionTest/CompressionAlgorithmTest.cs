@@ -2,7 +2,6 @@ using AuroraLib.Compression;
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
@@ -11,12 +10,9 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Reflection.Emit;
-using System.Security.Cryptography;
 
 namespace CompressionTest
 {
@@ -31,13 +27,21 @@ namespace CompressionTest
         public void FindMatchesParallelTest()
         {
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            using SpanBuffer<byte> testDataBytes = new SpanBuffer<byte>((int)testData.Length);
-            testData.ReadExactly(testDataBytes);
 
-            LzProperties lz = new LzProperties(0x1000, 0x4000, 3);
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(testDataBytes, lz, true, CompressionLevel.Optimal);
+            byte[] testDataBytes = ArrayPool<byte>.Shared.Rent((int)testData.Length);
+            try
+            {
+                testData.ReadExactly(testDataBytes, 0, (int)testData.Length);
 
-            Assert.AreEqual(50370, matches.Count);
+                LzProperties lz = new LzProperties(0x1000, 0x4000, 3);
+                using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(testDataBytes.AsSpan(0, (int)testData.Length), lz, true, CompressionLevel.Optimal);
+                Assert.AreEqual(50370, matches.Count);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(testDataBytes);
+            }
+
         }
 
         [TestMethod]
@@ -135,15 +139,20 @@ namespace CompressionTest
         }
         private static void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm, FileStream testData, int size, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using SpanBuffer<byte> testDataBytes = new SpanBuffer<byte>(size);
-            testData.Read(testDataBytes);
-            ulong expectedHash = XXHash.Hash64(testDataBytes);
-
-            using (Stream compressData = algorithm.Compress(testDataBytes, level))
-            using (MemoryPoolStream decompressData = algorithm.Decompress(compressData))
+            byte[] testDataBytes = ArrayPool<byte>.Shared.Rent(size);
+            try
             {
+                testData.ReadExactly(testDataBytes, 0, size);
+                ulong expectedHash = XXHash.Hash64(testDataBytes.AsSpan(0, size));
+
+                using Stream compressData = algorithm.Compress(testDataBytes.AsSpan(0, size), level);
+                using MemoryPoolStream decompressData = algorithm.Decompress(compressData);
                 ulong decompressDataHash = XXHash.Hash64(decompressData.UnsafeAsSpan());
                 Assert.AreEqual(expectedHash, decompressDataHash);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(testDataBytes);
             }
         }
 
@@ -153,7 +162,7 @@ namespace CompressionTest
             LZ4 LZ4Frame = new LZ4() { FrameType = LZ4.FrameTypes.LZ4FrameHeader, Flags = LZ4.FrameDescriptorFlags.IsVersion1 | LZ4.FrameDescriptorFlags.HasContentSize | LZ4.FrameDescriptorFlags.HasContentChecksum | LZ4.FrameDescriptorFlags.HasBlockChecksum };
 
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(LZ4Frame,testData, (int)testData.Length);
+            EncodingAndDecodingMatchTest(LZ4Frame, testData, (int)testData.Length);
         }
     }
 }

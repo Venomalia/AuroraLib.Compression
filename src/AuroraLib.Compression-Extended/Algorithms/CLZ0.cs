@@ -2,7 +2,6 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core;
 using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
@@ -16,10 +15,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// CLZ0 compression algorithm, used in Games from Victor Interactive Software.
     /// </summary>
-    public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'C', (byte)'L', (byte)'Z', 0);
 

@@ -1,6 +1,4 @@
-using AuroraLib.Core;
 using System;
-using System.IO;
 
 namespace AuroraLib.Compression.Exceptions
 {

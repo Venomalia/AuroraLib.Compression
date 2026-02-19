@@ -1,9 +1,9 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core;
-using AuroraLib.Core.Buffers;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.Buffers;
 using System.IO;
 using System.IO.Compression;
 
@@ -69,10 +69,15 @@ namespace AuroraLib.Compression.Algorithms
             switch (type)
             {
                 case CompressionType.OnlySave:
-                    using (SpanBuffer<byte> buffer = new SpanBuffer<byte>(decompressedSize))
+                    byte[] buffer = ArrayPool<byte>.Shared.Rent((int)decompressedSize);
+                    try
                     {
-                        source.Read(buffer);
-                        destination.Write(buffer);
+                        source.ReadExactly(buffer, 0, (int)decompressedSize);
+                        destination.Write(buffer, 0, (int)decompressedSize);
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(buffer);
                     }
                     break;
                 case CompressionType.LZ10:

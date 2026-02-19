@@ -1,5 +1,4 @@
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -12,11 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// IECP algorithm base on LZSS, used in Fate/Extra.
     /// </summary>
-    public class IECP : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public class IECP : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32("IECP".AsSpan());
 
         /// <inheritdoc/>

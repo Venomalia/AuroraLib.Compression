@@ -15,14 +15,11 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// CRILAYLA compression algorithm by CRI Middleware, used in many games built with the CRIWARE toolset.
     /// </summary>
-    public sealed class CRILAYLA : ICompressionAlgorithm, ILzSettings, IHasIdentifier, IProvidesDecompressedSize
+    public sealed class CRILAYLA : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         const int HeaderSize = 0x100;
 
         private static readonly LzProperties _lz = new LzProperties(0x2000, ushort.MaxValue, 3, 0, 3);
-
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
 
         private static readonly Identifier64 _identifier = new Identifier64(4705233847682945603ul); // CRILAYLA
 
