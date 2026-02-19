@@ -11,10 +11,8 @@ namespace AuroraLib.Compression.Algorithms
     /// <summary>
     /// Sega MDB4 base on LZSS, used in Typing of the Dead for the PlayStation 2
     /// </summary>
-    public class MDB4 : ICompressionAlgorithm, IHasIdentifier, ILzSettings, IProvidesDecompressedSize
-    {        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
+    public class MDB4 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    {
         private static readonly Identifier32 _identifier = new Identifier32("MDB4".AsSpan());
 
         /// <inheritdoc/>
