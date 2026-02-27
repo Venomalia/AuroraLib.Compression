@@ -19,7 +19,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public override IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<GCLZ>("GCLZ", new MediaType(MIMEType.Application, "x-nintendo-lz10+gclz"), string.Empty);
+        private static readonly IFormatInfo _info = new FormatInfo<GCLZ>("GCLZ", new MediaType(MIMEType.Application, "x-nintendo-lz10+gclz"), string.Empty, _identifier);
         /// <inheritdoc/>
         public override bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);

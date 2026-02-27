@@ -21,7 +21,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<SDPC>("TREVA Entertainment SDPC", new MediaType(MIMEType.Application, "x-lzo+sdpc"), string.Empty);
+        private static readonly IFormatInfo _info = new FormatInfo<SDPC>("TREVA Entertainment SDPC", new MediaType(MIMEType.Application, "x-lzo+sdpc"), string.Empty, _identifier);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;

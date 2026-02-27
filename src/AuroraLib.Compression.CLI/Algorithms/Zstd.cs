@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.CLI.Algorithms
 {
     public class Zstd : ICompressionAlgorithm
     {
-        public IFormatInfo Info => new FormatInfo<Zstd>("Zstandard", new MediaType(MIMEType.Application, "zstd"), ".zst");
+        public IFormatInfo Info => new FormatInfo<Zstd>("Zstandard", new MediaType(MIMEType.Application, "zstd"), ".zst", _identifier);
 
         private static readonly Identifier32 _identifier = new(0xFD2FB528);
 
