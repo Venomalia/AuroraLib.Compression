@@ -13,14 +13,14 @@ using System.Linq;
 namespace AuroraLib.Compression.Algorithms
 {
     /// <summary>
-    /// Nintendo LZ77 extension Header from LZ10 algorithm
+    /// Nintendo LZ77 extension header for LZ10 and other algorithms.
     /// </summary>
-    public sealed class LZ77 : LZ10, ICompressionAlgorithm
+    public sealed class LZ77 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("LZ77".AsSpan());
 
         /// <inheritdoc/>
-        public override IFormatInfo Info => _info;
+        public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ77>("Nintendo LZ77", new MediaType(MIMEType.Application, "x-nintendo-lz10+lz77"), string.Empty, _identifier);
 
@@ -35,7 +35,10 @@ namespace AuroraLib.Compression.Algorithms
         public UInt24 ChunkSize = 0x1000;
 
         /// <inheritdoc/>
-        public override bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool LookAhead { get; set; } = true;
+
+        /// <inheritdoc/>
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
@@ -43,7 +46,7 @@ namespace AuroraLib.Compression.Algorithms
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()));
 
         /// <inheritdoc/>
-        public override uint GetDecompressedSize(Stream source)
+        public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
                 s.MatchThrow(_identifier);
@@ -55,9 +58,20 @@ namespace AuroraLib.Compression.Algorithms
             });
 
         /// <inheritdoc/>
-        public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
         {
             destination.Write(_identifier);
+
+            ICompressionEncoder encoder = Type switch
+            {
+                CompressionType.LZ10 => new LZ10() { LookAhead = this.LookAhead },
+                CompressionType.LZ11 => new LZ11() { LookAhead = this.LookAhead },
+                CompressionType.RLE30 => new RLE30(),
+                CompressionType.ChunkLZ10 => new LZ10() { LookAhead = this.LookAhead },
+                CompressionType.HUF20_4bits => new HUF20() { Type = HUF20.CompressionType.Huffman4bits },
+                CompressionType.HUF20_8bits => new HUF20() { Type = HUF20.CompressionType.Huffman8bits },
+                _ => throw new NotSupportedException($"{nameof(LZ77)} compression type {Type} not supported.")
+            };
 
             if (Type == CompressionType.ChunkLZ10 && ChunkSize < source.Length)
             {
@@ -76,7 +90,7 @@ namespace AuroraLib.Compression.Algorithms
                 {
                     int segmentStart = i * ChunkSize;
                     int segmentSize = Math.Min(ChunkSize, source.Length - segmentStart);
-                    base.Compress(source.Slice(segmentStart, segmentSize), destination, level);
+                    encoder.Compress(source.Slice(segmentStart, segmentSize), destination, level);
 
                     long segmentEndOffset = destination.Position - headerEndOffset;
                     if (segmentEndOffset > 0xffff)
@@ -90,12 +104,12 @@ namespace AuroraLib.Compression.Algorithms
             }
             else
             {
-                base.Compress(source, destination, level);
+                encoder.Compress(source, destination, level);
             }
         }
 
         /// <inheritdoc/>
-        public override void Decompress(Stream source, Stream destination)
+        public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             CompressionType type = source.Read<CompressionType>();
@@ -106,9 +120,20 @@ namespace AuroraLib.Compression.Algorithms
             switch (type)
             {
                 case CompressionType.LZ10:
-                    DecompressHeaderless(source, destination, decompressedSize);
+                    LZ10.DecompressHeaderless(source, destination, decompressedSize);
+                    break;
+                case CompressionType.LZ11:
+                    LZ11.DecompressHeaderless(source, destination, decompressedSize);
+                    break;
+                case CompressionType.HUF20_4bits:
+                case CompressionType.HUF20_8bits:
+                    HUF20.DecompressHeaderless(source, destination, (int)decompressedSize, (int)type - 0x20, Endian.Little);
+                    break;
+                case CompressionType.RLE30:
+                    RLE30.DecompressHeaderless(source, destination, decompressedSize);
                     break;
                 case CompressionType.ChunkLZ10:
+                    var lz10 = new LZ10();
                     long destinationEndPosition = destination.Position + decompressedSize;
 
                     List<ushort> segmentEndOffsets = new List<ushort>();
@@ -121,7 +146,7 @@ namespace AuroraLib.Compression.Algorithms
                     //Unpack the individual chunks
                     for (int i = 0; i < segmentEndOffsets.Count; i++)
                     {
-                        base.Decompress(source, destination);
+                        lz10.Decompress(source, destination);
                         source.Seek(segmentEndOffsets[i] + headerEndOffset, SeekOrigin.Begin);
                     }
 
@@ -138,6 +163,10 @@ namespace AuroraLib.Compression.Algorithms
         public enum CompressionType : byte
         {
             LZ10 = 0x10,
+            LZ11 = 0x11,
+            HUF20_4bits = HUF20.CompressionType.Huffman4bits,
+            HUF20_8bits = HUF20.CompressionType.Huffman8bits,
+            RLE30 = 0x30,
             ChunkLZ10 = 0xf7
         }
 
