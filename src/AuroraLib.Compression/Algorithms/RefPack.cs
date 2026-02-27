@@ -313,7 +313,9 @@ namespace AuroraLib.Compression.Algorithms
             Default = 0x10,
 
             //Huffman = 0x20 | Default,
-
+            //HuffmanFilter = 0x22 | Default,
+            //HuffmanDualFilter = 0x24 | Default,
+            //BytePair = 0x46,
             //RunLength = 0x4A,
 
             /// <summary>

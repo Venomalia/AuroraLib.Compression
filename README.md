@@ -63,6 +63,7 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 | RLHudson       | A RLE based compression algorithm used in Mario Party 4-7.                 |
 | LZShrek        | LZShrek compression algorithm used in Shrek Super Slam.                    |
 | AsuraZlb       | AsuraZlb based on ZLib compression algorithm used in Simpsons The Game.    |
+| HIG            | High Impact Games WAD compression, similar to LZO.			              |
 | ZLB            | ZLB based on ZLib compression algorithm used in Star Fox Adventures.       |
 | MDF0           | Konami MDF0 based on ZLib used in Castlevania: The Adventure ReBirth.      |
 | GCZ            | Konami GCZ based on LZSS, mainly used in Konami/Bemani music games.        |
@@ -147,3 +148,4 @@ Designed for seamless use across multiple .NET versions. Written entirely in man
 - [hack64](https://hack64.net/wiki/doku.php?id=yoshis_story:smsr00_compression) reference for SMSR00 algorithm.
 - [RareZip](https://github.com/MittenzHugg/rarezip/tree/2c4ba146c1b2fec851d3db8cf455c6af090bc544) reference for RareZip algorithm.
 - [ShaneYCG](https://github.com/ShaneYCG/wflz/tree/master) reference for WFLZ algorithm.
+- [UYA_pyTools](https://github.com/electrogecko/UYA_pyTools/blob/main/SM/tjzip_dump.py) reference for HIG algorithm.
