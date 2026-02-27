@@ -24,7 +24,10 @@ namespace AuroraLib.Compression.Algorithms
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ10>("Nintendo LZ10", new MediaType(MIMEType.Application, "x-nintendo-lz10"), ".lz");
 
-        internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
+        /// <summary>
+        /// Set minDistance to 2 so that "LookAhead" is compatible with GBA VRAM, this is also byte-identical to Nintendo's encoder.
+        /// </summary>
+        internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3, 0, 2);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
