@@ -57,7 +57,7 @@ namespace AuroraLib.Compression.Algorithms
             bool bfinal = (d1 & 1) != 0;
             int btype = (d1 >> 1) & 0x03;
 
-            if (btype == 3 || bfinal) return false; // invalid or empty
+            if (btype == 3) return false; // invalid
 
             if (btype == 0)
             {
