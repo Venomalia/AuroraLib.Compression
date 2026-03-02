@@ -149,7 +149,7 @@ namespace AuroraLib.Compression.Algorithms
                     int distance = ((b1 & 0xf) << 8 | b2) + 1;
                     int length = (b1 >> 4) + 3;
 
-                    if (distance >= Buffer) return false;
+                    if (distance > Buffer) return false;
                     if (i == 0) return true;
                     i--;
                     Buffer += length;

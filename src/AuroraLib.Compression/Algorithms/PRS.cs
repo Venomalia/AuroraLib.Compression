@@ -204,7 +204,7 @@ namespace AuroraLib.Compression.Algorithms
                             length = Flag.ReadInt(2, true) + 2;
                             distance = 0x100 - stream.ReadUInt8();
                         }
-                        if (distance >= Buffer) return false;
+                        if (distance > Buffer) return false;
                         if (i == 0) return true;
                         i--;
                         Buffer += length;
