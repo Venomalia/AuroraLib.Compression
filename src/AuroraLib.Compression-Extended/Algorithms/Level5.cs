@@ -1,11 +1,12 @@
+using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -14,7 +15,7 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public class Level5 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
     {
-        private static readonly string[] _extensions = new string[] { ".Level5" };
+        private static readonly string[] _extensions = new string[] { ".Level5", ".zlb" };
 
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -43,7 +44,12 @@ namespace AuroraLib.Compression.Algorithms
             int decompressedSize = (int)(typeAndSize >> 3);
             bool isZLib = typeAndSize != 0 && stream.PeekByte() == 0x78 && ZLib.IsMatchStatic(stream);
             stream.Position -= 4;
-            return isZLib || (fileNameAndExtension.IsEmpty || PathX.GetExtension(fileNameAndExtension).Contains(_extensions[0].AsSpan(), StringComparison.InvariantCultureIgnoreCase)) && Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0;
+            string extension = PathX.GetExtension(fileNameAndExtension).ToString();
+            return isZLib || Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0 && (CompressionType)(typeAndSize & 0x7) switch
+            {
+                CompressionType.LZ10 => LZ10.IsMatchStatic(stream),
+                _ => _extensions.Any(ext => extension.Equals(ext, StringComparison.InvariantCultureIgnoreCase)),
+            };
         }
 
         /// <inheritdoc/>
@@ -60,7 +66,14 @@ namespace AuroraLib.Compression.Algorithms
             uint typeAndSize = source.ReadUInt32();
             if (source.Peek<byte>() == 0x78) // Zlib Type
             {
+                long endPosition = destination.Position + typeAndSize;
+                destination.SetLength(endPosition);
+
                 new ZLib().Decompress(source, destination);
+
+                // Verify decompressed size
+                if (destination.Position > endPosition)
+                    throw new DecompressedSizeException(typeAndSize, destination.Position - (endPosition - typeAndSize));
                 return;
             }
             CompressionType type = (CompressionType)(typeAndSize & 0x7);
