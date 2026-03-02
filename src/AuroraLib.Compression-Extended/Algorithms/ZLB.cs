@@ -17,9 +17,6 @@ namespace AuroraLib.Compression.Algorithms
     /// </summary>
     public sealed class ZLB : ICompressionAlgorithm, IProvidesDecompressedSize
     {
-        /// <inheritdoc/>
-        public IIdentifier Identifier => _identifier;
-
         private static readonly Identifier32 _identifier = new Identifier32((byte)'Z', (byte)'L', (byte)'B', 0x0);
 
         /// <inheritdoc/>
