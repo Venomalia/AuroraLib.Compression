@@ -2,7 +2,6 @@ using AuroraLib.Core.Collections;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using static AuroraLib.Compression.CLI.ArgumentParser;
 
 namespace AuroraLib.Compression.CLI
 {
@@ -27,6 +26,7 @@ namespace AuroraLib.Compression.CLI
             Endian,
             Overwrite,
             Quiet,
+            SCan,
             Size,
             OFfset
         }

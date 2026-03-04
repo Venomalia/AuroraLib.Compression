@@ -16,10 +16,13 @@ namespace AuroraLib.Compression.CLI.Commands
             {
                 using FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
                 compressionDecoder.Decompress(source, destination);
+                HelpPrinter.PrintRemainingDataNote(sourceFile, source);
                 return true;
             }
             return false;
         }
+
+
         public static bool Execute(string sourceFile, string destinationFile)
         {
             using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -34,6 +37,7 @@ namespace AuroraLib.Compression.CLI.Commands
                     using FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.Write, FileShare.None);
                     source.Seek(0L, SeekOrigin.Begin);
                     compressionDecoder.Decompress(source, destination);
+                    HelpPrinter.PrintRemainingDataNote(sourceFile, source);
                     return true;
                 }
             }

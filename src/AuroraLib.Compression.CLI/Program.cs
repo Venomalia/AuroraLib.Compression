@@ -77,24 +77,43 @@ class Program
                     HelpPrinter.PrintSaveFile(output);
                     break;
                 case Modes.Decompress:
-                    if (argsDict.TryGetValue(Flags.Algo, out algo))
+                    bool isFixAlgo = argsDict.TryGetValue(Flags.Algo, out algo);
+                    if (argsDict.ContainsKey(Flags.SCan))
                     {
-                        var decoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown decoder: '{algo}'.");
-                        Console.WriteLine($"Decompressing '{input}' to '{output}' using algorithm '{decoder.FullName}'.");
-                        if (!DecompressCommand.Execute(input, output, decoder))
+                        if (isFixAlgo)
                         {
-                            Console.Error.WriteLine($"{decoder.FullName} failed to unpack this file!");
+                            var decoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown decoder: '{algo}'.");
+                            Console.WriteLine($"Scanning '{input}' for compressed streams using '{decoder.FullName}'...\n");
+                            if (!ScanDecompressCommand.Execute(input, output, decoder))
+                            {
+                                Console.Error.WriteLine($"{decoder.FullName} is not a valid decoder!");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Scanning '{input}' for compressed streams...\n");
+                            ScanDecompressCommand.Execute(input, output);
                         }
                     }
-                    else
+                    else // default
                     {
-                        Console.WriteLine($"Decompressing '{input}' to '{output}'.");
-                        if (!DecompressCommand.Execute(input, output))
+                        if (isFixAlgo)
+                        {
+                            var decoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown decoder: '{algo}'.");
+                            Console.WriteLine($"Decompressing '{input}' to '{output}' using '{decoder.FullName}'...\n");
+                            if (!DecompressCommand.Execute(input, output, decoder))
+                            {
+                                Console.Error.WriteLine($"{decoder.FullName} failed to unpack this file!");
+                                return;
+                            }
+                        }
+                        else
                         {
                             Console.WriteLine($"Decompressing '{input}' to '{output}'...\n");
                             if (!DecompressCommand.Execute(input, output))
                             {
                                 Console.Error.WriteLine("No suitable decoder found for the file format!");
+                                return;
                             }
                         }
                         HelpPrinter.PrintSaveFile(output);

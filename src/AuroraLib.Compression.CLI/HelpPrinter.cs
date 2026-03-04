@@ -3,7 +3,7 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using static AuroraLib.Compression.CLI.ArgumentParser;
@@ -14,6 +14,18 @@ namespace AuroraLib.Compression.CLI
     {
         public static void PrintSaveFile(string outputFile)
             => Console.WriteLine($"[SAVED] {outputFile}");
+
+        public static void PrintFoundStream(long start, long end)
+            => Console.WriteLine($"[FOUND] Offset 0x{start:X} - 0x{end:X} ({end - start} bytes)");
+
+        public static void PrintRemainingDataNote(string sourceFile, FileStream source)
+        {
+            if (source.Position + 0x20 < sourceFile.Length)
+            {
+                long remaining = source.Length - source.Position;
+                Console.WriteLine($"Note: Ended at 0x{source.Position:X}, {remaining} bytes remaining. There may be more compressed streams in the file.\nTry decompress again with \"-scan\" flag.");
+            }
+        }
 
         public static void PrintFormatInfo(IFormatInfo format)
         {
@@ -60,6 +72,7 @@ namespace AuroraLib.Compression.CLI
             ConsoleFlag(Flags.In, "file path", "Input file path.");
             ConsoleFlag(Flags.OUt, "file path", "Output file path. [optional]");
             ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type. [optional]");
+            ConsoleFlag(Flags.SCan, string.Empty, "Scan input file for all valid compressed streams and extract them. [optional]");
             ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists. [optional]");
             ConsoleFlag(Flags.Quiet, string.Empty, "Suppress all output except errors. [optional]");
 
