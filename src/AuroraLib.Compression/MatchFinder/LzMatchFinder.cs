@@ -12,6 +12,8 @@ namespace AuroraLib.Compression.MatchFinder
     /// </summary>
     public unsafe sealed class LZMatchFinder
     {
+        private const int BlockSize = 0x8000;
+
         // Properties related to the LZ compression parameters
         private readonly int _minMatchLength;
         private readonly int _maxMatchLength;
@@ -64,7 +66,7 @@ namespace AuroraLib.Compression.MatchFinder
         public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
             => FindMatchesParallel(source, lz, lz.GetWindowsLevel(level), lookAhead, blockSize);
 
-        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, int maxWindowsSize, bool lookAhead = true, int blockSize = 0x8000)
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, int maxWindowsSize, bool lookAhead = true, bool lazyMatch = true)
         {
             if (maxWindowsSize <= 0)
                 return new PoolList<LzMatch>();
@@ -72,7 +74,7 @@ namespace AuroraLib.Compression.MatchFinder
             LZMatchFinder finder = new LZMatchFinder(maxWindowsSize, lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
 
             fixed (byte* dataPtr = source)
-                return finder.FindMatches(dataPtr, source.Length, blockSize);
+                return finder.FindMatches(dataPtr, source.Length, BlockSize);
         }
 
         public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties[] lzs, int maxWindowsSize, bool lookAhead = true, int blockSize = 0x8000)
@@ -83,7 +85,7 @@ namespace AuroraLib.Compression.MatchFinder
             LZMatchFinder finder = new LZMatchFinder(lzs, maxWindowsSize, lookAhead);
 
             fixed (byte* dataPtr = source)
-                return finder.FindMatches(dataPtr, source.Length, blockSize);
+                return finder.FindMatches(dataPtr, source.Length, BlockSize);
         }
 
 #if DEBUG
@@ -171,50 +173,63 @@ namespace AuroraLib.Compression.MatchFinder
             return matchResults;
         }
 
-        internal void FindMatchesInBlock(byte* dataPtr, int length, int start, int end, IList<LzMatch> lzMatches)
+        internal void FindMatchesInBlock(byte* dataPtr, int dataLength, int start, int end, IList<LzMatch> lzMatches)
         {
             if (start == 0)
                 start = _lookAhead ? 1 : _minMatchLength;
 
             for (int i = start; i < end - 3; i++)
             {
-                int matchStart = Math.Max(0, i - (_windowsSize));
-                int maxBestLength = _lookAhead
-                    ? Math.Min(_maxMatchLength, length - i)
-                    : Math.Min(Math.Min(_maxMatchLength, end - i), i);
+                FindBestMatch(dataPtr, dataLength, end, i, out int bestDistance, out int bestLength);
 
-                int bestLength = 0, bestDistance = 0;
+                // continue if no match was found.
+                if (bestLength < _minMatchLength)
+                    continue;
 
-                for (int j = i - _minDistance; j >= matchStart; j--)
+                // Add the best match
+                lzMatches.Add(new LzMatch(i, bestDistance, bestLength));
+                i += bestLength - 1;
+            }
+        }
+
+        private void FindBestMatch(byte* dataPtr, int dataLength, int end, int i, out int bestDistance, out int bestLength)
+        {
+            int matchStart = Math.Max(0, i - _windowsSize);
+
+            int maxBestLength = _lookAhead
+                ? Math.Min(_maxMatchLength, dataLength - i) // <-- | -->
+                : Math.Min(_maxMatchLength, i); // <-- |
+
+            bestLength = 0;
+            bestDistance = 0;
+
+            ushort a16 = *(ushort*)(dataPtr + i);
+            for (int j = i - _minDistance; j >= matchStart; j--)
+            {
+                // Use ushort comparison for the first two bytes for faster matching
+                if (a16 == *(ushort*)(dataPtr + j))
                 {
-                    // Use ushort comparison for the first two bytes for faster matching
-                    if (*(ushort*)(dataPtr + i) == *(ushort*)(dataPtr + j))
+                    int currentDistance = i - j;
+                    int currentLength = 2;
+
+                    int currentBestLength = _lookAhead
+                        ? maxBestLength
+                        : Math.Min(maxBestLength, currentDistance);
+
+                    // Check additional bytes for a match
+                    while (currentLength < currentBestLength && dataPtr[i + currentLength] == dataPtr[j + currentLength])
+                        currentLength++;
+
+                    // Update if a better match is found
+                    if (currentLength > bestLength && IsValidMatch(ref currentLength, currentDistance))
                     {
-                        int currentDistance = i - j;
-                        int currentLength = 2;
-                        int currentBestLength = _lookAhead ? maxBestLength : Math.Min(maxBestLength, currentDistance);
-                        // Check additional bytes for a match
-                        while (currentLength < currentBestLength && dataPtr[i + currentLength] == dataPtr[j + currentLength])
-                            currentLength++;
+                        bestLength = currentLength;
+                        bestDistance = currentDistance;
 
-                        // Update if a better match is found
-                        if (currentLength > bestLength && IsValidMatch(ref currentLength, currentDistance))
-                        {
-                            bestLength = currentLength;
-                            bestDistance = currentDistance;
-
-                            // Stop if the maximum match length is reached
-                            if (bestLength >= maxBestLength)
-                                break;
-                        }
+                        // Stop if the maximum match length is reached
+                        if (bestLength >= maxBestLength)
+                            break;
                     }
-                }
-
-                // If a match is found, add it to the list
-                if (bestLength >= _minMatchLength)
-                {
-                    lzMatches.Add(new LzMatch(i, bestDistance, bestLength));
-                    i += bestLength - 1;
                 }
             }
         }
