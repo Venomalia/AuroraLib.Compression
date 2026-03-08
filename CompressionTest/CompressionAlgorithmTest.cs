@@ -35,7 +35,9 @@ namespace CompressionTest
 
                 LzProperties lz = new LzProperties(0x1000, 0x4000, 3);
                 using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(testDataBytes.AsSpan(0, (int)testData.Length), lz, true, CompressionLevel.Optimal);
-                Assert.AreEqual(50370, matches.Count);
+                Assert.AreEqual(44960, matches.Count);
+
+                Assert.AreEqual(1004602, matches.Sum(m => m.Length));
             }
             finally
             {

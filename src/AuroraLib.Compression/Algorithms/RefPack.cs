@@ -123,7 +123,7 @@ namespace AuroraLib.Compression.Algorithms
                 destination.Write((UInt24)source.Length, Endian.Big);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, lzProperties[0].GetWindowsLevel(level));
+                CompressHeaderless(source, destination, LookAhead, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
 
                 // 135280
                 // Go back to the beginning of the file and write out the compressed length
@@ -162,7 +162,7 @@ namespace AuroraLib.Compression.Algorithms
                         destination.Write((UInt24)0);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, lzProperties[0].GetWindowsLevel(level));
+                CompressHeaderless(source, destination, LookAhead, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
 
                 // Go back to the beginning of the file and write out the compressed length
                 if (StoresCompressedSize)
@@ -244,10 +244,10 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, int maxWindowsSize = 0x200000)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, bool lazyMatch = true, int maxWindowsSize = 0x200000)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize);
 
             matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
             foreach (LzMatch match in matches)

@@ -192,7 +192,7 @@ namespace AuroraLib.Compression.Algorithms
 
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
 
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead, lookAhead);
             // 1) First literal: written raw (no marker)
             destination.WriteByte(source[srcPtr++]);
 

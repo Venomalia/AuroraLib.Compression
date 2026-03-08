@@ -21,13 +21,15 @@ namespace AuroraLib.Compression.MatchFinder
         private readonly int _windowsSize;
         private readonly int _goodMatch;
         private readonly bool _lookAhead;
+        private readonly bool _lazyMatch;
 
         private readonly LzProperties[] _lzProperties;
 
-        private LZMatchFinder(LzProperties[] lzProperties, int maxWindowsSize, bool lookAhead = true)
+        private LZMatchFinder(LzProperties[] lzProperties, int maxWindowsSize, bool lookAhead = true, bool lazyMatch = true)
         {
             _lzProperties = lzProperties;
             _lookAhead = lookAhead;
+            _lazyMatch = lazyMatch;
             _windowsSize = maxWindowsSize;
             _minMatchLength = int.MaxValue;
             _maxMatchLength = 0;
@@ -45,9 +47,10 @@ namespace AuroraLib.Compression.MatchFinder
             }
         }
 
-        private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true, int minDistance = 1)
+        private LZMatchFinder(int windowsSize, int maxLength, int minLength = 3, bool lookAhead = true, bool lazyMatch = true, int minDistance = 1)
         {
             _lookAhead = lookAhead;
+            _lazyMatch = lazyMatch;
             _minMatchLength = minLength;
             _maxMatchLength = maxLength;
             _windowsSize = windowsSize;
@@ -63,21 +66,21 @@ namespace AuroraLib.Compression.MatchFinder
         /// <param name="level">Compression level, affecting match sensitivity.</param>
         /// <param name="blockSize">Size of each block to process in parallel.</param>
         /// <returns>A list of matches found in the source data.</returns>
-        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal, int blockSize = 0x8000)
-            => FindMatchesParallel(source, lz, lz.GetWindowsLevel(level), lookAhead, blockSize);
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+            => FindMatchesParallel(source, lz, lz.GetWindowsLevel(level), lookAhead, level != CompressionLevel.Fastest);
 
         public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties lz, int maxWindowsSize, bool lookAhead = true, bool lazyMatch = true)
         {
             if (maxWindowsSize <= 0)
                 return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(maxWindowsSize, lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
+            LZMatchFinder finder = new LZMatchFinder(maxWindowsSize, lz.MaxLength, lz.MinLength, lookAhead, lazyMatch, lz.MinDistance);
 
             fixed (byte* dataPtr = source)
                 return finder.FindMatches(dataPtr, source.Length, BlockSize);
         }
 
-        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties[] lzs, int maxWindowsSize, bool lookAhead = true, int blockSize = 0x8000)
+        public static PoolList<LzMatch> FindMatchesParallel(ReadOnlySpan<byte> source, LzProperties[] lzs, int maxWindowsSize, bool lookAhead = true, bool lazyMatch = true)
         {
             if (maxWindowsSize <= 0)
                 return new PoolList<LzMatch>();
@@ -185,6 +188,18 @@ namespace AuroraLib.Compression.MatchFinder
                 // continue if no match was found.
                 if (bestLength < _minMatchLength)
                     continue;
+
+                // Lazy match: prefer match at i+1 if it beats current match after losing one literal.
+                if (_lazyMatch && bestLength <= _minMatchLength + 2 && i + 1 < end)
+                {
+                    FindBestMatch(dataPtr, dataLength, end, i + 1, out int nextDistance, out int nextLength);
+                    if (nextLength - 1 > bestLength)
+                    {
+                        i++;
+                        bestLength = nextLength;
+                        bestDistance = nextDistance;
+                    }
+                }
 
                 // Add the best match
                 lzMatches.Add(new LzMatch(i, bestDistance, bestLength));

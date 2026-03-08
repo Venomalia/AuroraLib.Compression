@@ -84,7 +84,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Length);
 
             // Perform the compression
-            CompressHeaderless(source, destination, flags, true, lzProperties[0].GetWindowsLevel(level));
+            CompressHeaderless(source, destination, flags, true, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
@@ -126,10 +126,10 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, int maxWindowsSize = 0x200000)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, bool lazyMatch = true, int maxWindowsSize = 0x200000)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead, lazyMatch);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
             matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
             foreach (LzMatch match in matches)
