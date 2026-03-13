@@ -20,7 +20,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<AsuraZlb>("Asura zlip", new MediaType(MIMEType.Application, "zlip+asura"), string.Empty, _identifier);
+        private static readonly IFormatInfo _info = new FormatInfo<AsuraZlb>("Asura zlib", new MediaType(MIMEType.Application, "zlib+asura"), string.Empty, _identifier);
 
         private static readonly ZLib zLib = new ZLib();
 
