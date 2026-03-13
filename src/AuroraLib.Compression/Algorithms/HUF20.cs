@@ -205,6 +205,12 @@ namespace AuroraLib.Compression.Algorithms
             var labelList = new List<HuffmanNode<byte>>();
             var frequencies = new List<HuffmanNode<byte>> { rootNode };
 
+            if (rootNode.IsLeaf)
+            {
+                var copy = new HuffmanNode<byte>(rootNode.Value, rootNode.Frequency) { Children = (rootNode, rootNode) };
+                labelList.Add(copy);
+                return labelList;
+            }
             while (frequencies.Count > 0)
             {
                 HuffmanNode<byte> node = frequencies
