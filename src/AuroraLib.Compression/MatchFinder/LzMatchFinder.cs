@@ -98,7 +98,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (level == CompressionLevel.NoCompression)
                 return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, level!= CompressionLevel.Fastest, lz.MinDistance);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, level != CompressionLevel.Fastest, lz.MinDistance);
             return finder.FindMatches(source);
         }
 
@@ -127,6 +127,14 @@ namespace AuroraLib.Compression.MatchFinder
                 blockMatches[blockIndex] = lzMatches;
             });
 
+            return MergeBlockMatches(blockMatches, blockSize);
+        }
+
+        private PoolList<LzMatch> MergeBlockMatches(PoolList<LzMatch>[] blockMatches, int blockSize)
+        {
+            if (blockMatches.Length == 1)
+                return blockMatches[0];
+
             PoolList<LzMatch> matchResults = blockMatches[0];
             matchResults.SetMinimumCapacity(blockMatches.Sum(list => list.Count));
 
@@ -134,34 +142,35 @@ namespace AuroraLib.Compression.MatchFinder
             if (_lookAhead || blockSize < _maxMatchLength)
             {
                 LzMatch last = matchResults.LastOrDefault();
+
                 for (int i = 1; i < blockMatches.Length; i++)
                 {
-                    LzMatch first = blockMatches[i].FirstOrDefault();
-                    if (last.Offset + last.Length > first.Offset)
+                    var curBlock = blockMatches[i];
+
+                    int lastEnd = last.Offset + last.Length;
+
+                    while (curBlock.Count > 0 && lastEnd > curBlock[0].Offset)
                     {
-                        int diff = last.Offset + last.Length - first.Offset;
-                        if (last.Distance == first.Distance && last.Length + first.Length - diff < _maxMatchLength)
+                        LzMatch first = curBlock[0];
+                        int diff = lastEnd - first.Offset;
+
+                        if (diff < first.Length && last.Distance == first.Distance && last.Length + first.Length - diff < _maxMatchLength) // Merge
                         {
-                            matchResults[matchResults.Count - 1] = new LzMatch(last.Offset, first.Distance, last.Length + first.Length - diff);
-                            blockMatches[i].RemoveAt(0);
+                            last = new LzMatch(last.Offset, first.Distance, last.Length + first.Length - diff);
+                            matchResults[matchResults.Count - 1] = last;
+                            lastEnd = last.Offset + last.Length;
                         }
-                        else if (first.Length - diff >= _minMatchLength)
+                        else if (first.Length - diff >= _minMatchLength) // Cut
                         {
-                            first = blockMatches[i][0] = new LzMatch(first.Offset + diff, first.Distance, first.Length - diff);
+                            curBlock[0] = new LzMatch(first.Offset + diff, first.Distance, first.Length - diff);
+                            break;
                         }
-                        else
-                        {
-                            blockMatches[i].RemoveAt(0);
-                        }
+                        curBlock.RemoveAt(0); // Remove
                     }
-                    else if (last.Distance == first.Distance && last.Length + first.Length < _maxMatchLength && last.Offset + last.Length == first.Offset)
-                    {
-                        matchResults[matchResults.Count - 1] = new LzMatch(last.Offset, first.Distance, last.Length + first.Length);
-                        blockMatches[i].RemoveAt(0);
-                    }
-                    matchResults.AddRange(blockMatches[i]);
-                    last = matchResults.Last();
-                    blockMatches[i].Dispose();
+
+                    matchResults.AddRange(curBlock);
+                    last = matchResults.LastOrDefault();
+                    curBlock.Dispose();
                 }
             }
             else
@@ -175,6 +184,7 @@ namespace AuroraLib.Compression.MatchFinder
 
             return matchResults;
         }
+
 
         internal void FindMatchesInBlock(byte* dataPtr, int dataLength, int start, int end, IList<LzMatch> lzMatches)
         {
