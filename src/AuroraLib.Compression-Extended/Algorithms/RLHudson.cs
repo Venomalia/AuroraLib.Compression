@@ -28,7 +28,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x10 < stream.Length && stream.Peek(s => s.ReadInt32(Endian.Big) != 0 && s.ReadInt32(Endian.Big) == Identifier);
+            => stream.Position + 0x6 < stream.Length && stream.Peek(s => s.ReadInt32(Endian.Big) != 0 && s.ReadInt32(Endian.Big) == Identifier);
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)

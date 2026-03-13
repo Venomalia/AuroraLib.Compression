@@ -218,7 +218,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, false, level);
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
             matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
             // --- Initial RAW block ---

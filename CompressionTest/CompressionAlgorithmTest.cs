@@ -81,22 +81,21 @@ namespace CompressionTest
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
         public void DataRecognitionTest(ICompressionAlgorithm algorithm)
         {
-            using (FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read))
-            using (MemoryPoolStream compressData = algorithm.Compress(testData, CompressionLevel.NoCompression))
+            Span<byte> testData = new byte[0x100];
+            using MemoryPoolStream compressData = algorithm.Compress(testData, CompressionLevel.Fastest);
+            ReadOnlySpan<char> fileNameAndExtension = $"Test.bmp.{algorithm.GetType().Name}".AsSpan();
+            if (Formats.Identify(compressData, fileNameAndExtension, out IFormatInfo? format) && format!.Class != null && typeof(ICompressionAlgorithm).IsAssignableFrom(format.Class))
             {
-                ReadOnlySpan<char> fileNameAndExtension = $"Test.bmp.{algorithm.GetType().Name}".AsSpan();
-                if (Formats.Identify(compressData, fileNameAndExtension, out IFormatInfo? format) && format!.Class != null && typeof(ICompressionAlgorithm).IsAssignableFrom(format.Class))
-                {
-                    Assert.AreEqual(format.Class, algorithm.GetType());
-                }
-                else
-                {
-                    Assert.Fail();
-                }
-                if (algorithm is IProvidesDecompressedSize providesDecompressedSize)
-                {
-                    Assert.AreEqual(providesDecompressedSize.GetDecompressedSize(compressData), testData.Length);
-                }
+                Assert.AreEqual(format.Class, algorithm.GetType());
+            }
+            else
+            {
+                Assert.Fail();
+            }
+
+            if (algorithm is IProvidesDecompressedSize providesDecompressedSize)
+            {
+                Assert.AreEqual(providesDecompressedSize.GetDecompressedSize(compressData), (uint)testData.Length);
             }
         }
         [TestMethod]

@@ -98,7 +98,7 @@ namespace AuroraLib.Compression.MatchFinder
             if (level == CompressionLevel.NoCompression)
                 return new PoolList<LzMatch>();
 
-            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, lz.MinDistance);
+            LZMatchFinder finder = new LZMatchFinder(lz.GetWindowsLevel(level), lz.MaxLength, lz.MinLength, lookAhead, level!= CompressionLevel.Fastest, lz.MinDistance);
             return finder.FindMatches(source);
         }
 

@@ -47,7 +47,7 @@ namespace AuroraLib.Compression.Algorithms
             string extension = PathX.GetExtension(fileNameAndExtension).ToString();
             return isZLib || Enum.IsDefined(typeof(CompressionType), (CompressionType)(typeAndSize & 0x7)) && decompressedSize != 0 && (CompressionType)(typeAndSize & 0x7) switch
             {
-                CompressionType.LZ10 => LZ10.IsMatchStatic(stream),
+                CompressionType.LZ10 => stream.At(4, s=> LZ10.Validate(s,(uint)decompressedSize)),
                 _ => _extensions.Any(ext => extension.Equals(ext, StringComparison.InvariantCultureIgnoreCase)),
             };
         }

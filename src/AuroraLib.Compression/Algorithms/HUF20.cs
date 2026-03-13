@@ -49,7 +49,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()) && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadByte() != 0 && s.ReadByte() != 0);
+            => stream.Position + 0x6 < stream.Length && stream.Peek(s => Enum.IsDefined(typeof(CompressionType), s.Read<CompressionType>()) && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && s.ReadByte() != 0);
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)

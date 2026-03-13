@@ -35,8 +35,9 @@ namespace AuroraLib.Compression.Algorithms
             long pos = stream.Position;
             uint compressedSize = stream.ReadUInt32();
             uint decompressedSize = stream.ReadUInt32();
+            int flag = stream.ReadByte();
             stream.Position = pos;
-            return (compressedSize == stream.Length - 8 || compressedSize == stream.Length) && decompressedSize != compressedSize && decompressedSize >= 0x20;
+            return (compressedSize == stream.Length - 8 || compressedSize == stream.Length) && decompressedSize != 0 && (flag & 0x1) == 1;
         }
 
         /// <inheritdoc/>

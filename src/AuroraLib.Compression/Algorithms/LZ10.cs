@@ -7,6 +7,7 @@ using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.IO.Compression;
 
@@ -38,7 +39,7 @@ namespace AuroraLib.Compression.Algorithms
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.ReadByte() == Identifier && (s.ReadUInt24() != 0 || s.ReadUInt32() != 0) && Validate(s));
+            => stream.Position + 0x8 < stream.Length && stream.Peek(s => Validate(s));
 
         /// <inheritdoc/>
         public virtual uint GetDecompressedSize(Stream source)
@@ -135,8 +136,19 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        private static bool Validate(Stream source)
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static bool Validate(Stream source, uint decompressedSize = 0)
         {
+            if (decompressedSize == 0)
+            {
+                if (source.ReadByte() != Identifier) return false;
+
+                decompressedSize = source.ReadUInt24();
+                if (decompressedSize == 0)
+                    decompressedSize = source.ReadUInt32();
+                if (decompressedSize == 0) return false;
+            }
+
             int i = 3;
             int Buffer = 0;
             FlagReader flag = new FlagReader(source, Endian.Big);
@@ -160,7 +172,7 @@ namespace AuroraLib.Compression.Algorithms
                     Buffer++;
                 }
             }
-            return true;
+            return Buffer == decompressedSize;
         }
     }
 }
