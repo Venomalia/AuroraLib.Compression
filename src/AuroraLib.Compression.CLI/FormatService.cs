@@ -1,7 +1,6 @@
 using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI.Algorithms;
 using AuroraLib.Core.Format;
-using System;
 using System.Reflection;
 using static AuroraLib.Compression.Algorithms.RefPack;
 

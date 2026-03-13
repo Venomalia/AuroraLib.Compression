@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
-using System.Text;
 using static AuroraLib.Compression.CLI.ArgumentParser;
 
 class Program
