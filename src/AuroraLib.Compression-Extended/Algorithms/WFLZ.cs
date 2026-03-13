@@ -31,7 +31,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<WFLZ>("WayForward LZ", new MediaType(MIMEType.Application, "-wflz"), string.Empty, _identifier);
+        private static readonly IFormatInfo _info = new FormatInfo<WFLZ>("WayForward LZ", new MediaType(MIMEType.Application, "x-wflz"), string.Empty, _identifier);
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 

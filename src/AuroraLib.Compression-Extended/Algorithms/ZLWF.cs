@@ -23,7 +23,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<ZLWF>("WayForward Chunk LZ", new MediaType(MIMEType.Application, "-wflz+chunk"), string.Empty, _identifier);
+        private static readonly IFormatInfo _info = new FormatInfo<ZLWF>("WayForward Chunk LZ", new MediaType(MIMEType.Application, "x-wflz+chunk"), string.Empty, _identifier);
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 

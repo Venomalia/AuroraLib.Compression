@@ -21,7 +21,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
-        private static readonly IFormatInfo _info = new FormatInfo<Brotli>("Brotli", new MediaType(MIMEType.Application, "application/x-brotli"), _extensions);
+        private static readonly IFormatInfo _info = new FormatInfo<Brotli>("Brotli", new MediaType(MIMEType.Application, "x-brotli"), _extensions);
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
