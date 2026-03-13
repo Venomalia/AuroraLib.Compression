@@ -77,19 +77,14 @@ namespace AuroraLib.Compression
             };
 #else
         {
-            switch (level)
+            return level switch
             {
-                case CompressionLevel.Optimal:
-                    return WindowsSize > 0x10000 ? 0x10000 : WindowsSize;
-                case CompressionLevel.Fastest:
-                    return WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1;
-                case (CompressionLevel)3:
-                    return WindowsSize;
-                case CompressionLevel.NoCompression:
-                    return 0;
-                default:
-                    throw new NotImplementedException();
-            }
+                CompressionLevel.Optimal => WindowsSize > 0x10000 ? 0x10000 : WindowsSize,
+                CompressionLevel.Fastest => WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1,
+                (CompressionLevel)3 => WindowsSize,
+                CompressionLevel.NoCompression => 0,
+                _ => throw new NotImplementedException(),
+            };
         }
 #endif
 
