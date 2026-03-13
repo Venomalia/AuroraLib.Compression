@@ -40,9 +40,10 @@ namespace AuroraLib.Compression.CLI
 
         public static IFormatInfo? GetFormatInfo(string algo)
         {
+            algo = algo.ToLower();
             foreach (var format in FormatService.Formats.Values)
             {
-                if (format.FullName == algo || format.MIMEType.ToString() == algo || format.Class?.Name == algo)
+                if (format.FullName.ToLower() == algo || format.MIMEType.ToString() == algo || format.Class?.Name.ToLower() == algo)
                 {
                     return format;
                 }
