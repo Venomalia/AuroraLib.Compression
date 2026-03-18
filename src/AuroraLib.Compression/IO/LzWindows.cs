@@ -59,11 +59,30 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void BackCopy(int distance, int length)
         {
-            // Optimization: Ensure distance and position are valid for the operation.
-            if (distance >= length && distance <= _Position)
-                InternWrite(_Buffer.AsSpan((int)(_Position - distance), length));
-            else
-                OffsetCopy((int)(Length + _Position - distance), length);
+            int bufferLength = (int)Length;
+            // int mask = bufferLength - 1; // optional for power-of-2 optimization
+
+            while (length > 0)
+            {
+                int chunk = length;
+
+                // Calculate source position (wraparound)
+                int srcPos = ((int)_Position - distance + bufferLength) % bufferLength;
+                //int srcPos = ((int)_Position - distance) & mask; // optional for power-of-2 optimization
+
+                // Small-distance Handling
+                if (distance < length && distance != 0)
+                    chunk = distance;
+
+                // If the chunk would go past the end of the buffer, adjust it
+                if (srcPos + chunk > bufferLength)
+                    chunk = bufferLength - srcPos;
+
+                // Write the chunk into the ring buffer, InternWrite handles wraparound & flush
+                InternWrite(_Buffer.AsSpan(srcPos, chunk));
+
+                length -= chunk;
+            }
         }
 
         /// <summary>
@@ -125,7 +144,7 @@ namespace AuroraLib.Compression.IO
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
-        public unsafe override void Write(ReadOnlySpan<byte> buffer)
+        public override void Write(ReadOnlySpan<byte> buffer)
         {
             int windows = (int)Length;
             if (buffer.Length < windows)
@@ -146,7 +165,7 @@ namespace AuroraLib.Compression.IO
             }
         }
 
-        private unsafe void InternWrite(ReadOnlySpan<byte> buffer)
+        private void InternWrite(ReadOnlySpan<byte> buffer)
         {
             if (buffer.IsEmpty)
                 return;
