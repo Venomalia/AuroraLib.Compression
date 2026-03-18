@@ -35,7 +35,7 @@ namespace AuroraLib.Compression.IO
                 }
                 else if (value >= Length)
                 {
-                    _Position = value % Length;
+                    _Position = value & (Length - 1);
                 }
                 else
                 {
@@ -44,7 +44,7 @@ namespace AuroraLib.Compression.IO
             }
         }
 
-        public LzWindows(Stream destination, int capacity) : this(destination, ArrayPool<byte>.Shared, capacity)
+        public LzWindows(Stream destination, byte windowsBits) : this(destination, ArrayPool<byte>.Shared, 1 << windowsBits)
         { }
 
 
@@ -60,15 +60,14 @@ namespace AuroraLib.Compression.IO
         public void BackCopy(int distance, int length)
         {
             int bufferLength = (int)Length;
-            // int mask = bufferLength - 1; // optional for power-of-2 optimization
+            int mask = bufferLength - 1;
 
             while (length > 0)
             {
                 int chunk = length;
 
                 // Calculate source position (wraparound)
-                int srcPos = ((int)_Position - distance + bufferLength) % bufferLength;
-                //int srcPos = ((int)_Position - distance) & mask; // optional for power-of-2 optimization
+                int srcPos = ((int)_Position - distance) & mask;
 
                 // Small-distance Handling
                 if (distance < length && distance != 0)

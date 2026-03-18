@@ -67,7 +67,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless_Level1(ReadOnlySpan<byte> source, Stream destination)
         {
-            using LzWindows buffer = new LzWindows(destination, _lz1.WindowsSize);
+            using LzWindows buffer = new LzWindows(destination, _lz1.DistanceBits);
             int pointer = 0;
             int ctrl = source[pointer++] & 0b0001_1111;
 
@@ -108,8 +108,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless_Level2(ReadOnlySpan<byte> source, Stream destination)
         {
-            using LzWindows buffer = new LzWindows(destination, 0x12000);
-
+            using LzWindows buffer = new LzWindows(destination, _lz2[1].DistanceBits);
             int pointer = 0;
             int ctrl = source[pointer++] & 0b0001_1111;
 

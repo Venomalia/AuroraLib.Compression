@@ -81,7 +81,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+            using LzWindows buffer = new LzWindows(destination, _lz.DistanceBits);
             int sourcePointer = 0;
 
             while (sourcePointer < source.Length)

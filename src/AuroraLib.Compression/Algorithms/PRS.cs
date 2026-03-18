@@ -63,7 +63,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless(Stream source, Stream destination, Endian order)
         {
-            using LzWindows buffer = new LzWindows(destination, _lz.WindowsSize);
+            using LzWindows buffer = new LzWindows(destination, _lz.DistanceBits);
             FlagReader Flag = new FlagReader(source, order);
 
             while (source.Position < source.Length)

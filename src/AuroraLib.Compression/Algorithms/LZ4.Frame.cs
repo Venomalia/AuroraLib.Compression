@@ -118,7 +118,7 @@ namespace AuroraLib.Compression.Algorithms
             byte[] buffer = ArrayPool<byte>.Shared.Rent((int)descriptor.BlockMaxSize);
             try
             {
-                using LzWindows windows = new LzWindows(destination, _lz.WindowsSize);
+                using LzWindows windows = new LzWindows(destination, _lz.DistanceBits);
                 // Decode Blocks
                 while (true)
                 {
