@@ -102,7 +102,7 @@ namespace AuroraLib.Compression.Algorithms
             using (LzWindows buffer = new LzWindows(destination, lz.DistanceBits))
             {
                 if (initialFill != 0)
-                    buffer.UnsafeAsSpan().Fill(initialFill);
+                    buffer.Getbuffer().AsSpan().Fill(initialFill);
 
                 int f = lz.GetLengthBitsFlag();
 

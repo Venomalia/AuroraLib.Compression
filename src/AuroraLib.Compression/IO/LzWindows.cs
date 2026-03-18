@@ -1,3 +1,4 @@
+using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
@@ -11,45 +12,54 @@ namespace AuroraLib.Compression.IO
     /// <summary>
     /// Represents a circular window buffer used in LZ compression.
     /// </summary>
-    public sealed class LzWindows : PoolStream
+    public sealed class LzWindows : Stream
     {
-        private readonly Stream destination;
+        private readonly byte[] _Buffer;
 
-        private long _Position;
+        private readonly int _Length;
+
+        private int _Position;
+
+        private readonly Stream? _Destination;
+
+        private bool _Disposed = false;
+
+        /// <inheritdoc/>
+        public override long Length => _Length;
+        /// <inheritdoc/>
+        public override bool CanRead => !_Disposed;
+        /// <inheritdoc/>
+        public override bool CanSeek => !_Disposed;
+        /// <inheritdoc/>
+        public override bool CanWrite => !_Disposed;
 
         /// <inheritdoc/>
         public override long Position
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             [DebuggerStepThrough]
-            get
-            {
-                return _Position;
-            }
+            get => _Position;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             [DebuggerStepThrough]
-            set
-            {
-                if (value < 0)
-                {
-                    _Position = Length + value;
-                }
-                else if (value >= Length)
-                {
-                    _Position = value & (Length - 1);
-                }
-                else
-                {
-                    _Position = value;
-                }
-            }
+            set => _Position = (int)((value + _Length) & (_Length - 1));
         }
 
-        public LzWindows(Stream destination, byte windowsBits) : this(destination, ArrayPool<byte>.Shared, 1 << windowsBits)
-        { }
+        public LzWindows(Stream destination, byte windowsBits)
+        {
+            ThrowIf.Null(destination);
 
+            _Destination = destination;
+            _Length = 1 << windowsBits;
+            _Buffer = ArrayPool<byte>.Shared.Rent(_Length);
+            _Position = 0;
+        }
 
-        public LzWindows(Stream destination, ArrayPool<byte> aPool, int capacity) : base(aPool, aPool.Rent(capacity), capacity)
-            => this.destination = destination;
+        public LzWindows(byte[] buffer)
+        {
+            _Length = buffer.Length;
+            _Buffer = buffer;
+            _Position = 0;
+        }
 
         /// <summary>
         /// Copies data from a specific position in the circular buffer to the current position.
@@ -59,7 +69,7 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void BackCopy(int distance, int length)
         {
-            int bufferLength = (int)Length;
+            int bufferLength = _Length;
             int mask = bufferLength - 1;
 
             while (length > 0)
@@ -67,7 +77,7 @@ namespace AuroraLib.Compression.IO
                 int chunk = length;
 
                 // Calculate source position (wraparound)
-                int srcPos = ((int)_Position - distance) & mask;
+                int srcPos = (_Position - distance) & mask;
 
                 // Small-distance Handling
                 if (distance < length && distance != 0)
@@ -92,8 +102,8 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void OffsetCopy(int Offset, int length)
         {
-            Offset &= (int)Length - 1;
-            int distance = (int)(_Position >= Offset ? _Position - Offset : _Position - Offset + Length);
+            Offset &= _Length - 1;
+            int distance = _Position >= Offset ? _Position - Offset : _Position - Offset + _Length;
             BackCopy(distance, length);
         }
 
@@ -108,12 +118,12 @@ namespace AuroraLib.Compression.IO
         {
             while (length != 0)
             {
-                int l = Math.Min(length, (int)(Length - Position));
-                source.Read(_Buffer, (int)Position, l);
+                int l = Math.Min(length, _Length - _Position);
+                source.ReadExactly(_Buffer, _Position, l);
                 Position += l;
                 length -= l;
-                if (Position == 0)
-                    FlushToDestination((int)Length);
+                if (_Position == 0)
+                    FlushToDestination(_Length);
             }
         }
 
@@ -123,12 +133,16 @@ namespace AuroraLib.Compression.IO
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
+#if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         public override int Read(Span<byte> buffer)
+#else
+        public int Read(Span<byte> buffer)
+#endif
         {
             int num;
             for (int i = 0; buffer.Length > i; i += num)
             {
-                num = (int)Math.Min(Length - Position, buffer.Length);
+                num = (int)Math.Min(_Length - _Position, buffer.Length);
                 _Buffer.AsSpan((int)Position, num).CopyTo(buffer.Slice(i, num));
                 Position += num;
             }
@@ -142,9 +156,14 @@ namespace AuroraLib.Compression.IO
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
+
+#if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
         public override void Write(ReadOnlySpan<byte> buffer)
+#else
+        public void Write(ReadOnlySpan<byte> buffer)
+#endif
         {
-            int windows = (int)Length;
+            int windows = _Length;
             if (buffer.Length < windows)
             {
                 InternWrite(buffer);
@@ -171,29 +190,29 @@ namespace AuroraLib.Compression.IO
             ref byte dst = ref MemoryMarshal.GetReference(_Buffer.AsSpan());
             ref byte src = ref MemoryMarshal.GetReference(buffer);
 
-            uint len = (uint)buffer.Length;
-            uint pos = (uint)_Position;
-            uint windows = (uint)Length;
+            int len = buffer.Length;
+            int pos = _Position;
+            int windows = _Length;
 
             if (windows > pos + len)
             {
                 // The entire buffer fits without wrapping around.
-                Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, len);
+                Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, (uint)len);
                 _Position += len;
             }
             else // Partially write and wrap around.
             {
-                uint left = windows - pos;
-                uint remaining = len - left;
+                int left = windows - pos;
+                int remaining = len - left;
 
                 // Fill the remaining window if necessary.
-                if (left > 0) Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, left);
+                if (left > 0) Unsafe.CopyBlockUnaligned(ref Unsafe.Add(ref dst, pos), ref src, (uint)left);
 
                 // Flush the entire window onto the underlying stream.
-                destination.Write(_Buffer, 0, (int)windows);
+                _Destination!.Write(_Buffer, 0, (int)windows);
 
                 // Fill the remaining window if necessary.
-                if (remaining != 0) Unsafe.CopyBlockUnaligned(ref dst, ref Unsafe.Add(ref src, len - remaining), remaining);
+                if (remaining != 0) Unsafe.CopyBlockUnaligned(ref dst, ref Unsafe.Add(ref src, len - remaining), (uint)remaining);
 
                 // Set position at the beginning of the window
                 _Position = remaining;
@@ -206,38 +225,49 @@ namespace AuroraLib.Compression.IO
         public override void WriteByte(byte value)
         {
             _Buffer[Position++] = value;
-            if (Position == 0)
-                FlushToDestination((int)Length);
+            if (_Position == 0)
+                FlushToDestination(_Length);
         }
 
         /// <inheritdoc/>
         public override void Flush()
         {
-            if (Position != 0)
+            if (_Position != 0)
             {
-                FlushToDestination((int)Position);
-                Position = 0;
+                FlushToDestination(_Position);
+                _Position = 0;
             }
         }
 
-        private void FlushToDestination(int length)
-                => destination.Write(_Buffer, 0, length);
+        private void FlushToDestination(int length) => _Destination?.Write(_Buffer, 0, length);
 
         /// <inheritdoc/>
-        protected override Span<byte> InternalBufferAsSpan(int start, int length)
-            => _Buffer.AsSpan(start, length);
+        [DebuggerStepThrough]
+        public override long Seek(long offset, SeekOrigin origin) => origin switch
+        {
+            SeekOrigin.Begin => Position = offset,
+            SeekOrigin.Current => Position += offset,
+            SeekOrigin.End => Position = _Length + offset,
+            _ => throw new ArgumentOutOfRangeException(nameof(origin)),
+        };
 
         /// <inheritdoc/>
-        protected override void ExpandBuffer(int minimumLength)
-            => throw new NotSupportedException();
+        [DebuggerStepThrough]
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public byte[] Getbuffer() => _Buffer;
 
         /// <inheritdoc/>
         [DebuggerStepThrough]
         protected override void Dispose(bool disposing)
         {
-            if (_Buffer.Length != 0 && Position != 0)
-                FlushToDestination((int)Position);
-            base.Dispose(disposing);
+            if (_Buffer.Length != 0 && _Position != 0)
+                FlushToDestination(_Position);
+
+            if (!_Disposed && _Destination != null)
+                ArrayPool<byte>.Shared.Return(_Buffer);
+
+            _Disposed = true;
         }
     }
 }
