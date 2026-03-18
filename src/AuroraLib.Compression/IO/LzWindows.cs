@@ -93,10 +93,9 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void OffsetCopy(int Offset, int length)
         {
-            for (int i = 0; i < length; i++)
-            {
-                WriteByte(_Buffer[(Offset + i) % Length]);
-            }
+            Offset &= (int)Length - 1;
+            int distance = (int)(_Position >= Offset ? _Position - Offset : _Position - Offset + Length);
+            BackCopy(distance, length);
         }
 
 
