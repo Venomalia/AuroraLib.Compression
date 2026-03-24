@@ -11,7 +11,7 @@ namespace AuroraLib.Compression
         /// <summary>
         /// Gets the number of bits used to represent the distance.
         /// </summary>
-        public readonly byte DistanceBits;
+        public readonly byte WindowsBits;
 
         /// <summary>
         /// Gets the number of bits used to represent the length.
@@ -31,7 +31,7 @@ namespace AuroraLib.Compression
         /// <summary>
         /// Gets the window size.
         /// </summary>
-        public readonly int WindowsSize;
+        public readonly int MaxDistance;
 
         /// <summary>
         /// Gets the minimum distance
@@ -45,10 +45,10 @@ namespace AuroraLib.Compression
 
         public LzProperties(int windowsSize, int maxLength, byte minLength = 3, int windowsStart = 0, int minDistance = 1)
         {
-            DistanceBits = (byte)Math.Ceiling(Math.Log(windowsSize, 2));
+            WindowsBits = (byte)Math.Ceiling(Math.Log(windowsSize, 2));
             LengthBits = (byte)Math.Ceiling(Math.Log(maxLength - minLength, 2));
             MinLength = minLength;
-            WindowsSize = windowsSize;
+            MaxDistance = windowsSize;
             MaxLength = maxLength;
             WindowsStart = windowsStart;
             MinDistance = minDistance;
@@ -56,12 +56,12 @@ namespace AuroraLib.Compression
 
         public LzProperties(byte distanceBits, byte lengthBits, byte threshold = 2)
         {
-            DistanceBits = distanceBits;
+            WindowsBits = distanceBits;
             LengthBits = lengthBits;
             MinLength = (byte)(threshold + 1);
-            WindowsSize = 1 << distanceBits;
+            MaxDistance = 1 << distanceBits;
             MaxLength = (1 << lengthBits) + threshold;
-            WindowsStart = WindowsSize - (1 << lengthBits) - threshold;
+            WindowsStart = MaxDistance - (1 << lengthBits) - threshold;
             MinDistance = 1;
         }
 
@@ -69,9 +69,9 @@ namespace AuroraLib.Compression
 #if NET6_0_OR_GREATER
             => level switch
             {
-                CompressionLevel.Optimal => WindowsSize > 0x8000 ? 0x8000 : WindowsSize,
-                CompressionLevel.Fastest => WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1,
-                CompressionLevel.SmallestSize => WindowsSize,
+                CompressionLevel.Optimal => MaxDistance > 0x8000 ? 0x8000 : MaxDistance,
+                CompressionLevel.Fastest => MaxDistance > 0x4000 ? 0x4000 : MaxDistance >> 1,
+                CompressionLevel.SmallestSize => MaxDistance,
                 CompressionLevel.NoCompression => 0,
                 _ => throw new NotImplementedException(),
             };
@@ -79,9 +79,9 @@ namespace AuroraLib.Compression
         {
             return level switch
             {
-                CompressionLevel.Optimal => WindowsSize > 0x10000 ? 0x10000 : WindowsSize,
-                CompressionLevel.Fastest => WindowsSize > 0x4000 ? 0x4000 : WindowsSize >> 1,
-                (CompressionLevel)3 => WindowsSize,
+                CompressionLevel.Optimal => MaxDistance > 0x10000 ? 0x10000 : MaxDistance,
+                CompressionLevel.Fastest => MaxDistance > 0x4000 ? 0x4000 : MaxDistance >> 1,
+                (CompressionLevel)3 => MaxDistance,
                 CompressionLevel.NoCompression => 0,
                 _ => throw new NotImplementedException(),
             };
@@ -89,7 +89,7 @@ namespace AuroraLib.Compression
 #endif
 
         public int GetWindowsFlag()
-            => WindowsSize - 1;
+            => MaxDistance - 1;
 
         public int GetLengthBitsFlag()
             => (1 << LengthBits) - 1;

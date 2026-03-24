@@ -113,7 +113,7 @@ namespace AuroraLib.Compression.Algorithms
             bool lwm = false;
 
             FlagReader flag = new FlagReader(source, Endian.Big);
-            using var buffer = new LzWindows(destination, lzProperties[0].DistanceBits);
+            using var buffer = new LzWindows(destination, lzProperties[0].WindowsBits);
 
             buffer.WriteByte(source.ReadUInt8());
             while (true)

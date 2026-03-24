@@ -55,7 +55,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             int flag, length, distance, plain = 0;
 
-            using LzWindows buffer = new LzWindows(destination, _lz.DistanceBits);
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsBits);
 
             // Read the first flage.
             flag = source.ReadInt8();

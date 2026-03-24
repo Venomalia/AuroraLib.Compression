@@ -84,7 +84,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
-            using (LzWindows buffer = new LzWindows(destination, _lz.DistanceBits))
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsBits))
             {
                 FlagReader flag = new FlagReader(source, Endian.Big);
 

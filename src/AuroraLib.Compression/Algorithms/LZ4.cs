@@ -166,7 +166,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressBlockHeaderless(Stream source, Stream destination, uint compressedBlockSize)
         {
-            using LzWindows windows = new LzWindows(destination, _lz.DistanceBits);
+            using LzWindows windows = new LzWindows(destination, _lz.WindowsBits);
             byte[] sourceBlock = ArrayPool<byte>.Shared.Rent((int)compressedBlockSize);
             try
             {

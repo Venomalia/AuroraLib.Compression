@@ -99,7 +99,7 @@ namespace AuroraLib.Compression.Algorithms
             long endPosition = destination.Position + decomLength;
             destination.SetLength(endPosition);
             FlagReader flag = new FlagReader(source, Endian.Little);
-            using (LzWindows buffer = new LzWindows(destination, lz.DistanceBits))
+            using (LzWindows buffer = new LzWindows(destination, lz.WindowsBits))
             {
                 if (initialFill != 0)
                     buffer.Getbuffer().AsSpan().Fill(initialFill);
@@ -119,7 +119,7 @@ namespace AuroraLib.Compression.Algorithms
 
                         int offset = (b2 >> lz.LengthBits << 8) | b1;
                         int length = (b2 & f) + lz.MinLength;
-                        offset = lz.WindowsSize + offset - lz.WindowsStart;
+                        offset = lz.MaxDistance + offset - lz.WindowsStart;
 
                         buffer.OffsetCopy(offset, length);
                     }

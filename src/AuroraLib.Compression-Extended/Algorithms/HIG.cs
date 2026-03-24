@@ -135,7 +135,7 @@ namespace AuroraLib.Compression.Algorithms
 
             int b, length, distance, plain;
 
-            using (LzWindows buffer = new LzWindows(destination, _lz.DistanceBits))
+            using (LzWindows buffer = new LzWindows(destination, _lz.WindowsBits))
             {
                 // --- Initial RAW block ---
                 plain = source.ReadByte() + 2;

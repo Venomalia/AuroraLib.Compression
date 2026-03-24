@@ -135,7 +135,7 @@ namespace AuroraLib.Compression.Algorithms
         {
             int sourcePointer = 0x0;
 
-            using LzWindows buffer = new LzWindows(destination, _lz.DistanceBits);
+            using LzWindows buffer = new LzWindows(destination, _lz.WindowsBits);
             (ushort Dist, ushort Length, ushort Plain) block;
             while (true)
             {

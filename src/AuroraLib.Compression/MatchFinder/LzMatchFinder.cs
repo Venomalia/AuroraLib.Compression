@@ -266,7 +266,7 @@ namespace AuroraLib.Compression.MatchFinder
 
             foreach (var propertie in _lzProperties)
             {
-                if (distance <= propertie.WindowsSize && length >= propertie.MinLength && distance >= propertie.MinDistance)
+                if (distance <= propertie.MaxDistance && length >= propertie.MinLength && distance >= propertie.MinDistance)
                 {
                     if (length > propertie.MaxLength)
                         length = propertie.MaxLength;
