@@ -56,7 +56,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (source.Length <= 0xFFFFFF)
             {
@@ -68,7 +68,7 @@ namespace AuroraLib.Compression.Algorithms
                 destination.Write(source.Length);
             }
 
-            LZ40.CompressHeaderless(source, destination, LookAhead, level);
+            LZ40.CompressHeaderless(source, destination, LookAhead, settings);
         }
     }
 }

@@ -75,7 +75,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Write Header
             destination.Write(_identifier);
@@ -84,7 +84,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Length);
 
             // Perform the compression
-            CompressHeaderless(source, destination, flags, true, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
+            CompressHeaderless(source, destination, flags, true, true, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)

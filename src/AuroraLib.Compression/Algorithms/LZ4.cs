@@ -116,7 +116,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(FrameType);
             switch (FrameType)
@@ -129,7 +129,7 @@ namespace AuroraLib.Compression.Algorithms
                         destination.Write(0); // Placeholder
 
                         ReadOnlySpan<byte> blockSource = source.Slice(sourcePointer, Math.Min((int)BlockMaxSizes.Block4MB * 2, source.Length - sourcePointer));
-                        CompressBlockHeaderless(blockSource, destination, LookAhead, level);
+                        CompressBlockHeaderless(blockSource, destination, LookAhead, settings);
                         sourcePointer += blockSource.Length;
 
                         uint thisBlockSize = (uint)(destination.Position - blockStart - 4);
@@ -138,7 +138,7 @@ namespace AuroraLib.Compression.Algorithms
                     destination.WriteByte(0xFF); // EOF flag
                     break;
                 case FrameTypes.LZ4FrameHeader:
-                    CompressLZ4FrameHeader(source, destination, level);
+                    CompressLZ4FrameHeader(source, destination, settings);
                     break;
                 case FrameTypes.Skippable0:
                 case FrameTypes.Skippable1:
@@ -204,7 +204,8 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+
+        public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainLength, token;
             // The last sequence contains at last 5 bytes of literals.

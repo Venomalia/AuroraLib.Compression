@@ -40,11 +40,11 @@ namespace AuroraLib.Compression.Algorithms
             algorithmlZ4.Decompress(source, destination);
         }
 
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             algorithmlZ4.FrameType = LZ4.FrameTypes.Legacy;
             algorithmlZ4.LookAhead = LookAhead;
-            algorithmlZ4.Compress(source, destination, level);
+            algorithmlZ4.Compress(source, destination, settings);
         }
     }
 }

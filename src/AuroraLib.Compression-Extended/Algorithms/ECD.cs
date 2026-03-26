@@ -83,10 +83,10 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Determine whether compression should be applied
-            bool isCompressed = level != CompressionLevel.NoCompression && source.Length > 0x10;
+            bool isCompressed = settings.Quality != 0 && source.Length > 0x10;
             int plainSize = isCompressed ? PlainSize : 0;
 
             // Store the current position in the destination stream (assumes the stream supports seeking)
@@ -102,7 +102,7 @@ namespace AuroraLib.Compression.Algorithms
                 // Copy plain bytes
                 destination.Write(source.Slice(0, plainSize));
 
-                LZSS.CompressHeaderless(source.Slice(plainSize), destination, LZPropertie, LookAhead, level);
+                LZSS.CompressHeaderless(source.Slice(plainSize), destination, LZPropertie, LookAhead, settings);
 
                 uint compressedSize = (uint)(destination.Length - startpos - 0x10);
                 destination.At(startpos + 0x8, s => s.Write(compressedSize, Endian.Big));

@@ -174,7 +174,7 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        private void CompressLZ4FrameHeader(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        private void CompressLZ4FrameHeader(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings)
         {
             if (HashAlgorithm == null)
                 throw new ArgumentException("Requires a hash function.", nameof(HashAlgorithm));
@@ -195,7 +195,7 @@ namespace AuroraLib.Compression.Algorithms
                     buffer.SetLength(0);
 
                     ReadOnlySpan<byte> blockData = source.Slice(sourcePointer, Math.Min((int)BlockSize, source.Length - sourcePointer));
-                    CompressBlockHeaderless(blockData, buffer, LookAhead, level);
+                    CompressBlockHeaderless(blockData, buffer, LookAhead, settings);
                     sourcePointer += blockData.Length;
 
                     if (buffer.Position >= (int)BlockSize)

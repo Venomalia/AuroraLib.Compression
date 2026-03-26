@@ -73,16 +73,12 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            // That would make the output file larger than the buffer.
-            if (level == CompressionLevel.NoCompression)
-                level = CompressionLevel.Fastest;
-
             byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length + (int)(source.Length * 0.1));
             try
             {
-                int compressedSize = CompressHeaderless(source, buffer, LookAhead, level);
+                int compressedSize = CompressHeaderless(source, buffer, LookAhead, settings);
                 destination.Write(buffer, buffer.Length - compressedSize, (int)compressedSize);
 
                 // Write Header + optional padding

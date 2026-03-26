@@ -82,22 +82,22 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(Identifier.AsSpan());
             destination.Write(source.Length, FormatByteOrder);
             destination.Write(MemoryAlignment, FormatByteOrder);
             destination.Write(0);
-            CompressHeaderless(source, destination, LookAhead, level);
+            CompressHeaderless(source, destination, LookAhead, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
             => Yay0.DecompressHeaderless(new FlagReader(source, Endian.Big), source, source, destination, decomLength);
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
-            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, level);
+            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, settings);
         }
     }
 }

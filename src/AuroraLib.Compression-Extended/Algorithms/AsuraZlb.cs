@@ -65,14 +65,14 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             long start = destination.Position;
             destination.Write(_identifier);
             destination.Write(1);
             destination.Write(0, Endian.Big); // Placeholder
             destination.Write(source.Length, Endian.Big);
-            zLib.Compress(source, destination, level);
+            zLib.Compress(source, destination, settings);
             destination.At(start + 12, s => s.Write((uint)(destination.Length - start - 0x14), Endian.Big));
         }
     }

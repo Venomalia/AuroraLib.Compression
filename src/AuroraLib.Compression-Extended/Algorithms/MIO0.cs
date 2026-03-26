@@ -8,9 +8,7 @@ using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -67,13 +65,13 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             using MemoryPoolStream compressedData = new MemoryPoolStream(1024);
             using MemoryPoolStream uncompressedData = new MemoryPoolStream(1024);
             using MemoryPoolStream flagData = new MemoryPoolStream(512);
 
-            CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, level);
+            CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, settings);
 
             uint startPosition = (uint)destination.Position;
             destination.Write(_identifier);
@@ -155,16 +153,17 @@ namespace AuroraLib.Compression.Algorithms
         }
 
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionSettings settings = default)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
             using FlagWriter flag = new FlagWriter(flagData, Endian.Big);
-            CompressHeaderless(source, compressedData, uncompressedData, flag, matches);
+            CompressHeaderless(source, compressedData, uncompressedData, flag, lookAhead, settings);
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, IReadOnlyList<LzMatch> matches)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
+
+            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, settings);
             while (sourcePointer < source.Length)
             {
                 if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)

@@ -54,11 +54,11 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
             destination.Write(source.Length); // decompressedSize
-            zLib.Compress(source, destination, level);
+            zLib.Compress(source, destination, settings);
         }
     }
 }

@@ -168,15 +168,15 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, LookAhead, level);
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+            => CompressHeaderless(source, destination, LookAhead, settings);
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            if (source.Length < 0x10000 || level == CompressionLevel.NoCompression || level == CompressionLevel.Fastest)
-                CompressHeaderless_Level1(source, destination, lookAhead, level);
+            if (source.Length < 0x10000 || settings.Quality <= 4 || settings.MaxWindowBits <= 13)
+                CompressHeaderless_Level1(source, destination, lookAhead, settings);
             else
-                CompressHeaderless_Level2(source, destination, lookAhead, level != CompressionLevel.Fastest, _lz2[1].GetWindowsLevel(level));
+                CompressHeaderless_Level2(source, destination, lookAhead, true, _lz2[1].GetWindowsLevel((CompressionLevel)settings));
         }
 
         public static void CompressHeaderless_Level1(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)

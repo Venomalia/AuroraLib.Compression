@@ -41,8 +41,8 @@ namespace AuroraLib.Compression.Algorithms
             => DecompressHeaderless(source, destination);
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
-            => CompressHeaderless(source, destination, FormatByteOrder, LookAhead, level);
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+            => CompressHeaderless(source, destination, FormatByteOrder, LookAhead, settings);
 
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
@@ -106,7 +106,7 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0, matchPointer = 0;
 

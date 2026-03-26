@@ -37,10 +37,10 @@ namespace AuroraLib.Compression.Algorithms
             });
 
         /// <inheritdoc/>
-        public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            base.Compress(source, destination, level);
+            base.Compress(source, destination, settings);
         }
 
         /// <inheritdoc/>

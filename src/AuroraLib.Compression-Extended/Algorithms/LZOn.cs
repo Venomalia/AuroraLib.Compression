@@ -63,7 +63,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
@@ -74,7 +74,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0); // Compressed length (will be filled in later)
 
             // Perform the compression
-            LZO.CompressHeaderless(source, destination, LookAhead, level);
+            LZO.CompressHeaderless(source, destination, LookAhead, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);

@@ -64,7 +64,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Write Header
             if (source.Length <= 0xFFFFFF)
@@ -78,7 +78,7 @@ namespace AuroraLib.Compression.Algorithms
             }
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, level);
+            CompressHeaderless(source, destination, LookAhead, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
@@ -133,7 +133,6 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
         {
             int sourcePointer = 0x0, matchPointer = 0x0;
 

@@ -89,11 +89,11 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Compress the data without a header
             using MemoryPoolStream buffer = new MemoryPoolStream();
-            CompressHeaderless(source, buffer, LookAhead, lzProperties[0].GetWindowsLevel(level));
+            CompressHeaderless(source, buffer, LookAhead, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
             Span<byte> compressedData = buffer.UnsafeAsSpan();
             // Header layout (24 bytes total): 107146
             destination.Write(_identifier);             // 'AP32' tag

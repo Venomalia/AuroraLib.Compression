@@ -1,8 +1,6 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
-using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -10,7 +8,6 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -62,12 +59,12 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             using MemoryPoolStream uncompressedData = new MemoryPoolStream(0x400);
             using MemoryPoolStream codeData = new MemoryPoolStream(0x1000);
 
-            CompressHeaderless(source, uncompressedData, codeData, LookAhead, level);
+            CompressHeaderless(source, uncompressedData, codeData, LookAhead, settings);
 
             uint startPosition = (uint)destination.Position;
             destination.Write(_identifier.AsSpan());
@@ -139,11 +136,10 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream uncompressedData, Stream codeData, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream uncompressedData, Stream codeData, bool lookAhead = true, CompressionSettings settings = default)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
             using FlagWriter flag = new FlagWriter(codeData, Endian.Big, 2, Endian.Big);
-            MIO0.CompressHeaderless(source, flag.Buffer, uncompressedData, flag, matches);
+            MIO0.CompressHeaderless(source, flag.Buffer, uncompressedData, flag, lookAhead, settings);
         }
     }
 }

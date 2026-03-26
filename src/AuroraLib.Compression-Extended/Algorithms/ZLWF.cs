@@ -7,7 +7,6 @@ using AuroraLib.Core.IO;
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using System.IO.Compression;
 using static AuroraLib.Compression.Algorithms.WFLZ;
 
 namespace AuroraLib.Compression.Algorithms
@@ -99,7 +98,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             const int Align = 0x10;
             // Mark the initial positions of the destination
@@ -124,7 +123,7 @@ namespace AuroraLib.Compression.Algorithms
                 int blockSize = Math.Min((int)BlockSize, source.Length - blockStart);
                 destination.WriteAlign(Align);
                 offsets[i] = (int)(destination.Position - destinationStartPosition);
-                encoder.Compress(source.Slice(blockStart, blockSize), destination);
+                encoder.Compress(source.Slice(blockStart, blockSize), destination, settings);
             }
             destination.WriteAlign(Align);
 

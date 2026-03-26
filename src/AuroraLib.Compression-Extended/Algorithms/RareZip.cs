@@ -54,11 +54,11 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier.AsSpan());
             destination.Write(source.Length, Endian.Big);
-            using DeflateStream deflate = new DeflateStream(destination, level, true);
+            using DeflateStream deflate = new DeflateStream(destination, (CompressionLevel)settings, true);
             deflate.Write(source);
         }
     }

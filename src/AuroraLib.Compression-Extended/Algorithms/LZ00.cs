@@ -73,15 +73,15 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Since the original files appear to use the time the file was compressed (as Unix time), we will do the same.
             uint key = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            Compress(source, destination, key, level);
+            Compress(source, destination, key, settings);
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, uint key, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, uint key, CompressionSettings settings = default)
         {
             // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
@@ -101,7 +101,7 @@ namespace AuroraLib.Compression.Algorithms
 
             // Perform the compression
             StreamTransformer transformDestination = new StreamTransformer(destination, key);
-            LZSS.CompressHeaderless(source, transformDestination, _lz, LookAhead, level);
+            LZSS.CompressHeaderless(source, transformDestination, _lz, LookAhead, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition);

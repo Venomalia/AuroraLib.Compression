@@ -1,13 +1,13 @@
 #if NET6_0_OR_GREATER
+using AuroraLib.Compression;
 using AuroraLib.Compression.Interfaces;
+using AuroraLib.Core;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using System.Text;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -52,18 +52,13 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            int quality = level switch
-            {
-                CompressionLevel.Optimal => 4,
-                CompressionLevel.Fastest => 1,
-                CompressionLevel.NoCompression => 0,
-                CompressionLevel.SmallestSize => 10,
-                _ => (int)level,
-            };
+            int quality = (settings.Quality * 11) / 15;// Quality 0-11 (5)
+            int window = settings.MaxWindowBits; // Window 10-24 (22);
+            window = window == 0 ? 19 + (quality / 2) : window.Clamp(10, 24);
 
-            using var encoder = new BrotliEncoder(quality, 22); // Quality 0-11 (4), Window 1-24 (22);
+            using var encoder = new BrotliEncoder(quality, window);
             byte[] buffer = ArrayPool<byte>.Shared.Rent(0x8000);
             try
             {

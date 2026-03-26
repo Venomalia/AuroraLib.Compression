@@ -107,7 +107,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (Options.HasFlag(OptionFlags.UsePreHeader))
             {
@@ -123,7 +123,7 @@ namespace AuroraLib.Compression.Algorithms
                 destination.Write((UInt24)source.Length, Endian.Big);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
+                CompressHeaderless(source, destination, LookAhead, true, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
 
                 // 135280
                 // Go back to the beginning of the file and write out the compressed length
@@ -162,7 +162,7 @@ namespace AuroraLib.Compression.Algorithms
                         destination.Write((UInt24)0);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, level != CompressionLevel.Fastest, lzProperties[0].GetWindowsLevel(level));
+                CompressHeaderless(source, destination, LookAhead, true, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
 
                 // Go back to the beginning of the file and write out the compressed length
                 if (StoresCompressedSize)

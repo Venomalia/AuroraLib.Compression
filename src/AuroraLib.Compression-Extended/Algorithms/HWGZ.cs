@@ -83,7 +83,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Mark the initial positions of the destination
             long destStart = destination.Position;
@@ -109,7 +109,7 @@ namespace AuroraLib.Compression.Algorithms
                     int segmentSize = Math.Min(ChunkSize, source.Length - segmentStart);
 
                     buffer.SetLength(0);
-                    zLib.Compress(source.Slice(segmentStart, segmentSize), buffer, level);
+                    zLib.Compress(source.Slice(segmentStart, segmentSize), buffer, settings);
 
                     ReadOnlySpan<byte> segmentData = buffer.UnsafeAsSpan();
                     chunkSizes[i] = (uint)(segmentData.Length + 4);

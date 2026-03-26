@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Interfaces
 {
@@ -14,10 +13,10 @@ namespace AuroraLib.Compression.Interfaces
         /// </summary>
         /// <param name="source">The ReadOnlySpan containing the data to be compressed.</param>
         /// <param name="destination">The Stream to write the compressed data to.</param>
-        /// <param name="level">The CompressionLevel to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <param name="settings">Compression settings controlling encoder behavior such as the Compression quality (default is <see cref="CompressionSettings.Balanced"/>).</param>
         /// <exception cref="ArgumentNullException">Thrown if the <paramref name="source"/> or <paramref name="destination"/> is null.</exception>
         /// <exception cref="NotSupportedException">Thrown if the <paramref name="destination"/> stream does not support writing.</exception>
-        void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal);
+        void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default);
 
     }
 }

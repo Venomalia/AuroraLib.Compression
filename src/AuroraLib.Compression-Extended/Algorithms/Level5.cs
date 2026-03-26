@@ -111,15 +111,15 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (Type == CompressionType.ZLib) // Zlib Type
             {
                 destination.Write(source.Length);
-                new ZLib().Compress(source, destination, level);
+                new ZLib().Compress(source, destination, settings);
             }
 
-            if (level == CompressionLevel.NoCompression)
+            if (settings.Quality == 0)
                 Type = CompressionType.OnlySave;
 
             if (source.Length > 0x1fffffff)
@@ -134,7 +134,7 @@ namespace AuroraLib.Compression.Algorithms
                     destination.Write(source);
                     break;
                 case CompressionType.LZ10:
-                    LZ10.CompressHeaderless(source, destination, LookAhead, level);
+                    LZ10.CompressHeaderless(source, destination, LookAhead, settings);
                     break;
                 case CompressionType.RLE:
                     RLE30.CompressHeaderless(source, destination);

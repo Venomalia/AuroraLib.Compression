@@ -37,9 +37,9 @@ namespace AuroraLib.Compression.Algorithms
             => Decompress(new SubStream(source, sourceSize), destination);
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            using ZLibStream algo = new ZLibStream(destination, level, true);
+            using ZLibStream algo = new ZLibStream(destination, (CompressionLevel)settings, true);
             algo.Write(source);
         }
 

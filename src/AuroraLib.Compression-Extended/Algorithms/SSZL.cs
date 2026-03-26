@@ -7,7 +7,6 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -128,7 +127,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
             destination.Write(_buildVersion);
@@ -143,21 +142,21 @@ namespace AuroraLib.Compression.Algorithms
             if (encrypt)
             {
                 using MemoryPoolStream buffer = new MemoryPoolStream();
-                CompressOrCopy(source, buffer, level, compress, useGzip);
+                CompressOrCopy(source, buffer, settings, compress, useGzip);
                 MTXorTransform(buffer.UnsafeAsSpan(), _seed);
                 destination.Write(buffer.UnsafeGetBuffer(), 0, (int)buffer.Length);
             }
             else
             {
-                CompressOrCopy(source, destination, level, compress, useGzip);
+                CompressOrCopy(source, destination, settings, compress, useGzip);
             }
 
-            static void CompressOrCopy(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level, bool Compress, bool useGzip)
+            static void CompressOrCopy(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings, bool Compress, bool useGzip)
             {
                 if (Compress)
                 {
                     var encoder = useGzip ? (ICompressionEncoder)new GZip() : new ZLib();
-                    encoder.Compress(source, destination);
+                    encoder.Compress(source, destination, settings);
                 }
                 else
                 {

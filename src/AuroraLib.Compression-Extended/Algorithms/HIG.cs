@@ -96,7 +96,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
@@ -118,7 +118,7 @@ namespace AuroraLib.Compression.Algorithms
             }
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, level);
+            CompressHeaderless(source, destination, LookAhead, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             if (header[14] == 5 || header[14] == 6)

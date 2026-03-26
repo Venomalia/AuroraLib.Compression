@@ -75,7 +75,7 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Mark the initial positions of the destination
             long destinationStartPosition = destination.Position;
@@ -87,7 +87,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(0);
 
             // Perform the compression
-            CompressHeaderless(source, destination, LZ, LookAhead, level);
+            CompressHeaderless(source, destination, LZ, LookAhead, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);
@@ -134,7 +134,7 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionSettings settings = default)
         {
             using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level);
             CompressHeaderless(source, destination, matches, lz);

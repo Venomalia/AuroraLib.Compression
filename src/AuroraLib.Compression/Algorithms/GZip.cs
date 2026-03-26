@@ -34,9 +34,9 @@ namespace AuroraLib.Compression.Algorithms
         }
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            using (GZipStream algo = new GZipStream(destination, level, true))
+            using (GZipStream algo = new GZipStream(destination, (CompressionLevel)settings, true))
                 algo.Write(source);
         }
     }

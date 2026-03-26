@@ -58,7 +58,7 @@ namespace AuroraLib.Compression.Algorithms
             });
 
         /// <inheritdoc/>
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
 
@@ -90,7 +90,7 @@ namespace AuroraLib.Compression.Algorithms
                 {
                     int segmentStart = i * ChunkSize;
                     int segmentSize = Math.Min(ChunkSize, source.Length - segmentStart);
-                    encoder.Compress(source.Slice(segmentStart, segmentSize), destination, level);
+                    encoder.Compress(source.Slice(segmentStart, segmentSize), destination, settings);
 
                     long segmentEndOffset = destination.Position - headerEndOffset;
                     if (segmentEndOffset > 0xffff)
@@ -104,7 +104,7 @@ namespace AuroraLib.Compression.Algorithms
             }
             else
             {
-                encoder.Compress(source, destination, level);
+                encoder.Compress(source, destination, settings);
             }
         }
 

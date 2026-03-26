@@ -38,16 +38,18 @@ namespace AuroraLib.Compression.Algorithms
                 return new LZ10().GetDecompressedSize(source);
             });
 
+        /// <inheritdoc/>
         public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
             new LZ10().Decompress(source, destination);
         }
 
-        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        /// <inheritdoc/>
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            new LZ10() { LookAhead = LookAhead }.Compress(source, destination);
+            new LZ10() { LookAhead = LookAhead }.Compress(source, destination,settings);
         }
     }
 }
