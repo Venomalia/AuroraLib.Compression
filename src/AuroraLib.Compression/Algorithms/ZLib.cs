@@ -39,7 +39,12 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
+#if NET10_0_OR_GREATER
+            ZLibCompressionOptions options = new() { CompressionLevel = settings.Quality * 8 / 15 };
+            using ZLibStream algo = new ZLibStream(destination, options, true);
+#else
             using ZLibStream algo = new ZLibStream(destination, (CompressionLevel)settings, true);
+#endif
             algo.Write(source);
         }
 
