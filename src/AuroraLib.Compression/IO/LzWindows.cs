@@ -56,6 +56,8 @@ namespace AuroraLib.Compression.IO
 
         public LzWindows(byte[] buffer)
         {
+            ThrowIf.Null(_Buffer);
+
             _Length = buffer.Length;
             _Buffer = buffer;
             _Position = 0;
@@ -69,6 +71,9 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void BackCopy(int distance, int length)
         {
+            Debug.Assert(distance >= 0, $"distance = {distance}.");
+            Debug.Assert(distance <= _Length, $"distance = {distance}.");
+
             int bufferLength = _Length;
             int mask = bufferLength - 1;
 
@@ -102,7 +107,9 @@ namespace AuroraLib.Compression.IO
         [DebuggerStepThrough]
         public void OffsetCopy(int Offset, int length)
         {
-            Offset &= _Length - 1;
+            Debug.Assert(Offset >= 0, $"offset = {Offset}.");
+            Debug.Assert(Offset <= _Length, $"offset = {Offset}.");
+
             int distance = _Position >= Offset ? _Position - Offset : _Position - Offset + _Length;
             BackCopy(distance, length);
         }
