@@ -2,14 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -105,6 +102,7 @@ namespace AuroraLib.Compression.Algorithms
                     buffer.Getbuffer().AsSpan().Fill(initialFill);
 
                 int f = lz.GetLengthBitsFlag();
+                int n = lz.GetWindowsFlag();
 
                 while (destination.Position + buffer.Position < endPosition)
                 {
@@ -119,7 +117,7 @@ namespace AuroraLib.Compression.Algorithms
 
                         int offset = (b2 >> lz.LengthBits << 8) | b1;
                         int length = (b2 & f) + lz.MinLength;
-                        offset = lz.MaxDistance + offset - lz.WindowsStart;
+                        offset = (lz.MaxDistance + offset - lz.WindowsStart) & n;
 
                         buffer.OffsetCopy(offset, length);
                     }
@@ -136,36 +134,31 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionSettings settings = default)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lz, lookAhead, level);
-            CompressHeaderless(source, destination, matches, lz);
-        }
-
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, IReadOnlyList<LzMatch> matches, LzProperties lz)
-        {
-            int sourcePointer = 0x0, matchPointer = 0x0;
-
+            int sourcePointer = 0x0;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
+
             int n = lz.GetWindowsFlag();
             int f = lz.GetLengthBitsFlag();
-
-            while (sourcePointer < source.Length)
+            while (true)
             {
-                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
+                LzMatch match = matchFinder.FindNextBestMatch(source);
+                int plain = match.Offset - sourcePointer;
+                while (plain != 0)
                 {
-                    LzMatch lzMatch = matches[matchPointer++];
-
-                    // Distance to offset
-                    int offset = ((lz.WindowsStart + sourcePointer - lzMatch.Distance) & n);
-                    flag.Buffer.Write((ushort)((offset & 0xFF) | (offset & 0xFF00) << lz.LengthBits | ((lzMatch.Length - lz.MinLength) & f) << 8));
-                    flag.WriteBit(false);
-                    sourcePointer += lzMatch.Length;
-
-                }
-                else
-                {
+                    plain--;
                     flag.Buffer.WriteByte(source[sourcePointer++]);
                     flag.WriteBit(true);
                 }
+
+                // Last match reached.
+                if (match.Length == 0)
+                    return;
+
+                int offset = ((lz.WindowsStart + sourcePointer - match.Distance) & n);
+                flag.Buffer.Write((ushort)((offset & 0xFF) | (offset & 0xFF00) << lz.LengthBits | ((match.Length - lz.MinLength) & f) << 8));
+                flag.WriteBit(false);
+                sourcePointer += match.Length;
             }
         }
     }

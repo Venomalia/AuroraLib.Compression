@@ -1,13 +1,11 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -24,7 +22,7 @@ namespace AuroraLib.Compression.Algorithms
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
 
-        private static readonly LzProperties _lz1 = new LzProperties(0x2000, byte.MaxValue + 3 + 6, 3);
+        private static readonly LzProperties[] _lz1 = new LzProperties[] { new LzProperties(0x2000, byte.MaxValue + 3 + 6, 3) };
         private static readonly LzProperties[] _lz2 = new LzProperties[]
         {
             new LzProperties(0x1FFF, int.MaxValue, 3), // Short Match:
@@ -67,7 +65,7 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void DecompressHeaderless_Level1(ReadOnlySpan<byte> source, Stream destination)
         {
-            using LzWindows buffer = new LzWindows(destination, _lz1.WindowsBits);
+            using LzWindows buffer = new LzWindows(destination, _lz1[0].WindowsBits);
             int pointer = 0;
             int ctrl = source[pointer++] & 0b0001_1111;
 
@@ -174,36 +172,21 @@ namespace AuroraLib.Compression.Algorithms
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             if (source.Length < 0x10000 || settings.Quality <= 4 || settings.MaxWindowBits <= 13)
-                CompressHeaderless_Level1(source, destination, lookAhead, settings);
+                CompressHeaderless(source, destination, false, lookAhead, settings);
             else
-                CompressHeaderless_Level2(source, destination, lookAhead, true, _lz2[1].GetWindowsLevel((CompressionLevel)settings));
+                CompressHeaderless(source, destination, true, lookAhead, settings);
         }
 
-        public static void CompressHeaderless_Level1(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
-        {
-
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz1, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            InternCompressHeaderless(source, destination, matches, false);
-        }
-
-        public static void CompressHeaderless_Level2(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, bool lazyMatch = true, int maxWindowsSize = 0x11FFF)
-        {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz2, maxWindowsSize, lookAhead, lazyMatch);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            InternCompressHeaderless(source, destination, matches, true);
-        }
-
-        private static void InternCompressHeaderless(ReadOnlySpan<byte> source, Stream destination, PoolList<LzMatch> matches, bool isLevel2)
+        private static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool isLevel2, bool lookAhead = true, CompressionSettings settings = default)
         {
             bool level2First = isLevel2;
             int sourcePointer = 0x0;
             byte ctrl;
-            for (int i = 0; i < matches.Count; i++)
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(isLevel2 ? _lz2 : _lz1, settings, !lookAhead);
+
+            while (true)
             {
-                LzMatch match = matches[i];
+                LzMatch match = matchFinder.FindNextBestMatch(source);
                 int plain = match.Offset - sourcePointer;
 
                 // ---- Literal Runs ----
@@ -225,42 +208,42 @@ namespace AuroraLib.Compression.Algorithms
                 }
 
                 // --- Match Block ---
-                if (match.Length >= 3)
+                if (match.Length == 0)
+                    return;
+
+                // Short Match:  LLLD DDDD DDDD DDDD
+                int length = match.Length - 3;
+                int distance = match.Distance - 1;
+
+                int shortDistance = isLevel2 ? Math.Min(match.Distance - 1, 0x1FFF) : match.Distance - 1;
+
+                ctrl = (byte)((Math.Min(length, 6) + 1) << 5);
+                destination.WriteByte((byte)(ctrl | shortDistance >> 8));
+
+                // Length Extension: 111D DDDD LLLL LLLL ... DDDD DDDD ...
+                if (length >= 6)
                 {
-                    // Short Match:  LLLD DDDD DDDD DDDD
-                    int length = match.Length - 3;
-                    int distance = match.Distance - 1;
+                    length -= 6;
 
-                    int shortDistance = isLevel2 ? Math.Min(match.Distance - 1, 0x1FFF) : match.Distance - 1;
-
-                    ctrl = (byte)((Math.Min(length, 6) + 1) << 5);
-                    destination.WriteByte((byte)(ctrl | shortDistance >> 8));
-
-                    // Length Extension: 111D DDDD LLLL LLLL ... DDDD DDDD ...
-                    if (length >= 6)
+                    while (isLevel2 && length >= 255) // level 2
                     {
-                        length -= 6;
-
-                        while (length >= 255) // level 2
-                        {
-                            destination.WriteByte(255);
-                            length -= 255;
-                        }
-
-                        destination.WriteByte((byte)length);
+                        destination.WriteByte(255);
+                        length -= 255;
                     }
 
-                    destination.WriteByte((byte)shortDistance);
-
-                    // Level 2 Long Match:   1111 1111 ... 1111 1111 DDDD DDDD DDDD DDDD
-                    if (isLevel2 && distance >= 0x1FFF)
-                    {
-                        distance -= 0x1FFF;
-                        destination.WriteByte((byte)(distance >> 8));
-                        destination.WriteByte((byte)distance);
-                    }
-                    sourcePointer += match.Length;
+                    destination.WriteByte((byte)length);
                 }
+
+                destination.WriteByte((byte)shortDistance);
+
+                // Level 2 Long Match:   1111 1111 ... 1111 1111 DDDD DDDD DDDD DDDD
+                if (isLevel2 && distance >= 0x1FFF)
+                {
+                    distance -= 0x1FFF;
+                    destination.WriteByte((byte)(distance >> 8));
+                    destination.WriteByte((byte)distance);
+                }
+                sourcePointer += match.Length;
             }
         }
 

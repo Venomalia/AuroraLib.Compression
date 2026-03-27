@@ -6,7 +6,6 @@ using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -169,14 +168,14 @@ namespace AuroraLib.Compression.Algorithms
         /// </summary>
         /// <param name="algorithm">The compression algorithm.</param>
         /// <param name="source">The <see cref="Stream"/> containing the data to be compressed.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param> 
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param> 
         /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, Stream source, CompressionLevel level = CompressionLevel.Optimal)
+        public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, Stream source, CompressionSettings settings = default)
         {
             MemoryPoolStream destination = new MemoryPoolStream();
-            algorithm.Compress(source, destination, level);
+            algorithm.Compress(source, destination, settings);
             destination.Position = 0;
             return destination;
         }
@@ -187,10 +186,10 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
         /// <param name="source">The input <see cref="Stream"/> containing data to be compressed.</param>
         /// <param name="destination">The output <see cref="Stream"/> where the compressed data will be written.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="NotSupportedException"></exception>
-        public static void Compress(this ICompressionEncoder algorithm, Stream source, Stream destination, CompressionLevel level = CompressionLevel.Optimal)
+        public static void Compress(this ICompressionEncoder algorithm, Stream source, Stream destination, CompressionSettings settings = default)
         {
             long remaining = source.Length - source.Position;
             if (remaining > int.MaxValue)
@@ -200,19 +199,19 @@ namespace AuroraLib.Compression.Algorithms
             if (source is PoolStream ps)
             {
                 bytes = ps.UnsafeAsSpan((int)source.Position);
-                algorithm.Compress(bytes, destination, level);
+                algorithm.Compress(bytes, destination, settings);
             }
             else if (source is MemoryStream ms && ms.TryGetBuffer(out var buffer))
             {
                 bytes = buffer.AsSpan((int)source.Position);
-                algorithm.Compress(bytes, destination, level);
+                algorithm.Compress(bytes, destination, settings);
             }
             else if (source is UnmanagedMemoryStream ums)
             {
                 unsafe
                 {
                     bytes = new Span<byte>(ums.PositionPointer, (int)remaining);
-                    algorithm.Compress(bytes, destination, level);
+                    algorithm.Compress(bytes, destination, settings);
                 }
             }
             else
@@ -223,7 +222,7 @@ namespace AuroraLib.Compression.Algorithms
                     if (source.Read(arraybuffer, 0, (int)remaining) != remaining)
                         throw new EndOfStreamException(nameof(source));
 
-                    algorithm.Compress(arraybuffer.AsSpan(0, (int)remaining), destination, level);
+                    algorithm.Compress(arraybuffer.AsSpan(0, (int)remaining), destination, settings);
                 }
                 finally
                 {
@@ -238,12 +237,12 @@ namespace AuroraLib.Compression.Algorithms
         /// </summary>
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
         /// <param name="source">The input ReadOnlySpan containing data to be compressed.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param>
         /// <returns>A <see cref="MemoryPoolStream"/> containing the compressed data.</returns>
-        public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, CompressionLevel level = CompressionLevel.Optimal)
+        public static MemoryPoolStream Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, CompressionSettings settings = default)
         {
             MemoryPoolStream destination = new MemoryPoolStream();
-            algorithm.Compress(source, destination, level);
+            algorithm.Compress(source, destination, settings);
             destination.Position = 0;
             return destination;
         }
@@ -254,10 +253,10 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="algorithm">The compression algorithm.</param>
         /// <param name="source">The <see cref="ReadOnlySpan{Byte}"/> containing the data to be compressed.</param>
         /// <param name="destination">The output byte array that will contain the compressed data.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
-        public static void Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, out byte[] destination, CompressionLevel level = CompressionLevel.Optimal)
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param>
+        public static void Compress(this ICompressionEncoder algorithm, ReadOnlySpan<byte> source, out byte[] destination, CompressionSettings settings = default)
         {
-            using MemoryPoolStream buffer = algorithm.Compress(source, level);
+            using MemoryPoolStream buffer = algorithm.Compress(source, settings);
             destination = buffer.ToArray();
         }
 
@@ -267,12 +266,12 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="algorithm">The compression algorithm.</param>
         /// <param name="source">The <see cref="Stream"/> containing the data to be compressed.</param>
         /// <param name="destination">The output byte array that will contain the compressed data.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="source"/> is null.</exception>
         /// <exception cref="NotSupportedException">Thrown if the <paramref name="source"/> stream does not support reading.</exception>
-        public static void Compress(this ICompressionEncoder algorithm, Stream source, out byte[] destination, CompressionLevel level = CompressionLevel.Optimal)
+        public static void Compress(this ICompressionEncoder algorithm, Stream source, out byte[] destination, CompressionSettings settings = default)
         {
-            using MemoryPoolStream buffer = algorithm.Compress(source, level);
+            using MemoryPoolStream buffer = algorithm.Compress(source, settings);
             destination = buffer.ToArray();
         }
 
@@ -282,17 +281,17 @@ namespace AuroraLib.Compression.Algorithms
         /// <param name="algorithm">The compression algorithm to use for compression.</param>
         /// <param name="sourceFile">The path to the source file containing data to be compressed.</param>
         /// <param name="destinationFile">The path to the destination file where the compressed data will be written.</param>
-        /// <param name="level">The <see cref="CompressionLevel"/> to use for compression (default is <see cref="CompressionLevel.Optimal"/>).</param>
+        /// <param name="settings">The <see cref="CompressionSettings"/> to use for compression (default is <see cref="CompressionSettings.Balanced"/>).</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="FileNotFoundException"></exception>
         /// <exception cref="UnauthorizedAccessException"></exception>
         /// <exception cref="PathTooLongException"></exception>
-        public static void Compress(this ICompressionEncoder algorithm, string sourceFile, string destinationFile, CompressionLevel level = CompressionLevel.Optimal)
+        public static void Compress(this ICompressionEncoder algorithm, string sourceFile, string destinationFile, CompressionSettings settings = default)
         {
             using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             using FileStream destination = new FileStream(destinationFile, FileMode.Create, FileAccess.ReadWrite, FileShare.None);
-            algorithm.Compress(source, destination, level);
+            algorithm.Compress(source, destination, settings);
         }
 
         #endregion

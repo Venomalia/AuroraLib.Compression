@@ -3,7 +3,6 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
@@ -12,7 +11,6 @@ using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -162,42 +160,41 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionSettings settings = default)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
 
             int sourcePointer = 0x0;
-            int matchPointer = 0x0;
 
-            int plain = matches[0].Offset;
-            LzMatch lzMatch = default;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+
+            LzMatch match = default, next = matchFinder.FindNextBestMatch(source);
+            int plain = next.Offset;
             while (true)
             {
-
-                var block = new WFLZ_Block((ushort)lzMatch.Distance, lzMatch.Length == 0 ? byte.MinValue : (byte)(lzMatch.Length - 4), (byte)Math.Min(plain, byte.MaxValue));
+                var block = new WFLZ_Block((ushort)match.Distance, match.Length == 0 ? byte.MinValue : (byte)(match.Length - 4), (byte)Math.Min(plain, byte.MaxValue));
                 destination.Write(order == Endian.Little ? block : block.ReverseEndianness());
                 plain -= block.Plain;
 
-                sourcePointer += lzMatch.Length;
+                sourcePointer += match.Length;
                 destination.Write(source.Slice(sourcePointer, block.Plain));
                 sourcePointer += block.Plain;
 
                 if (plain == 0)
                 {
-                    lzMatch = matches[matchPointer++];
-                    if (matchPointer == matches.Count)
-                    {
-                        destination.Write(default(WFLZ_Block));
-                        return;
-                    }
-                    plain = matches[matchPointer].Offset - lzMatch.Length - sourcePointer;
+                    if (sourcePointer == source.Length)
+                        break;
+
+                    match = next;
+                    next = matchFinder.FindNextBestMatch(source);
+                    plain = next.Offset - (match.Offset + match.Length);
                 }
                 else
                 {
-                    lzMatch = default;
+                    match = default;
                 }
             }
+            //end block
+            destination.Write(default(WFLZ_Block));
         }
 
     }

@@ -55,7 +55,7 @@ namespace AuroraLib.Compression
             _ => throw new NotImplementedException(),
         };
 
-        public static implicit operator CompressionLevel(CompressionSettings settings)
+        public static explicit operator CompressionLevel(CompressionSettings settings)
         {
             if (settings.Quality <= 2) return CompressionLevel.NoCompression;
             if (settings.Quality <= 6) return CompressionLevel.Fastest;

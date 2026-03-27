@@ -1,14 +1,12 @@
 using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -192,9 +190,9 @@ namespace AuroraLib.Compression.Algorithms
             return value;
         }
 
-        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            int src = 0x0;
+            int sourcePointer = 0x0;
             int dst = destination.Length - 1;
             int matchPointer = 0x0;
             byte bitBuffer = 0;
@@ -202,42 +200,47 @@ namespace AuroraLib.Compression.Algorithms
             ReadOnlySpan<int> vleLevels = stackalloc int[4] { 2, 3, 5, 8 };
             ReadOnlySpan<int> vleFlags = stackalloc int[4] { 0x3, 0x7, 0x1F, 0xFF };
 
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
             byte[] reverseSource = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {
                 // Our LZMatcher only works in one direction.
                 ReverseSpan(source, reverseSource);
                 source = reverseSource.AsSpan(0, source.Length);
-                using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
 
-                while (src < source.Length)
+                while (true)
                 {
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == src)
+
+                    LzMatch match = matchFinder.FindNextBestMatch(source);
+                    int plain = match.Offset - sourcePointer;
+
+                    while (plain != 0)
                     {
-                        var match = matches[matchPointer++];
-
-                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, 1, 1); // is match
-                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)(match.Distance - 3), 13);
-
-                        int vle = 0;
-                        int length = match.Length - 3;
-                        while (length >= vleFlags[vle])
-                        {
-                            SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)vleFlags[vle], vleLevels[vle]);
-                            length -= vleFlags[vle];
-
-                            if (vle != 3)
-                                vle++;
-                        }
-                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)length, vleLevels[vle]);
-
-                        src += match.Length;
-                    }
-                    else
-                    {
+                        plain--;
                         SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, 0, 1); // is literal
-                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, source[src++], 8);
+                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, source[sourcePointer++], 8);
                     }
+
+                    // Last match reached.
+                    if (match.Length == 0)
+                        break;
+
+                    SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, 1, 1); // is match
+                    SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)(match.Distance - 3), 13);
+
+                    int vle = 0;
+                    int length = match.Length - 3;
+                    while (length >= vleFlags[vle])
+                    {
+                        SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)vleFlags[vle], vleLevels[vle]);
+                        length -= vleFlags[vle];
+
+                        if (vle != 3)
+                            vle++;
+                    }
+                    SetBits(destination, ref dst, ref bitBuffer, ref bitsLeft, (ushort)length, vleLevels[vle]);
+
+                    sourcePointer += match.Length;
                 }
 
                 if (bitsLeft != 8)

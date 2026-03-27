@@ -4,7 +4,6 @@ using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -49,7 +48,7 @@ namespace AuroraLib.Compression.Algorithms
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            new LZ10() { LookAhead = LookAhead }.Compress(source, destination,settings);
+            new LZ10() { LookAhead = LookAhead }.Compress(source, destination, settings);
         }
     }
 }

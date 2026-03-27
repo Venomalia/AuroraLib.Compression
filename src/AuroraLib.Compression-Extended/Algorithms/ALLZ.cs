@@ -1,14 +1,12 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -84,7 +82,7 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Length);
 
             // Perform the compression
-            CompressHeaderless(source, destination, flags, true, true, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
+            CompressHeaderless(source, destination, flags, true, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
@@ -126,14 +124,15 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, bool lazyMatch = true, int maxWindowsSize = 0x200000)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainSize = 0;
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead, lazyMatch);
+            LzMatch match;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-            foreach (LzMatch match in matches)
+            while (true)
             {
+                match = matchFinder.FindNextBestMatch(source);
                 plainSize = match.Offset - sourcePointer;
                 if (plainSize > 0)
                 {
@@ -148,12 +147,13 @@ namespace AuroraLib.Compression.Algorithms
                     flag.WriteBit(true);
                 }
 
+                if (sourcePointer == source.Length)
+                    return;
+
                 WriteALFlag(flags[2], match.Distance - 1);
                 WriteALFlag(flags[1], match.Length - 3);
                 sourcePointer += match.Length;
             }
-
-            return;
 
             void WriteALFlag(int startBits, int value)
             {

@@ -2,13 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -133,38 +131,41 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            int sourcePointer = 0x0, matchPointer = 0x0;
-
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            int sourcePointer = 0x0;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
-            while (sourcePointer < source.Length)
+            while (true)
             {
-                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
+                LzMatch match = matchFinder.FindNextBestMatch(source);
+                int plain = match.Offset - sourcePointer;
+                while (plain != 0)
                 {
-                    LzMatch match = matches[matchPointer++];
-
-                    if (match.Length <= 16)  // match.Length 3-16
-                    {
-                        flag.Buffer.Write((ushort)((match.Length - 1) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
-                    }
-                    else if (match.Length <= 272) // match.Length 17-272
-                    {
-                        flag.Buffer.WriteByte((byte)(((match.Length - 17) & 0xFF) >> 4));
-                        flag.Buffer.Write((ushort)((match.Length - 17) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
-                    }
-                    else // match.Length 273-65808
-                    {
-                        flag.Buffer.Write((uint)(0x10000000 | ((match.Length - 273) & 0xFFFF) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
-                    }
-                    sourcePointer += match.Length;
-                    flag.WriteBit(true);
-                }
-                else
-                {
+                    plain--;
                     flag.Buffer.WriteByte(source[sourcePointer++]);
                     flag.WriteBit(false);
                 }
+
+                // no more matches.
+                if (match.Length == 0)
+                    return;
+
+                if (match.Length <= 16)  // match.Length 3-16
+                {
+                    flag.Buffer.Write((ushort)((match.Length - 1) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                }
+                else if (match.Length <= 272) // match.Length 17-272
+                {
+                    flag.Buffer.WriteByte((byte)(((match.Length - 17) & 0xFF) >> 4));
+                    flag.Buffer.Write((ushort)((match.Length - 17) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                }
+                else // match.Length 273-65808
+                {
+                    flag.Buffer.Write((uint)(0x10000000 | ((match.Length - 273) & 0xFFFF) << 12 | ((match.Distance - 1) & 0xFFF)), Endian.Big);
+                }
+                sourcePointer += match.Length;
+                flag.WriteBit(true);
             }
         }
 

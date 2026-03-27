@@ -2,13 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -123,21 +121,21 @@ namespace AuroraLib.Compression.Algorithms
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using MemoryPoolStream buffer = new MemoryPoolStream(0x10);
 
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            using MemoryPoolStream buffer = new MemoryPoolStream();
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-            for (int i = 0; i < matches.Count; i++)
+            LzMatch match = matchFinder.FindNextBestMatch(source);
+            while (sourcePointer != source.Length)
             {
-                LzMatch match = matches[i];
+                int plain = match.Offset - sourcePointer;
+                int compressedLength = 0;
                 ReadOnlySpan<byte> uncompressed = source.Slice(sourcePointer, match.Offset - sourcePointer);
-                sourcePointer += uncompressed.Length;
-                int compressedLength = 1;
+                sourcePointer += plain;
 
-                while (match.Length != 0)
+                while (match.Length != 0 && compressedLength < 8 && match.Offset == sourcePointer)
                 {
                     // max is DDDDDLLL (LLLLLLLL) ((DDDDDDDD) DDDDDDDD)
                     int lengthflag = match.Length > 7 ? 0 : match.Length;
@@ -153,25 +151,24 @@ namespace AuroraLib.Compression.Algorithms
                         buffer.Write((ushort)(match.Distance - 287));
 
                     sourcePointer += match.Length;
+                    match = matchFinder.FindNextBestMatch(source);
 
-                    if (compressedLength < 8 && i < matches.Count && matches[i + 1].Offset == sourcePointer)
-                    {
-                        compressedLength++;
-                        match = matches[++i];
-                    }
-                    else
+                    if (match.Length == 0 || compressedLength >= 7 || match.Offset != sourcePointer)
                         break;
+                    compressedLength++;
                 }
+
                 // Write flag and buffer to destination.
-                int uncompressedflag = uncompressed.Length > 29 ? (uncompressed.Length > 285 ? 0x1F : 0x1E) : uncompressed.Length;
-                destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength - 1));
+                int uncompressedflag = plain > 29 ? (plain > 285 ? 0x1F : 0x1E) : plain;
+                destination.WriteByte((byte)(uncompressedflag << 3 | compressedLength));
 
                 if (uncompressedflag == 0x1E) // 30-285
-                    destination.WriteByte((byte)(uncompressed.Length - 30));
+                    destination.WriteByte((byte)(plain - 30));
                 else if (uncompressedflag == 0x1F) // 286-65821
-                    destination.Write((ushort)(uncompressed.Length - 286));
+                    destination.Write((ushort)(plain - 286));
 
                 destination.Write(uncompressed);
+
                 buffer.WriteTo(destination);
                 buffer.SetLength(0);
             }

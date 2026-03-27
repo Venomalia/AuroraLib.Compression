@@ -2,13 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.Buffers;
 using System.IO;
-using System.IO.Compression;
 using System.Numerics;
 
 namespace AuroraLib.Compression.Algorithms
@@ -139,11 +137,12 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             // Destination start from end (because data is reversed)
-            int src = 0x0, dst = destination.Length - 2, matchPointer = 0x0, flag = 1, flagPos = destination.Length - 1, lzCode;
+            int src = 0x0, dst = destination.Length - 2, flag = 1, flagPos = destination.Length - 1, lzCode;
 
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, 8, !lookAhead);
             byte[] reverseSourceBuffer = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {
@@ -151,36 +150,31 @@ namespace AuroraLib.Compression.Algorithms
                 var reverseSource = reverseSourceBuffer.AsSpan(0, source.Length);
                 ReverseSpan(source, reverseSource);
                 source = reverseSource;
-                using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
 
                 while (src < source.Length)
                 {
+                    LzMatch match = matchFinder.FindNextBestMatch(source);
+                    int plain = match.Offset - src;
+                    while (plain != 0)
+                    {
+                        flag <<= 1;
+                        destination[dst--] = source[src++]; // Literal
+                        WriteFlag();
+                        plain--;
+                    }
+
+                    // Last match reached.
+                    if (match.Length == 0)
+                        break;
 
                     flag <<= 1;
-                    if (matchPointer < matches.Count && matches[matchPointer].Offset == src)
-                    {
-                        LzMatch match = matches[matchPointer++];
-                        lzCode = (ushort)((match.Length - 3) << 12 | ((match.Distance - 3) & 0xFFF));
-                        destination[dst--] = (byte)(lzCode >> 8);
-                        destination[dst--] = (byte)lzCode;
-                        src += match.Length;
-                        flag |= 1;
-
-                    }
-                    else
-                    {
-                        destination[dst--] = source[src++]; // Literal
-                    }
-
-                    // Do we have to write the flag?
-                    if ((flag & 0x100) != 0)
-                    {
-                        destination[flagPos] = (byte)flag;
-                        flag = 1;
-                        flagPos = dst--;
-                    }
+                    lzCode = (ushort)((match.Length - 3) << 12 | ((match.Distance - 3) & 0xFFF));
+                    destination[dst--] = (byte)(lzCode >> 8);
+                    destination[dst--] = (byte)lzCode;
+                    src += match.Length;
+                    flag |= 1;
+                    WriteFlag();
                 }
-
                 // Do we still have to write a flag?
                 if (flag != 1)
 #if NET6_0_OR_GREATER
@@ -197,18 +191,28 @@ namespace AuroraLib.Compression.Algorithms
 #endif
                 else
                     dst++; // No flag written, one step back!
+                return destination.Length - dst - 1;
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(reverseSourceBuffer);
             }
-            return destination.Length - dst - 1;
 
             static void ReverseSpan(ReadOnlySpan<byte> source, Span<byte> reversed)
             {
                 for (int i = 0; i < source.Length; i++)
                 {
                     reversed[i] = source[source.Length - 1 - i];
+                }
+            }
+
+            void WriteFlag()
+            {
+                if ((flag & 0x100) != 0)
+                {
+                    destination[flagPos] = (byte)flag;
+                    flag = 1;
+                    flagPos = dst--;
                 }
             }
         }

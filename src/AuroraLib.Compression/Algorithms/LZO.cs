@@ -2,12 +2,10 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -158,94 +156,96 @@ namespace AuroraLib.Compression.Algorithms
             }
             int sourcePointer = 0x0;
 
-            using (PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level))
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+
+            LzMatch match, next;
+            match = matchFinder.FindNextBestMatch(source);
+            next = matchFinder.FindNextBestMatch(source);
+            while (sourcePointer != source.Length)
             {
-                matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-                for (int i = 0; i < matches.Count; i++)
+                int plain = match.Offset - sourcePointer;
+
+                // plain copy
+                if (plain != 0)
                 {
-                    LzMatch match = matches[i];
-                    int plain = match.Offset - sourcePointer;
-
-                    // plain copy
-                    if (plain != 0)
+                    if (plain < 4)
                     {
-                        if (plain < 4)
-                        {
-                            int dif = 4 - plain;
-                            match = new LzMatch(match.Offset + dif, match.Distance, match.Length - dif);
-                            plain = 4;
-                        }
+                        int dif = 4 - plain;
+                        match = new LzMatch(match.Offset + dif, match.Distance, match.Length - dif);
+                        plain = 4;
+                    }
 
-                        if (plain > 18)
+                    if (plain > 18)
+                    {
+                        destination.WriteByte(0);
+                        WriteExtendedInt(destination, plain - 18);
+                    }
+                    else
+                    {
+                        destination.WriteByte((byte)(plain - 3));
+                    }
+                    destination.Write(source.Slice(sourcePointer, plain));
+                    sourcePointer += plain;
+                }
+
+                // LZ copy + short plain copy
+                if (match.Length >= _lz.MinLength)
+                {
+                    sourcePointer += match.Length;
+                    plain = next.Offset - sourcePointer;
+                    if (plain > 3)
+                        plain = 0;
+
+                    if (match.Length <= 8 && match.Distance <= 2048)
+                    {
+                        byte flag = (byte)(plain | (((match.Distance - 1) & 0x7) << 2));
+                        if (match.Length <= 4) //P = 0-3 D = 1-2048 L = 3-4
                         {
-                            destination.WriteByte(0);
-                            WriteExtendedInt(destination, plain - 18);
+                            destination.WriteByte((byte)(flag | 0x40 | ((match.Length - 3) << 5)));
+                        }
+                        else //P = 0-3 D = 1-2048 L = 5-8
+                        {
+                            destination.WriteByte((byte)(flag | 0x80 | ((match.Length - 5) << 5)));
+                        }
+                        destination.WriteByte((byte)((match.Distance - 1) >> 3));
+
+                    }
+                    else if (match.Distance <= 16384) //P = 0-3 D = 1-16384 L = 3-33 or 33+
+                    {
+                        if (match.Length > 33)
+                        {
+                            destination.WriteByte(0x20);
+                            WriteExtendedInt(destination, match.Length - 33);
                         }
                         else
                         {
-                            destination.WriteByte((byte)(plain - 3));
+                            destination.WriteByte((byte)(0x20 | (match.Length - 2)));
                         }
-                        destination.Write(source.Slice(sourcePointer, plain));
-                        sourcePointer += plain;
+                        destination.WriteByte((byte)(plain | (match.Distance - 1) << 2));
+                        destination.WriteByte((byte)((match.Distance - 1) >> 6));
                     }
-
-                    // LZ copy + short plain copy
-                    if (match.Length >= _lz.MinLength)
+                    else //P = 0-3 D = 16385-49151 L = 3-9 or 9+
                     {
-                        sourcePointer += match.Length;
-                        plain = matches[i + 1].Offset - sourcePointer;
-                        if (plain > 3)
-                            plain = 0;
-
-                        if (match.Length <= 8 && match.Distance <= 2048)
+                        const int hFlag = 0x4000;
+                        int distance = match.Distance - hFlag;
+                        byte flag = (byte)(0x10 | ((distance & hFlag) >> 11));
+                        if (match.Length > 9)
                         {
-                            byte flag = (byte)(plain | (((match.Distance - 1) & 0x7) << 2));
-                            if (match.Length <= 4) //P = 0-3 D = 1-2048 L = 3-4
-                            {
-                                destination.WriteByte((byte)(flag | 0x40 | ((match.Length - 3) << 5)));
-                            }
-                            else //P = 0-3 D = 1-2048 L = 5-8
-                            {
-                                destination.WriteByte((byte)(flag | 0x80 | ((match.Length - 5) << 5)));
-                            }
-                            destination.WriteByte((byte)((match.Distance - 1) >> 3));
-
+                            destination.WriteByte(flag);
+                            WriteExtendedInt(destination, match.Length - 9);
                         }
-                        else if (match.Distance <= 16384) //P = 0-3 D = 1-16384 L = 3-33 or 33+
+                        else
                         {
-                            if (match.Length > 33)
-                            {
-                                destination.WriteByte(0x20);
-                                WriteExtendedInt(destination, match.Length - 33);
-                            }
-                            else
-                            {
-                                destination.WriteByte((byte)(0x20 | (match.Length - 2)));
-                            }
-                            destination.WriteByte((byte)(plain | (match.Distance - 1) << 2));
-                            destination.WriteByte((byte)((match.Distance - 1) >> 6));
+                            destination.WriteByte((byte)(flag | (match.Length - 2)));
                         }
-                        else //P = 0-3 D = 16385-49151 L = 3-9 or 9+
-                        {
-                            const int hFlag = 0x4000;
-                            int distance = match.Distance - hFlag;
-                            byte flag = (byte)(0x10 | ((distance & hFlag) >> 11));
-                            if (match.Length > 9)
-                            {
-                                destination.WriteByte(flag);
-                                WriteExtendedInt(destination, match.Length - 9);
-                            }
-                            else
-                            {
-                                destination.WriteByte((byte)(flag | (match.Length - 2)));
-                            }
-                            destination.WriteByte((byte)(plain | distance << 2));
-                            destination.WriteByte((byte)(distance >> 6));
-                        }
-                        destination.Write(source.Slice(sourcePointer, plain));
-                        sourcePointer += plain;
+                        destination.WriteByte((byte)(plain | distance << 2));
+                        destination.WriteByte((byte)(distance >> 6));
                     }
+                    destination.Write(source.Slice(sourcePointer, plain));
+                    sourcePointer += plain;
                 }
+                match = next;
+                next = matchFinder.FindNextBestMatch(source);
             }
             // end flag
             destination.WriteByte(0x11);

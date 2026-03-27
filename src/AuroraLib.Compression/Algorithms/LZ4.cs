@@ -1,7 +1,6 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
@@ -9,7 +8,6 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms
@@ -204,23 +202,27 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-
         public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainLength, token;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+
             // The last sequence contains at last 5 bytes of literals.
-            using PoolList<LzMatch> matches = source.Length <= 0x10 ? new PoolList<LzMatch>() : LZMatchFinder.FindMatchesParallel(source.Slice(0, source.Length - 5), _lz, lookAhead, level);
-
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
-
-            foreach (LzMatch match in matches)
+            var encode = source.Slice(0, source.Length - 5);
+            while (true)
             {
+                LzMatch match = matchFinder.FindNextBestMatch(encode);
                 plainLength = match.Offset - sourcePointer;
 
                 // Write token
                 token = (plainLength > 0xF ? 0xF : plainLength) << 4;
                 if (match.Length != 0)
                     token |= (match.Length - 4 > 0xF ? 0xF : match.Length - 4);
+                else
+                {
+                    plainLength = source.Length - sourcePointer; ;
+                    token = (plainLength > 0xF ? 0xF : plainLength) << 4;
+                }
                 destination.WriteByte((byte)token);
 
                 // Plain copy

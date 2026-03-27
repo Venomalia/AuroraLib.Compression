@@ -6,7 +6,6 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.CompilerServices;
 
 namespace AuroraLib.Compression.Algorithms

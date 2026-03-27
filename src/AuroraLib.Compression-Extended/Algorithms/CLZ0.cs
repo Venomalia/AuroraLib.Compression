@@ -2,13 +2,11 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -107,29 +105,31 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            int sourcePointer = 0x0, matchPointer = 0x0;
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            int sourcePointer = 0x0;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
-            while (sourcePointer < source.Length)
+            while (true)
             {
-                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
+                LzMatch match = matchFinder.FindNextBestMatch(source);
+                int plain = match.Offset - sourcePointer;
+                while (plain != 0)
                 {
-                    LzMatch match = matches[matchPointer++];
-
-                    int delta = 0x1000 - match.Distance;
-                    flag.Buffer.WriteByte((byte)delta);
-                    flag.Buffer.WriteByte((byte)((match.Length - 3) | (delta >> 8 << 4)));
-                    sourcePointer += match.Length;
-                    flag.WriteBit(true);
-
-                }
-                else
-                {
+                    plain--;
                     flag.Buffer.WriteByte(source[sourcePointer++]);
                     flag.WriteBit(false);
                 }
+
+                // Last match reached.
+                if (match.Length == 0)
+                    return;
+
+                int delta = 0x1000 - match.Distance;
+                flag.Buffer.WriteByte((byte)delta);
+                flag.Buffer.WriteByte((byte)((match.Length - 3) | (delta >> 8 << 4)));
+                sourcePointer += match.Length;
+                flag.WriteBit(true);
             }
         }
     }

@@ -6,7 +6,6 @@ using AuroraLib.Core.IO;
 using System;
 using System.Buffers.Binary;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {

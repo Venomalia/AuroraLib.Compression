@@ -2,14 +2,12 @@ using AuroraLib.Compression.Exceptions;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -93,9 +91,9 @@ namespace AuroraLib.Compression.Algorithms
         {
             // Compress the data without a header
             using MemoryPoolStream buffer = new MemoryPoolStream();
-            CompressHeaderless(source, buffer, LookAhead, lzProperties[0].GetWindowsLevel((CompressionLevel)settings));
+            CompressHeaderless(source, buffer, LookAhead, settings);
             Span<byte> compressedData = buffer.UnsafeAsSpan();
-            // Header layout (24 bytes total): 107146
+            // Header layout (24 bytes total):
             destination.Write(_identifier);             // 'AP32' tag
             destination.Write(24);                      // Header size in bytes
             destination.Write(compressedData.Length);   // Compressed size
@@ -185,99 +183,103 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, int maxWindowsSize = 0x200000)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            int srcPtr = 0, matchPtr = 0, lastOffset = 0;
-            bool pair = true;
+            int srcPtr = 0, lastOffset = 0;
+            bool lwm = false;
 
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
-
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, lzProperties, maxWindowsSize, lookAhead, lookAhead);
             // 1) First literal: written raw (no marker)
             destination.WriteByte(source[srcPtr++]);
 
-            while (srcPtr < source.Length)
+            while (true)
             {
-                // Check for match starting at current position
-                if (matchPtr < matches.Count && matches[matchPtr].Offset == srcPtr)
+                LzMatch match = matchFinder.FindNextBestMatch(source);
+                int plain = match.Offset - srcPtr;
+
+                while (plain != 0)
                 {
-                    LzMatch match = matches[matchPtr++];
+                    plain--;
+                    byte by = source[srcPtr++];
+                    lwm = false;
 
-                    if (pair && lastOffset == match.Distance && match.Length >= 2) // --- Repeat-last-offset case ---
+                    // Check for SINGLE-BYTE matches
+                    int offset = -1;
+                    if (by == 0)
+                        offset = 0;
+                    else
                     {
-                        flag.WriteBit(true);
-                        flag.WriteBit(false);
-                        WriteGamma(flag, 2);//Flag
-                        WriteGamma(flag, match.Length);
-                    }
-                    else if (match.Length <= 3 && match.Distance <= 127) // --- SHORTBLOCK (length 2..3 && distance <= 127) ---
-                    {
-                        flag.WriteBit(true);
-                        flag.WriteBit(true);
-                        flag.Buffer.WriteByte((byte)((match.Distance << 1) | (match.Length - 2)));
-                        flag.WriteBit(false);
-                    }
-                    else // --- NORMAL BLOCK (length >= 2, distance >= 2) ---
-                    {
-                        int lengthDelta = match.Length - LengthDelta(match.Distance);
-                        if (lengthDelta < 2)
+                        int lookback = Math.Min(16, srcPtr);
+                        for (int i = 1; i < lookback; i++)
                         {
-                            continue;
-                        }
-                        flag.WriteBit(true);
-                        flag.WriteBit(false);
-
-                        // compute high part for gamma
-                        int high = (match.Distance >> 8) + 2;
-                        if (pair)
-                            high += 1; // pair bias
-
-                        WriteGamma(flag, high);
-
-                        // low byte
-                        flag.Buffer.WriteByte((byte)(match.Distance));
-                        flag.FlushIfNecessary();
-                        // length adjusted
-                        WriteGamma(flag, lengthDelta);
-                    }
-
-                    lastOffset = match.Distance;
-                    pair = false;
-                    srcPtr += match.Length;
-                    continue;
-                }
-                byte by = source[srcPtr++];
-                pair = true;
-
-                // Check for SINGLE-BYTE matches
-                int offset = -1;
-                if (by == 0)
-                    offset = 0;
-                else
-                {
-                    int lookback = Math.Min(16, srcPtr);
-                    for (int i = 1; i < lookback; i++)
-                    {
-                        if (source[srcPtr - 1 - i] == by)
-                        {
-                            offset = i;
-                            break;
+                            if (source[srcPtr - 1 - i] == by)
+                            {
+                                offset = i;
+                                break;
+                            }
                         }
                     }
+
+                    if (offset != -1)
+                    {
+                        flag.WriteBit(true);
+                        flag.WriteBit(true);
+                        flag.WriteBit(true);
+                        flag.WriteInt(offset, 4, true);
+                        continue;
+                    }
+
+                    // literal: prefix 0 + byte
+                    flag.Buffer.WriteByte(by);
+                    flag.WriteBit(false);
                 }
 
-                if (offset != -1)
+                // Last match reached.
+                if (match.Length == 0)
+                    break;
+
+                if (!lwm && lastOffset == match.Distance && match.Length >= 2) // --- Repeat-last-offset case ---
+                {
+                    flag.WriteBit(true);
+                    flag.WriteBit(false);
+                    WriteGamma(flag, 2);//Flag
+                    WriteGamma(flag, match.Length);
+                }
+                else if (match.Length <= 3 && match.Distance <= 127) // --- SHORTBLOCK (length 2..3 && distance <= 127) ---
                 {
                     flag.WriteBit(true);
                     flag.WriteBit(true);
+                    flag.Buffer.WriteByte((byte)((match.Distance << 1) | (match.Length - 2)));
+                    flag.WriteBit(false);
+                }
+                else // --- NORMAL BLOCK (length >= 2, distance >= 2) ---
+                {
+                    int lengthDelta = match.Length - LengthDelta(match.Distance);
+                    if (lengthDelta < 2)
+                    {
+                        continue;
+                    }
                     flag.WriteBit(true);
-                    flag.WriteInt(offset, 4, true);
-                    continue;
+                    flag.WriteBit(false);
+
+                    // compute high part for gamma
+                    int high = (match.Distance >> 8) + 2;
+                    if (!lwm)
+                        high += 1; // pair bias
+
+                    WriteGamma(flag, high);
+
+                    // low byte
+                    flag.Buffer.WriteByte((byte)(match.Distance));
+                    flag.FlushIfNecessary();
+                    // length adjusted
+                    WriteGamma(flag, lengthDelta);
                 }
 
-                // literal: prefix 0 + byte
-                flag.Buffer.WriteByte(by);
-                flag.WriteBit(false);
+                lastOffset = match.Distance;
+                lwm = true; // ???
+                srcPtr += match.Length;
             }
             // End marker: SHORTBLOCK with offset==0
             flag.WriteBit(true);

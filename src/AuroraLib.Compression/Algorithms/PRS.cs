@@ -1,12 +1,10 @@
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -108,50 +106,53 @@ namespace AuroraLib.Compression.Algorithms
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionSettings settings = default)
         {
-            int sourcePointer = 0, matchPointer = 0;
-
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
+            int sourcePointer = 0x0;
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, order);
-            while (sourcePointer < source.Length)
+            while (true)
             {
-                LzMatch match;
-                if (matchPointer < matches.Count && matches[matchPointer].Offset == sourcePointer)
-                    match = matches[matchPointer++];
-                else
-                    match = default;
-
-                if (match.Length == 0 || (match.Length == 2 && match.Distance > 0x100))
+                LzMatch match = matchFinder.FindNextBestMatch(source);
+                int plain = match.Offset - sourcePointer;
+                while (plain != 0)
                 {
+                    plain--;
                     flag.Buffer.WriteByte(source[sourcePointer++]);
                     flag.WriteBit(true);
                 }
+
+                // Last match reached.
+                if (match.Length == 0)
+                    break;
+
+                if ((match.Length == 2 && match.Distance > 0x100))
+                    continue;
+
+                sourcePointer += match.Length;
+                int distance = match.Distance * -1;
+                int length = match.Length;
+
+
+                flag.WriteBit(false);
+                if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
+                {
+                    flag.WriteBit(false);
+                    flag.WriteInt(length - 2, 2, true);
+                    flag.Buffer.WriteByte((byte)distance);
+                    flag.FlushIfNecessary();
+                }
                 else
                 {
-                    sourcePointer += match.Length;
-                    int distance = match.Distance * -1;
-                    int length = match.Length;
 
-                    flag.WriteBit(false);
-                    if ((distance >= -0x100) && (length <= 5)) // Compressed value D 1-0x100 L 2-5
+                    if (length > 9) // L 1-0x100
                     {
-                        flag.WriteBit(false);
-                        flag.WriteInt(length - 2, 2, true);
-                        flag.Buffer.WriteByte((byte)distance);
-                        flag.FlushIfNecessary();
+                        flag.Buffer.Write((ushort)(distance << 3), order);
+                        flag.Buffer.WriteByte((byte)(length - 1));
                     }
-                    else
+                    else // L 3-9
                     {
-                        if (length > 9) // L 1-0x100
-                        {
-                            flag.Buffer.Write((ushort)(distance << 3), order);
-                            flag.Buffer.WriteByte((byte)(length - 1));
-                        }
-                        else // L 3-9
-                        {
-                            flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
-                        }
-                        flag.WriteBit(true);
+                        flag.Buffer.Write((ushort)((distance << 3) | (length - 2)), order);
                     }
+                    flag.WriteBit(true);
                 }
             }
             flag.WriteBit(false);

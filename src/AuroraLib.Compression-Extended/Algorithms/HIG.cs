@@ -3,14 +3,12 @@ using AuroraLib.Compression.Interfaces;
 using AuroraLib.Compression.IO;
 using AuroraLib.Compression.MatchFinder;
 using AuroraLib.Core;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Exceptions;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.Format.Identifier;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
-using System.IO.Compression;
 
 namespace AuroraLib.Compression.Algorithms
 {
@@ -216,23 +214,23 @@ namespace AuroraLib.Compression.Algorithms
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionLevel level = CompressionLevel.Optimal)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
         {
-            using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(source, _lz, lookAhead, level);
-            matches.Add(new LzMatch(source.Length, 0, 0)); // Dummy-Match
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
 
+            LzMatch next, match = matchFinder.FindNextBestMatch(source);
             // --- Initial RAW block ---
-            int plain = matches[0].Offset;
+            int plain = match.Offset;
 
             // Must be at least 2 bytes
             if (plain < 2)
             {
-                matches[0] = new LzMatch(2, matches[0].Distance, matches[0].Length - (plain+1));
+                match = new LzMatch(2, match.Distance, match.Length - (plain + 1));
                 plain = 2;
-                if (matches[0].Length < _lz.MinLength)
+                if (match.Length < _lz.MinLength)
                 {
-                    matches.RemoveAt(0);
-                    plain = matches[0].Offset;
+                    match = matchFinder.FindNextBestMatch(source);
+                    plain = match.Offset;
                 }
             }
 
@@ -248,11 +246,11 @@ namespace AuroraLib.Compression.Algorithms
             destination.Write(source.Slice(0, plain));
 
             int sourcePointer = plain;
-            for (int i = 0; i < matches.Count - 1; i++)
+            while (match.Length != 0)
             {
-                // --- Dictionary block --- 
-                LzMatch match = matches[i];
-                plain = matches[i + 1].Offset - (match.Offset + match.Length);
+                next = matchFinder.FindNextBestMatch(source);
+
+                plain = next.Offset - (match.Offset + match.Length);
                 int b = plain switch
                 {
                     0 => 3, // 0 byte
@@ -261,6 +259,7 @@ namespace AuroraLib.Compression.Algorithms
                     _ => 0, // X bytes
                 };
 
+                // --- Dictionary block ---
                 if (match.Distance <= 0x7FF && match.Length <= 5 + 4)
                 {
                     // >LLLD DDPP> DDDD DDDD
@@ -298,6 +297,7 @@ namespace AuroraLib.Compression.Algorithms
                     b |= match.Distance >> 6 & 0b1111_1100;
                     destination.WriteByte((byte)b); // second last byte
                 }
+
                 destination.WriteByte((byte)match.Distance); // last byte.
                 sourcePointer += match.Length;
 
@@ -320,7 +320,10 @@ namespace AuroraLib.Compression.Algorithms
                     destination.Write(source.Slice(sourcePointer, plain));
                     sourcePointer += plain;
                 }
+
+                match = next;
             }
         }
+
     }
 }
