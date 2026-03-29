@@ -162,10 +162,10 @@ namespace AuroraLib.Compression.MatchFinder
             int maxChain = _maxChain;
             while (Position <= limit)
             {
-                var best = MatchSearch(data, length, Position, maxChain);
+                MatchSearch(data, length, Position, maxChain, out int bestDistance, out int bestLength);
 
                 // No valid match → advance by 1 byte
-                if (best.Length < _minMatchLength)
+                if (bestLength < _minMatchLength)
                 {
                     Position++;
                     continue;
@@ -174,13 +174,14 @@ namespace AuroraLib.Compression.MatchFinder
                 // ===== Lazy matching (lookahead optimization) =====
                 // Checks if shifting forward by 1 byte yields a better match
                 int skip = 0;
-                if (best.Length <= _lazyThreshold && Position + 1 <= limit)
+                if (bestLength <= _lazyThreshold && Position + 1 <= limit)
                 {
                     int nextPos = Position + 1;
-                    var next = MatchSearch(data, length, nextPos, maxChain);
-                    if (next.Length - 1 > best.Length)
+                    MatchSearch(data, length, nextPos, maxChain, out int nextDistance, out int nextLength);
+                    if (nextLength - 1 > bestLength)
                     {
-                        best = next;
+                        bestLength = nextLength;
+                        bestDistance = nextDistance;
                         Position = nextPos;
                     }
                     else
@@ -189,11 +190,11 @@ namespace AuroraLib.Compression.MatchFinder
                     }
                 }
 
-                var match = new LzMatch(Position, best.Distance, best.Length);
+                var match = new LzMatch(Position, bestDistance, bestLength);
 
                 // ===== Fill hash window =====
                 // Ensures skipped region is indexed so future matches remain valid
-                int end = Position + best.Length;
+                int end = Position + bestLength;
                 Position++;
                 Position += skip;
                 while (Position < end && Position <= limit)
@@ -212,14 +213,13 @@ namespace AuroraLib.Compression.MatchFinder
             return new LzMatch(length, 0, 0);
         }
 
-        private (int Length, int Distance) MatchSearch(byte* data, int dataLength, int pos, int attempts)
+        private void MatchSearch(byte* data, int dataLength, int pos, int attempts, out int bestDistance, out int bestLength)
         {
             byte* dataPos = data + pos;
             ComputeHash(dataPos, out int h4, out int hm);
             int cur = _headTable[h4];
 
-            int bestDistance = 0;
-            int bestLength = 0;
+            bestDistance = bestLength = 0;
             int bestScore = -1;
 
             int bestPossibleMatch = Math.Min(dataLength - pos, _maxMatchLength);
@@ -272,7 +272,6 @@ namespace AuroraLib.Compression.MatchFinder
             }
 
             Insert(pos, h4, hm);
-            return (bestLength, bestDistance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
