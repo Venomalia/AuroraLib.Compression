@@ -1,0 +1,54 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+
+    <Title>AuroraLib.Compression.Sega</Title>
+    <Version>2.0.0.0</Version>
+    <Authors>Venomalia</Authors>
+    <Description>Sega-specific compression formats like LZ10, LZ11, Yaz0, Yay0, MIO0 and more.</Description>
+    <PackageTags>compression;Sega;yaz0;Yay0,lz10;</PackageTags>
+
+    <AssemblyName>$(Title)</AssemblyName>
+    <AssemblyVersion>$(Version)</AssemblyVersion>
+    <PackageId>$(Title)</PackageId>
+    <Product>$(Title)</Product>
+    <Copyright>$(Authors)</Copyright>
+    <Company>$(Authors)</Company>
+
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+
+    <PackageIcon>icon-ex.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    
+    <RootNamespace>AuroraLib.Compression.Formats</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TargetFrameworks>net10.0;net8.0;net6.0;netstandard2.0;netstandard2.1;net472;</TargetFrameworks>
+    <NETFrameworks>|netstandard2.0|net481|net48|net472|net471|net47|net462|net461|</NETFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="..\..\icon-ex.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\AuroraLib.Compression\AuroraLib.Compression.csproj" />
+  </ItemGroup>
+
+</Project>

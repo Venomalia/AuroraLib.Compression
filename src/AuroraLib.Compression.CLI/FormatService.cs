@@ -1,8 +1,13 @@
-using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI.Algorithms;
+using AuroraLib.Compression.Formats.Common;
+using AuroraLib.Compression.Formats.EA;
+using AuroraLib.Compression.Formats.Level5;
+using AuroraLib.Compression.Formats.Nintendo;
+using AuroraLib.Compression.Formats.Sega;
+using AuroraLib.Compression.Formats.Specialized;
 using AuroraLib.Core.Format;
 using System.Reflection;
-using static AuroraLib.Compression.Algorithms.RefPack;
+using static AuroraLib.Compression.Formats.EA.RefPack;
 
 namespace AuroraLib.Compression.CLI
 {
@@ -14,10 +19,12 @@ namespace AuroraLib.Compression.CLI
         {
 
             Assembly AuroraLib_Compression = typeof(LZO).Assembly;
-            Assembly AuroraLib_Compression_Extended = typeof(AKLZ).Assembly; // Assembly.LoadFrom(path); ? 
+            Assembly AuroraLib_Compression_Nintendo = typeof(LZ10).Assembly;
+            Assembly AuroraLib_Compression_Sega = typeof(PRS).Assembly;
+            Assembly AuroraLib_Compression_Extended = typeof(ALLZ).Assembly; // Assembly.LoadFrom(path); ? 
             Assembly Extern = typeof(Zstd).Assembly;
 
-            Formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended, Extern })
+            Formats = new FormatDictionary(new Assembly[] { AuroraLib_Compression, AuroraLib_Compression_Extended, AuroraLib_Compression_Nintendo, AuroraLib_Compression_Sega, Extern })
             {
                 new SpezialFormatInfo<HUF20>("Nintendo HUF20 4bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-4bits"), ".huf4", () => new HUF20() { Type = HUF20.CompressionType.Huffman4bits }),
                 new SpezialFormatInfo<HUF20>("Nintendo HUF20 8bits", new MediaType(MIMEType.Application, "x-nintendo-huf20-8bits"), ".huf8", () => new HUF20() { Type = HUF20.CompressionType.Huffman8bits }),

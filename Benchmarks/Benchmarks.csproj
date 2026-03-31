@@ -10,8 +10,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AuroraLib.Compression-Extended" Version="1.5.3" />
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
+    <ProjectReference Include="..\src\AuroraLib.Compression.Nintendo\AuroraLib.Compression.Nintendo.csproj" />
+    <ProjectReference Include="..\src\AuroraLib.Compression.Sega\AuroraLib.Compression.Sega.csproj" />
+    <ProjectReference Include="..\src\AuroraLib.Compression\AuroraLib.Compression.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,5 +1,14 @@
-using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI.Algorithms;
+using AuroraLib.Compression.Formats.Activision;
+using AuroraLib.Compression.Formats.Camelot;
+using AuroraLib.Compression.Formats.Common;
+using AuroraLib.Compression.Formats.CRI;
+using AuroraLib.Compression.Formats.EA;
+using AuroraLib.Compression.Formats.HudsonSoft;
+using AuroraLib.Compression.Formats.Marvelous;
+using AuroraLib.Compression.Formats.Nintendo;
+using AuroraLib.Compression.Formats.Sega;
+using AuroraLib.Compression.Formats.Specialized;
 using AuroraLib.Core;
 using AuroraLib.Core.IO;
 using System;

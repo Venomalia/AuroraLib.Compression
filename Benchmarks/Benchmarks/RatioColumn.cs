@@ -1,10 +1,9 @@
-using AuroraLib.Compression.Algorithms;
+using AuroraLib.Compression;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.IO;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Reports;
 using BenchmarkDotNet.Running;
-using System.IO.Compression;
 
 namespace Benchmarks.Benchmarks
 {
@@ -65,15 +64,15 @@ namespace Benchmarks.Benchmarks
             var instance = (ICompressionAlgorithm)Activator.CreateInstance(algType)!;
 
             int kb = (int)benchmarkCase.Parameters["Kb"];
-            CompressionLevel level = (CompressionLevel)benchmarkCase.Parameters["Level"];
+            int quality = (int)benchmarkCase.Parameters["Quality"];
             const string filePath = "Test.bmp";
             if (!File.Exists(filePath))
                 return "file?";
 
-            using var raw = new SubStream(File.OpenRead(filePath),1024*kb);
+            using var raw = new SubStream(File.OpenRead(filePath), 1024 * kb);
             using var output = new MemoryStream();
 
-            instance.Compress(raw, output, level);
+            instance.Compress(raw, output, quality);
 
             double ratio = (double)output.Length / raw.Length * 100.0;
             return ratio.ToString("F2", style.CultureInfo) + " %";

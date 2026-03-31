@@ -22,13 +22,10 @@
     <PackageReference Include="MSTest.TestFramework" Version="2.2.10" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' != 'Release'">
+  <ItemGroup>
     <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
-    <ProjectReference Include="..\src\AuroraLib.Compression\AuroraLib.Compression.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <ProjectReference Include="..\src\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
+    <ProjectReference Include="..\src\AuroraLib.Compression.Nintendo\AuroraLib.Compression.Nintendo.csproj" />
+    <ProjectReference Include="..\src\AuroraLib.Compression.Sega\AuroraLib.Compression.Sega.csproj" />
   </ItemGroup>
 
   <ItemGroup>

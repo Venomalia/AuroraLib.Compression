@@ -1,8 +1,7 @@
 using AuroraLib.Compression;
-using AuroraLib.Compression.Algorithms;
+using AuroraLib.Compression.Formats.Common;
+using AuroraLib.Compression.Formats.CRI;
 using AuroraLib.Compression.Interfaces;
-using AuroraLib.Compression.MatchFinder;
-using AuroraLib.Core.Collections;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using HashDepot;
@@ -23,54 +22,29 @@ namespace CompressionTest
         {
             LZ4.HashAlgorithm = b => XXHash.Hash32(b);
         }
-        [TestMethod]
-        public void FindMatchesParallelTest()
-        {
-            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-
-            byte[] testDataBytes = ArrayPool<byte>.Shared.Rent((int)testData.Length);
-            try
-            {
-                testData.ReadExactly(testDataBytes, 0, (int)testData.Length);
-
-                LzProperties lz = new LzProperties(0x1000, 0x4000, 3);
-                using PoolList<LzMatch> matches = LZMatchFinder.FindMatchesParallel(testDataBytes.AsSpan(0, (int)testData.Length), lz, true, CompressionLevel.Optimal);
-                Assert.AreEqual(44960, matches.Count);
-
-                Assert.AreEqual(1004602, matches.Sum(m => m.Length));
-            }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(testDataBytes);
-            }
-
-        }
 
         [TestMethod]
         public void LzssStaticDecodingTest()
         {
-            using (FileStream compressData = new FileStream("Test.lz", FileMode.Open, FileAccess.Read))
+            using FileStream compressData = new FileStream("Test.lz", FileMode.Open, FileAccess.Read);
+            LZSS lz = new LZSS(new LzProperties((byte)10, 6, 2));
+            int decompressedSize = (int)lz.GetDecompressedSize(compressData);
+            byte[] data = ArrayPool<byte>.Shared.Rent(decompressedSize);
+            try
             {
-                LZSS lz = new LZSS(new LzProperties((byte)10, 6, 2));
-                int decompressedSize = (int)lz.GetDecompressedSize(compressData);
-                byte[] data = ArrayPool<byte>.Shared.Rent(decompressedSize);
-                try
-                {
-                    Span<byte> buffer = data.AsSpan(0, decompressedSize);
-                    lz.Decompress(compressData, buffer);
-                    ulong decompressDataHash = XXHash.Hash64(buffer);
-                    Assert.AreEqual(11520079745250749767, decompressDataHash);
-                }
-                finally
-                {
-                    ArrayPool<byte>.Shared.Return(data);
-                }
+                Span<byte> buffer = data.AsSpan(0, decompressedSize);
+                lz.Decompress(compressData, buffer);
+                ulong decompressDataHash = XXHash.Hash64(buffer);
+                Assert.AreEqual(11520079745250749767, decompressDataHash);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(data);
             }
         }
 
         public static IEnumerable<object[]> GetAvailableAlgorithms()
         {
-            new AKLZ();
             IEnumerable<Type> availableAlgorithmTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes().Where(s => typeof(ICompressionAlgorithm).IsAssignableFrom(s) && !s.IsInterface && !s.IsAbstract));
             return availableAlgorithmTypes.Select(x => new object[] { (ICompressionAlgorithm)Activator.CreateInstance(x)! });
         }
@@ -82,7 +56,7 @@ namespace CompressionTest
         public void DataRecognitionTest(ICompressionAlgorithm algorithm)
         {
             Span<byte> testData = new byte[0x100];
-            using MemoryPoolStream compressData = algorithm.Compress(testData, CompressionLevel.Fastest);
+            using MemoryPoolStream compressData = algorithm.Compress(testData, CompressionSettings.Fastest);
             ReadOnlySpan<char> fileNameAndExtension = $"Test.bmp.{algorithm.GetType().Name}".AsSpan();
             if (Formats.Identify(compressData, fileNameAndExtension, out IFormatInfo? format) && format!.Class != null && typeof(ICompressionAlgorithm).IsAssignableFrom(format.Class))
             {
@@ -100,34 +74,26 @@ namespace CompressionTest
         }
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
-        public void EncodingAndDecodingMatchTest_1kb_Optimal(ICompressionAlgorithm algorithm)
+        public void EncodingAndDecodingMatchTest_10kb_Balanced(ICompressionAlgorithm algorithm)
         {
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.Optimal);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024 * 10, CompressionSettings.Balanced);
         }
 
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
-        public void EncodingAndDecodingMatchTest_1kb_Fastest(ICompressionAlgorithm algorithm)
+        public void EncodingAndDecodingMatchTest_10kb_Maximum(ICompressionAlgorithm algorithm)
         {
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.Fastest);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024 * 10, CompressionSettings.Maximum);
         }
 
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
-        public void EncodingAndDecodingMatchTest_1kb_NoCompression(ICompressionAlgorithm algorithm)
+        public void EncodingAndDecodingMatchTest_1MB_Fastest(ICompressionAlgorithm algorithm)
         {
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(algorithm, testData, 1024, CompressionLevel.NoCompression);
-        }
-
-        [TestMethod]
-        [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
-        public void EncodingAndDecodingMatchTest_100kb(ICompressionAlgorithm algorithm)
-        {
-            using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(algorithm, testData, 1024 * 100, CompressionLevel.Optimal);
+            EncodingAndDecodingMatchTest(algorithm, testData, 1024 * 1024, CompressionSettings.Fastest);
         }
 
         [TestMethod]
@@ -136,9 +102,9 @@ namespace CompressionTest
         {
             if (algorithm is CRILAYLA) return;
             using FileStream testData = new FileStream("Test.bmp", FileMode.Open, FileAccess.Read);
-            EncodingAndDecodingMatchTest(algorithm, testData, 10, CompressionLevel.Optimal);
+            EncodingAndDecodingMatchTest(algorithm, testData, 10, CompressionLevel.Fastest);
         }
-        private static void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm, FileStream testData, int size, CompressionLevel level = CompressionLevel.Optimal)
+        private static void EncodingAndDecodingMatchTest(ICompressionAlgorithm algorithm, FileStream testData, int size, CompressionSettings settings = default)
         {
             byte[] testDataBytes = ArrayPool<byte>.Shared.Rent(size);
             try
@@ -146,7 +112,7 @@ namespace CompressionTest
                 testData.ReadExactly(testDataBytes, 0, size);
                 ulong expectedHash = XXHash.Hash64(testDataBytes.AsSpan(0, size));
 
-                using Stream compressData = algorithm.Compress(testDataBytes.AsSpan(0, size), level);
+                using Stream compressData = algorithm.Compress(testDataBytes.AsSpan(0, size), settings);
                 using MemoryPoolStream decompressData = algorithm.Decompress(compressData);
                 ulong decompressDataHash = XXHash.Hash64(decompressData.UnsafeAsSpan());
                 Assert.AreEqual(expectedHash, decompressDataHash);

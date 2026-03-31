@@ -28,6 +28,8 @@
   
   <ItemGroup>
     <ProjectReference Include="..\AuroraLib.Compression-Extended\AuroraLib.Compression-Extended.csproj" />
+    <ProjectReference Include="..\AuroraLib.Compression.Nintendo\AuroraLib.Compression.Nintendo.csproj" />
+    <ProjectReference Include="..\AuroraLib.Compression.Sega\AuroraLib.Compression.Sega.csproj" />
   </ItemGroup>
 
 </Project>

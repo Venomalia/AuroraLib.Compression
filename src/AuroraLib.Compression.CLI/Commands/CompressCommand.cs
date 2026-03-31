@@ -1,4 +1,3 @@
-using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;

@@ -1,6 +1,6 @@
-using AuroraLib.Compression.Algorithms;
 using AuroraLib.Compression.CLI;
 using AuroraLib.Compression.CLI.Commands;
+using AuroraLib.Compression.Formats.Common;
 using AuroraLib.Core.IO;
 using System;
 using System.Collections.Generic;

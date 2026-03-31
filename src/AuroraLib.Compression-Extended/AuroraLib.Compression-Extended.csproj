@@ -1,37 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net10.0;net8.0;net6.0;netstandard2.0;netstandard2.1;net472;</TargetFrameworks>
-    <RootNamespace>AuroraLib.Compression</RootNamespace>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <Title>AuroraLib.Compression-Extended</Title>
-    <Version>1.5.3.0</Version>
+    <Version>2.0.0.0</Version>
+    <Authors>Venomalia</Authors>
+    <Description>Has additional compression algorithms that are rarely used like ALLZ, CRILAYLA, RefPack, WFLZ and more.</Description>
+    <PackageTags>compression;</PackageTags>
+
+    <AssemblyName>$(Title)</AssemblyName>
     <AssemblyVersion>$(Version)</AssemblyVersion>
+    <PackageId>$(Title)</PackageId>
+    <Product>$(Title)</Product>
+    <Copyright>$(Authors)</Copyright>
+    <Company>$(Authors)</Company>
+
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
+    <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
+
     <PackageIcon>icon-ex.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/Venomalia/AuroraLib.Compression</RepositoryUrl>
-    <PackageProjectUrl>https://github.com/Venomalia/AuroraLib.Compression</PackageProjectUrl>
-    <Copyright>Venomalia</Copyright>
-    <Description>
-      Has additional compression algorithms that are rarely used like ALLZ, MIO0, LZ40, aPLib, CRILAYLA and more.
-    </Description>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NETFrameworks>|netstandard2.0|net481|net48|net472|NET471|NET47|NET462|NET461|</NETFrameworks>
-    <Configurations>Debug;Release;Optimized</Configurations>
+    
+    <RootNamespace>AuroraLib.Compression.Formats</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TargetFrameworks>net10.0;net8.0;net6.0;netstandard2.0;netstandard2.1;net472;</TargetFrameworks>
+    <NETFrameworks>|netstandard2.0|net481|net48|net472|net471|net47|net462|net461|</NETFrameworks>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(NETFrameworks.Contains('|$(TargetFramework)|'))">
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)' == 'Optimized'">
-    <Optimize>True</Optimize>
-  </PropertyGroup>
-  
   <ItemGroup>
     <None Include="..\..\icon-ex.png">
       <Pack>True</Pack>
@@ -43,12 +46,7 @@
     </None>
   </ItemGroup>
   
-  <ItemGroup Condition="'$(Configuration)' != 'Release'">
+  <ItemGroup>
     <ProjectReference Include="..\AuroraLib.Compression\AuroraLib.Compression.csproj" />
   </ItemGroup>
-
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <PackageReference Include="AuroraLib.Compression" Version="1.6.5" />
-  </ItemGroup>
-
 </Project>
