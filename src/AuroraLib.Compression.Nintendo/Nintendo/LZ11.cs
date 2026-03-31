@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ11 compression algorithm extension of the <see cref="LZ10"/> algorithm, mainly used in DS and WII games.
     /// </summary>
-    public class LZ11 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public class LZ11 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x11;
 
@@ -23,9 +23,13 @@ namespace AuroraLib.Compression.Formats.Nintendo
         private static readonly IFormatInfo _info = new FormatInfo<LZ11>("Nintendo LZ11", new MediaType(MIMEType.Application, "x-nintendo-lz11"), ".lz");
 
         private static readonly LzProperties _lz = new LzProperties(0x1000, 0x4000, 3);
+        internal static readonly LzProperties _lzVram = new LzProperties(0x1000, 0x4000, 3, 0, 2);
 
         /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
+        public bool LookAhead { get; set; } = false;
+
+        /// <inheritdoc/>
+        public bool GbaVramCompatibilityMode { get; set; } = false;
 
         /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -76,7 +80,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, LookAhead, settings, GbaVramCompatibilityMode);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
@@ -131,10 +135,10 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default, bool gbaVramCompatibilityMode = false)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(gbaVramCompatibilityMode ? _lzVram : _lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             while (true)
             {

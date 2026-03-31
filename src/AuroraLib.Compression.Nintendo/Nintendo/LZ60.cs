@@ -10,7 +10,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ60 compression algorithm same as <see cref="LZ40"/>.
     /// </summary>
-    public sealed class LZ60 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZ60 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x60;
 
@@ -21,6 +21,9 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
+
+        /// <inheritdoc/>
+        public bool GbaVramCompatibilityMode { get; set; } = false;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -67,7 +70,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
                 destination.Write(source.Length);
             }
 
-            LZ40.CompressHeaderless(source, destination, LookAhead, settings);
+            LZ40.CompressHeaderless(source, destination, LookAhead, settings, GbaVramCompatibilityMode);
         }
     }
 }

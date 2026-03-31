@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ10 compression algorithm based on LZ77, mainly used in GBA, DS and WII games.
     /// </summary>
-    public class LZ10 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public class LZ10 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x10;
 
@@ -22,13 +22,18 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ10>("Nintendo LZ10", new MediaType(MIMEType.Application, "x-nintendo-lz10"), ".lz");
 
+        internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
+
         /// <summary>
-        /// Set minDistance to 2 so that "LookAhead" is compatible with GBA VRAM, this is also byte-identical to Nintendo's encoder.
+        /// Set minDistance to 2 so that is compatible with GBA VRAM.
         /// </summary>
-        internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3, 0, 2);
+        internal static readonly LzProperties _lzVram = new LzProperties(0x1000, 18, 3, 0, 2);
 
         /// <inheritdoc/>
         public bool LookAhead { get; set; } = true;
+
+        /// <inheritdoc/>
+        public bool GbaVramCompatibilityMode { get; set; } = true;
 
         /// <inheritdoc/>
         public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -74,7 +79,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
                 destination.Write(source.Length);
             }
 
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, LookAhead, settings, GbaVramCompatibilityMode);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
@@ -108,10 +113,10 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default, bool gbaVramCompatibilityMode = true)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(gbaVramCompatibilityMode ? _lzVram : _lz, settings, !lookAhead);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             while (true)
             {
