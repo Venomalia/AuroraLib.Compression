@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Formats.EA
     /// RefPack is an LZ compression format made by Frank Barchard of EA Canada
     /// http://wiki.niotso.org/RefPack
     /// </summary>
-    public sealed class RefPack : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class RefPack : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private const byte Identifier = 0xFB;
 
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.EA
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<RefPack>("RefPack", new MediaType(MIMEType.Application, "x-ea-refpack"), string.Empty);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// Set specific <see cref="RefPack"/> encode options.
@@ -121,7 +118,7 @@ namespace AuroraLib.Compression.Formats.EA
                 destination.Write((UInt24)source.Length, Endian.Big);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, settings);
+                CompressHeaderless(source, destination, settings);
 
                 // Go back to the beginning of the file and write out the compressed length
                 destination.At(compressedSizesOffset, s => s.Write((uint)(destination.Length - compressedSizesOffset - 4)));
@@ -159,7 +156,7 @@ namespace AuroraLib.Compression.Formats.EA
                         destination.Write((UInt24)0);
 
                 // Perform the compression
-                CompressHeaderless(source, destination, LookAhead, settings);
+                CompressHeaderless(source, destination, settings);
 
                 // Go back to the beginning of the file and write out the compressed length
                 if (StoresCompressedSize)
@@ -241,11 +238,11 @@ namespace AuroraLib.Compression.Formats.EA
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainSize = 0;
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings);
             while (true)
             {
                 LzMatch match = matchFinder.FindNextBestMatch(source);

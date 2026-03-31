@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Formats.Marvelous
     /// <summary>
     /// IECP algorithm base on LZSS, used in Fate/Extra.
     /// </summary>
-    public class IECP : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public class IECP : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("IECP".AsSpan());
 
@@ -19,9 +19,6 @@ namespace AuroraLib.Compression.Formats.Marvelous
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<IECP>("Fate/Extra IECP", new MediaType(MIMEType.Application, "x-lzss-iecp"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = LZSS.Lzss0Properties;
 
@@ -54,7 +51,7 @@ namespace AuroraLib.Compression.Formats.Marvelous
         {
             destination.Write(_identifier);
             destination.Write(source.Length);
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, _lz, settings);
         }
     }
 }

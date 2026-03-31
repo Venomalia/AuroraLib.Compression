@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// Lempel–Ziv–Storer–Szymanski algorithm, a derivative of LZ77 from Haruhiko Okumura.
     /// </summary>
-    public sealed class LZSS : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZSS : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("LZSS".AsSpan());
 
@@ -23,9 +23,6 @@ namespace AuroraLib.Compression.Formats.Common
         private static readonly IFormatInfo _info = new FormatInfo<LZSS>("Lempel–Ziv–Storer–Szymanski", new MediaType(MIMEType.Application, "x-lzss"), string.Empty, _identifier);
 
         protected readonly LzProperties LZ;
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         public LZSS() : this(DefaultProperties)
         { }
@@ -84,7 +81,7 @@ namespace AuroraLib.Compression.Formats.Common
             destination.Write(0);
 
             // Perform the compression
-            CompressHeaderless(source, destination, LZ, LookAhead, settings);
+            CompressHeaderless(source, destination, LZ, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);
@@ -132,10 +129,10 @@ namespace AuroraLib.Compression.Formats.Common
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, LzProperties lz, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
 
             int n = lz.GetWindowsFlag();

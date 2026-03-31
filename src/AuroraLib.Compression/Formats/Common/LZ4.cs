@@ -16,7 +16,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// LZ4 algorithm, similar to LZO focused on decompression speed.
     /// </summary>
     // https://github.com/lz4/lz4/tree/dev/doc
-    public sealed partial class LZ4 : ICompressionAlgorithm, ILzSettings
+    public sealed partial class LZ4 : ICompressionAlgorithm
     {
 
         private static readonly Identifier32 _identifier = new Identifier32((uint)FrameTypes.LZ4FrameHeader);
@@ -27,9 +27,6 @@ namespace AuroraLib.Compression.Formats.Common
         private static readonly IFormatInfo _info = new FormatInfo<LZ4>("LZ4 Frame Compression", new MediaType(MIMEType.Application, "x-lz4"), ".lz4", _identifier);
 
         private static readonly LzProperties _lz = new LzProperties(0xFFFF, int.MaxValue, 4);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// What type of frame should be written
@@ -127,7 +124,7 @@ namespace AuroraLib.Compression.Formats.Common
                         destination.Write(0); // Placeholder
 
                         ReadOnlySpan<byte> blockSource = source.Slice(sourcePointer, Math.Min((int)BlockMaxSizes.Block4MB * 2, source.Length - sourcePointer));
-                        CompressBlockHeaderless(blockSource, destination, LookAhead, settings);
+                        CompressBlockHeaderless(blockSource, destination, settings);
                         sourcePointer += blockSource.Length;
 
                         uint thisBlockSize = (uint)(destination.Position - blockStart - 4);
@@ -202,10 +199,10 @@ namespace AuroraLib.Compression.Formats.Common
             }
         }
 
-        public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressBlockHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainLength, token;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
 
             // The last sequence contains at last 5 bytes of literals.
             var encode = source.Slice(0, source.Length - 5);

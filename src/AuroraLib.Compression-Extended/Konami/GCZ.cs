@@ -11,16 +11,13 @@ namespace AuroraLib.Compression.Formats.Konami
     /// <summary>
     /// Konami GCZ based on LZSS, mainly used in Konami/Bemani music games.
     /// </summary>
-    public sealed class GCZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class GCZ : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private const string _extension = ".gcz";
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<GCZ>("Konami GCZ", new MediaType(MIMEType.Application, "x-lzss+gcz"), _extension);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = LZSS.Lzss0Properties;
 
@@ -50,7 +47,7 @@ namespace AuroraLib.Compression.Formats.Konami
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(source.Length);
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, _lz, settings);
         }
     }
 }

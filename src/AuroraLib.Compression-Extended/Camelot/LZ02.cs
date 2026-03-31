@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Camelot
     /// <summary>
     /// LZ02 compression algorithm used in Mario Golf: Toadstool Tour.
     /// </summary>
-    public sealed class LZ02 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZ02 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".lz02", string.Empty };
 
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.Camelot
         private static readonly IFormatInfo _info = new FormatInfo<LZ02>("LZ02", new MediaType(MIMEType.Application, "x-lz02"), _extensions);
 
         internal static readonly LzProperties _lz = new LzProperties(0xFFF, 272, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -76,7 +73,7 @@ namespace AuroraLib.Compression.Formats.Camelot
         {
             destination.Write(extendData.IsEmpty ? DataType.Default : DataType.Extended);
             destination.Write((UInt24)source.Length, Endian.Big);
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
             destination.Write(extendData);
         }
 
@@ -119,10 +116,10 @@ namespace AuroraLib.Compression.Formats.Camelot
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             while (true)
             {

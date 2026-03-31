@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// Google's Snappy compression algorithm (previously known as Zippy), focused on decompression speed.
     /// </summary>
-    public sealed class Snappy : ICompressionAlgorithm, ILzSettings
+    public sealed class Snappy : ICompressionAlgorithm
     {
         private const int MaxChunkSize = 0x10000;
         private static readonly byte[] _streamIdentifierChunk = new byte[] { 0xff, 0x06, 0x00, 0x00, 0x73, 0x4e, 0x61, 0x50, 0x70, 0x59 }; // Chunk + sNaPpY
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.Common
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<Snappy>("Snappy Frame", new MediaType(MIMEType.Application, "x-snappy-framed"), ".sz", _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = new LzProperties(0x8000, 63 + 1, 4);
 
@@ -84,7 +81,7 @@ namespace AuroraLib.Compression.Formats.Common
                 int chunkSize = Math.Min(MaxChunkSize, source.Length - pos);
                 ReadOnlySpan<byte> chunk = source.Slice(pos, chunkSize);
 
-                CompressHeaderless(chunk, buffer, LookAhead, settings);
+                CompressHeaderless(chunk, buffer, settings);
                 uint crc = CRCMask(Crc32C.Compute(chunk));
 
                 if (buffer.Length >= chunkSize)
@@ -122,10 +119,10 @@ namespace AuroraLib.Compression.Formats.Common
             return result;
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
 
             // Write DecompressedSize
             int v = source.Length;

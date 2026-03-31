@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// AKLZ implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class AKLZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class AKLZ : ICompressionAlgorithm, IProvidesDecompressedSize
     {
 
         private static readonly Identifier _identifier = new Identifier("AKLZ~?Qd=ÌÌÍ");
@@ -20,9 +20,6 @@ namespace AuroraLib.Compression.Formats.Sega
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<AKLZ>("Arcadia LZ", new MediaType(MIMEType.Application, "x-lzss+arcadia"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = LZSS.DefaultProperties;
 
@@ -55,7 +52,7 @@ namespace AuroraLib.Compression.Formats.Sega
         {
             destination.Write(_identifier.AsSpan());
             destination.Write(source.Length, Endian.Big);
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, _lz, settings);
         }
     }
 }

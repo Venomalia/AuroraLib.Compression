@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// LZO Nintendo mainly used in DS Download Games.
     /// </summary>
-    public sealed class LZOn : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZOn : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier64 _identifier = new Identifier64(new Identifier32("LZOn".AsSpan()), new Identifier32(0x00, 0x2F, 0xF1, 0x71));
 
@@ -20,9 +20,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZOn>("LZO Nintendo", new MediaType(MIMEType.Application, "x-lzo+nintendo"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -74,7 +71,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             destination.Write(0); // Compressed length (will be filled in later)
 
             // Perform the compression
-            LZO.CompressHeaderless(source, destination, LookAhead, settings);
+            LZO.CompressHeaderless(source, destination, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);

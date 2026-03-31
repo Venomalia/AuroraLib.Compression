@@ -5,7 +5,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Provides GBA VRAM compatibility mode for LZ compression.
     /// </summary>
-    public interface IGbaRamMode : ICompressionAlgorithm, ILzSettings
+    public interface IGbaRamMode : ICompressionAlgorithm
     {
         /// <summary>
         /// Enables GBA VRAM compatibility mode (minimum distance is set to 2).

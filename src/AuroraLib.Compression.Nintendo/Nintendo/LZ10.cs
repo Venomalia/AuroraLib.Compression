@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ10 compression algorithm based on LZ77, mainly used in GBA, DS and WII games.
     /// </summary>
-    public class LZ10 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IGbaRamMode
+    public class LZ10 : ICompressionAlgorithm, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x10;
 
@@ -28,9 +28,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         /// Set minDistance to 2 so that is compatible with GBA VRAM.
         /// </summary>
         internal static readonly LzProperties _lzVram = new LzProperties(0x1000, 18, 3, 0, 2);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool GbaVramCompatibilityMode { get; set; } = true;
@@ -79,7 +76,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
                 destination.Write(source.Length);
             }
 
-            CompressHeaderless(source, destination, LookAhead, settings, GbaVramCompatibilityMode);
+            CompressHeaderless(source, destination, settings, GbaVramCompatibilityMode);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
@@ -113,10 +110,10 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default, bool gbaVramCompatibilityMode = true)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default, bool gbaVramCompatibilityMode = true)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(gbaVramCompatibilityMode ? _lzVram : _lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(gbaVramCompatibilityMode ? _lzVram : _lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             while (true)
             {

@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// Sega LZ00 based on LZSS algorithm with encryption
     /// </summary>
-    public sealed class LZ00 : ICompressionAlgorithm, ILzSettings, IObjectName, IProvidesDecompressedSize
+    public sealed class LZ00 : ICompressionAlgorithm, IObjectName, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("LZ00".AsSpan());
 
@@ -23,9 +23,6 @@ namespace AuroraLib.Compression.Formats.Sega
         private static readonly IFormatInfo _info = new FormatInfo<LZ00>("Sega LZ00", new MediaType(MIMEType.Application, "x-lzss+lz00"), string.Empty, _identifier);
 
         private static readonly LzProperties _lz = LZSS.Lzss0Properties;
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// File name that was read during decoding and is written to the file header during encoding.
@@ -101,7 +98,7 @@ namespace AuroraLib.Compression.Formats.Sega
 
             // Perform the compression
             StreamTransformer transformDestination = new StreamTransformer(destination, key);
-            LZSS.CompressHeaderless(source, transformDestination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, transformDestination, _lz, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition);

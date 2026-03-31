@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// aPLib is one of the top pure LZ-based compression algorithm by Jørgen Ibsen.
     /// </summary>
-    public sealed class aPLib : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class aPLib : ICompressionAlgorithm, IProvidesDecompressedSize
     {
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'A', (byte)'P', (byte)'3', (byte)'2');
@@ -33,10 +33,6 @@ namespace AuroraLib.Compression.Formats.Common
             new LzProperties(0x2000, int.MaxValue, 5, 0, 2),
             new LzProperties(0x7800, int.MaxValue, 7, 0, 2),
         };
-
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -91,7 +87,7 @@ namespace AuroraLib.Compression.Formats.Common
         {
             // Compress the data without a header
             using MemoryPoolStream buffer = new MemoryPoolStream();
-            CompressHeaderless(source, buffer, LookAhead, settings);
+            CompressHeaderless(source, buffer, settings);
             Span<byte> compressedData = buffer.UnsafeAsSpan();
             // Header layout (24 bytes total):
             destination.Write(_identifier);             // 'AP32' tag
@@ -183,12 +179,12 @@ namespace AuroraLib.Compression.Formats.Common
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int srcPtr = 0, lastOffset = 0;
             bool lwm = false;
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             // 1) First literal: written raw (no marker)
             destination.WriteByte(source[srcPtr++]);

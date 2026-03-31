@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Level5
     /// <summary>
     /// Level5 compression algorithm, mainly used in Level5 3ds games.
     /// </summary>
-    public class Level5 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public class Level5 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".Level5", ".zlb" };
 
@@ -22,9 +22,6 @@ namespace AuroraLib.Compression.Formats.Level5
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<Level5>("Level5 compression", new MediaType(MIMEType.Application, "x-level5-compressed"), _extensions);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// Specifies the type of compression used.
@@ -135,7 +132,7 @@ namespace AuroraLib.Compression.Formats.Level5
                     destination.Write(source);
                     break;
                 case CompressionType.LZ10:
-                    LZ10.CompressHeaderless(source, destination, LookAhead, settings);
+                    LZ10.CompressHeaderless(source, destination, settings);
                     break;
                 case CompressionType.RLE:
                     RLE30.CompressHeaderless(source, destination);

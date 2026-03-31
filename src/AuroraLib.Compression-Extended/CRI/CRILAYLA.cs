@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.CRI
     /// <summary>
     /// CRILAYLA compression algorithm by CRI Middleware, used in many games built with the CRIWARE toolset.
     /// </summary>
-    public sealed class CRILAYLA : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class CRILAYLA : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         const int HeaderSize = 0x100;
 
@@ -25,9 +25,6 @@ namespace AuroraLib.Compression.Formats.CRI
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<CRILAYLA>("CRI Middleware Crilayla", new MediaType(MIMEType.Application, "x-crilayla"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -110,7 +107,7 @@ namespace AuroraLib.Compression.Formats.CRI
             byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length + (int)(source.Length * 0.1));
             try
             {
-                int compressedSize = CompressHeaderless(source.Slice(HeaderSize), buffer, LookAhead, settings);
+                int compressedSize = CompressHeaderless(source.Slice(HeaderSize), buffer, settings);
                 destination.Write(_identifier);
                 destination.Write(source.Length - HeaderSize);
                 destination.Write(compressedSize);
@@ -190,7 +187,7 @@ namespace AuroraLib.Compression.Formats.CRI
             return value;
         }
 
-        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
             int dst = destination.Length - 1;
@@ -200,7 +197,7 @@ namespace AuroraLib.Compression.Formats.CRI
             ReadOnlySpan<int> vleLevels = stackalloc int[4] { 2, 3, 5, 8 };
             ReadOnlySpan<int> vleFlags = stackalloc int[4] { 0x3, 0x7, 0x1F, 0xFF };
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             byte[] reverseSource = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {

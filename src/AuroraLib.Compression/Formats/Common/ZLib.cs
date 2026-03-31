@@ -40,7 +40,8 @@ namespace AuroraLib.Compression.Formats.Common
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
 #if NET10_0_OR_GREATER
-            ZLibCompressionOptions options = new() { CompressionLevel = settings.Quality * 8 / 15 };
+            ZLibCompressionStrategy strategy = settings.Strategy == CompresionStrategy.CompatibilityMode ? ZLibCompressionStrategy.Fixed : ZLibCompressionStrategy.Default;
+            ZLibCompressionOptions options = new() { CompressionLevel = settings.Quality * 8 / 15, CompressionStrategy = strategy };
             using ZLibStream algo = new ZLibStream(destination, options, true);
 #else
             using ZLibStream algo = new ZLibStream(destination, (CompressionLevel)settings, true);

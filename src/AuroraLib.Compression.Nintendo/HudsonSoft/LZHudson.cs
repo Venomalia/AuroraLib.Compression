@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Formats.HudsonSoft
     /// <summary>
     /// LZHudson is an LZ based compression algorithm used in Mario Party 4.
     /// </summary>
-    public sealed class LZHudson : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZHudson : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly string[] _extensions = new string[] { ".lzHudson" };
 
@@ -22,9 +22,6 @@ namespace AuroraLib.Compression.Formats.HudsonSoft
         private static readonly IFormatInfo _info = new FormatInfo<LZHudson>("LZHudson", new MediaType(MIMEType.Application, "x-lzhudson"), _extensions);
 
         private static readonly LzProperties _lz = new LzProperties(0x1000, 0xFF + 18, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -49,16 +46,16 @@ namespace AuroraLib.Compression.Formats.HudsonSoft
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(source.Length, Endian.Big);
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
            => Yay0.DecompressHeaderless(new FlagReader(source, Endian.Big, 4, Endian.Big), source, source, destination, decomLength);
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             using FlagWriter flag = new FlagWriter(destination, Endian.Big, 4, Endian.Big);
-            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, settings);
+            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, settings);
         }
     }
 }

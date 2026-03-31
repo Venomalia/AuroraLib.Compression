@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo Yaz0 compression algorithm successor to the <see cref="Yay0"/> algorithm, used in numerous Nintendo titles from the N64 era to Switch.
     /// </summary>
-    public class Yaz0 : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat, IProvidesDecompressedSize
+    public class Yaz0 : ICompressionAlgorithm, IEndianDependentFormat, IProvidesDecompressedSize
     {
 
         /// <inheritdoc/>
@@ -25,9 +25,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         public virtual IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<Yaz0>("Nintendo Yaz0", new MediaType(MIMEType.Application, "x-nintendo-yaz0"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
@@ -88,16 +85,16 @@ namespace AuroraLib.Compression.Formats.Nintendo
             destination.Write(source.Length, FormatByteOrder);
             destination.Write(MemoryAlignment, FormatByteOrder);
             destination.Write(0);
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, uint decomLength)
             => Yay0.DecompressHeaderless(new FlagReader(source, Endian.Big), source, source, destination, decomLength);
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
-            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, lookAhead, settings);
+            Yay0.CompressHeaderless(source, flag.Buffer, flag.Buffer, flag, settings);
         }
     }
 }

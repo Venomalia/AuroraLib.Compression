@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo SMSR00 compression algorithm, mainly used in Yoshi's Story for the Nintendo 64.
     /// </summary>
-    public sealed class SMSR00 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class SMSR00 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         const int headerSize = 0x10;
 
@@ -27,9 +27,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         private static readonly IFormatInfo _info = new FormatInfo<SMSR00>("Nintendo SMSR00", new MediaType(MIMEType.Application, "x-nintendo-smsr00"), string.Empty, _identifier);
 
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = false;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -64,7 +61,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             using MemoryPoolStream uncompressedData = new MemoryPoolStream(0x400);
             using MemoryPoolStream codeData = new MemoryPoolStream(0x1000);
 
-            CompressHeaderless(source, uncompressedData, codeData, LookAhead, settings);
+            CompressHeaderless(source, uncompressedData, codeData, settings);
 
             uint startPosition = (uint)destination.Position;
             destination.Write(_identifier.AsSpan());
@@ -136,10 +133,10 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream uncompressedData, Stream codeData, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream uncompressedData, Stream codeData, CompressionSettings settings = default)
         {
             using FlagWriter flag = new FlagWriter(codeData, Endian.Big, 2, Endian.Big);
-            MIO0.CompressHeaderless(source, flag.Buffer, uncompressedData, flag, lookAhead, settings);
+            MIO0.CompressHeaderless(source, flag.Buffer, uncompressedData, flag, settings);
         }
     }
 }

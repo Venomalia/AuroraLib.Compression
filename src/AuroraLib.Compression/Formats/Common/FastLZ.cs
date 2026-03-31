@@ -12,15 +12,12 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// FastLZ is a fast and simple compression algorithm by Ariya Hidayat
     /// </summary>
-    public sealed class FastLZ : ICompressionAlgorithm, ILzSettings
+    public sealed class FastLZ : ICompressionAlgorithm
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<FastLZ>("FastLZ stream", new MediaType(MIMEType.Application, "x-fastlz"), string.Empty);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties[] _lz1 = new LzProperties[] { new LzProperties(0x2000, byte.MaxValue + 3 + 6, 3) };
         private static readonly LzProperties[] _lz2 = new LzProperties[]
@@ -167,22 +164,22 @@ namespace AuroraLib.Compression.Formats.Common
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
-            => CompressHeaderless(source, destination, LookAhead, settings);
+            => CompressHeaderless(source, destination, settings);
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (source.Length < 0x10000 || settings.Quality <= 4 || settings.MaxWindowBits <= 13)
-                CompressHeaderless(source, destination, false, lookAhead, settings);
+                CompressHeaderless(source, destination, false, settings);
             else
-                CompressHeaderless(source, destination, true, lookAhead, settings);
+                CompressHeaderless(source, destination, true, settings);
         }
 
-        private static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool isLevel2, bool lookAhead = true, CompressionSettings settings = default)
+        private static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool isLevel2, CompressionSettings settings = default)
         {
             bool level2First = isLevel2;
             int sourcePointer = 0x0;
             byte ctrl;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(isLevel2 ? _lz2 : _lz1, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(isLevel2 ? _lz2 : _lz1, settings);
 
             while (true)
             {

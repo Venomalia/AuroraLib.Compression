@@ -194,7 +194,7 @@ namespace AuroraLib.Compression.Formats.Common
                     buffer.SetLength(0);
 
                     ReadOnlySpan<byte> blockData = source.Slice(sourcePointer, Math.Min((int)BlockSize, source.Length - sourcePointer));
-                    CompressBlockHeaderless(blockData, buffer, LookAhead, settings);
+                    CompressBlockHeaderless(blockData, buffer, settings);
                     sourcePointer += blockData.Length;
 
                     if (buffer.Position >= (int)BlockSize)

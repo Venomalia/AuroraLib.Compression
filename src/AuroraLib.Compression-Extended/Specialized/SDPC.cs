@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Formats.Specialized
     /// <summary>
     /// TREVA Entertainment SDPC compression based on LZO.
     /// </summary>
-    public sealed class SDPC : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class SDPC : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -22,9 +22,6 @@ namespace AuroraLib.Compression.Formats.Specialized
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<SDPC>("TREVA Entertainment SDPC", new MediaType(MIMEType.Application, "x-lzo+sdpc"), string.Empty, _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -63,7 +60,7 @@ namespace AuroraLib.Compression.Formats.Specialized
         {
             destination.Write(_identifier);
             destination.Write(source.Length);
-            LZO.CompressHeaderless(source, destination, LookAhead, settings);
+            LZO.CompressHeaderless(source, destination, settings);
         }
     }
 }

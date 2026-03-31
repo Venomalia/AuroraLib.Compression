@@ -10,15 +10,12 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// This LZSS header was used by Sega in early GameCube games like F-zero GX or Super Monkey Ball.
     /// </summary>
-    public sealed class LZSega : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZSega : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZSega>("LZ Sega", new MediaType(MIMEType.Application, "x-lzss+sega"), ".lz");
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private static readonly LzProperties _lz = LZSS.DefaultProperties;
 
@@ -62,7 +59,7 @@ namespace AuroraLib.Compression.Formats.Sega
             long destinationStartPosition = destination.Position;
             destination.Write(0); // Compressed length (will be filled in later)
             destination.Write(source.Length);
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, _lz, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x8);

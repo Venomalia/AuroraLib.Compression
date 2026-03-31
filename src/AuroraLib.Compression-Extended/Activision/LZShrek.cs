@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Activision
     /// <summary>
     /// LZShrek compression algorithm used in Shrek Super Slam.
     /// </summary>
-    public sealed class LZShrek : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZShrek : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -21,9 +21,6 @@ namespace AuroraLib.Compression.Formats.Activision
         private static readonly IFormatInfo _info = new FormatInfo<LZShrek>("LZ Shrek", new MediaType(MIMEType.Application, "x-lz-shrek"), string.Empty);
 
         private static readonly LzProperties _lz = new LzProperties(0x1000, 262, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -70,7 +67,7 @@ namespace AuroraLib.Compression.Formats.Activision
             destination.Write(0x0);
 
             long start = destination.Position;
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
             uint compLength = (uint)(destination.Position - start);
             destination.At(start - 8, s => s.Write(compLength));
         }
@@ -121,10 +118,10 @@ namespace AuroraLib.Compression.Formats.Activision
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using MemoryPoolStream buffer = new MemoryPoolStream(0x10);
 
             LzMatch match = matchFinder.FindNextBestMatch(source);

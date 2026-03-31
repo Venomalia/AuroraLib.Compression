@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ77 extension header for LZ10 and other algorithms.
     /// </summary>
-    public sealed class LZ77 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZ77 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("LZ77".AsSpan());
 
@@ -32,9 +32,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         /// Defines the size of the chunks when <see cref="CompressionType.ChunkLZ10"/> is used. (4 KB by default).
         /// </summary>
         public UInt24 ChunkSize = 0x1000;
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -63,10 +60,10 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
             ICompressionEncoder encoder = Type switch
             {
-                CompressionType.LZ10 => new LZ10() { LookAhead = this.LookAhead },
-                CompressionType.LZ11 => new LZ11() { LookAhead = this.LookAhead },
+                CompressionType.LZ10 => new LZ10(),
+                CompressionType.LZ11 => new LZ11(),
                 CompressionType.RLE30 => new RLE30(),
-                CompressionType.ChunkLZ10 => new LZ10() { LookAhead = this.LookAhead },
+                CompressionType.ChunkLZ10 => new LZ10(),
                 CompressionType.HUF20_4bits => new HUF20() { Type = HUF20.CompressionType.Huffman4bits },
                 CompressionType.HUF20_8bits => new HUF20() { Type = HUF20.CompressionType.Huffman8bits },
                 _ => throw new NotSupportedException($"{nameof(LZ77)} compression type {Type} not supported.")

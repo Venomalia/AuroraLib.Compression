@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// CNX2 compression algorithm
     /// </summary>
-    public sealed class CNX2 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class CNX2 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'C', (byte)'N', (byte)'X', 0x2);
@@ -29,9 +29,6 @@ namespace AuroraLib.Compression.Formats.Sega
         /// The extension string that is set when writing and reading.
         /// </summary>
         string Extension { get; set; } = "DEC";
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -82,7 +79,7 @@ namespace AuroraLib.Compression.Formats.Sega
             destination.Write(source.Length, Endian.Big);
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             uint destinationLength = (uint)(destination.Position - StartPosition);
@@ -137,10 +134,10 @@ namespace AuroraLib.Compression.Formats.Sega
                 throw new DecompressedSizeException(decomLength, destination.Position - (endPosition - decomLength));
             }
         }
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
             while (true)
             {

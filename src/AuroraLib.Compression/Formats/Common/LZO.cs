@@ -12,7 +12,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// Lempel–Ziv–Oberhumer (LZO, LZO1X) algorithm, focused on decompression speed.
     /// </summary>
-    public sealed class LZO : ICompressionAlgorithm, ILzSettings
+    public sealed class LZO : ICompressionAlgorithm
     {
         private static readonly string[] _extensions = new string[] { ".lzo", string.Empty };
 
@@ -22,9 +22,6 @@ namespace AuroraLib.Compression.Formats.Common
         private static readonly IFormatInfo _info = new FormatInfo<LZO>("Lempel–Ziv–Oberhumer", new MediaType(MIMEType.Application, "x-lzo"), _extensions);
 
         private static readonly LzProperties _lz = new LzProperties(0xBFFF, int.MaxValue, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -47,7 +44,7 @@ namespace AuroraLib.Compression.Formats.Common
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
-            => CompressHeaderless(source, destination, LookAhead, settings);
+            => CompressHeaderless(source, destination, settings);
 
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
@@ -141,7 +138,7 @@ namespace AuroraLib.Compression.Formats.Common
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (source.Length < 0x10)
             {
@@ -155,7 +152,7 @@ namespace AuroraLib.Compression.Formats.Common
             }
             int sourcePointer = 0x0;
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
 
             LzMatch match, next;
             match = matchFinder.FindNextBestMatch(source);

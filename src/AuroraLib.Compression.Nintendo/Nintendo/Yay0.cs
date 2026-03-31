@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo Yay0 compression algorithm successor to the MIO0 algorithm with increased match length, used in some Nintendo 64 and GameCube games.
     /// </summary>
-    public sealed class Yay0 : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat, IProvidesDecompressedSize
+    public sealed class Yay0 : ICompressionAlgorithm, IEndianDependentFormat, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("Yay0".AsSpan());
 
@@ -25,9 +25,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         private static readonly IFormatInfo _info = new FormatInfo<Yay0>("Nintendo Yay0", new MediaType(MIMEType.Application, "x-nintendo-yay0"), string.Empty, _identifier);
 
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 0xff + 0x12, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
@@ -68,7 +65,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             using MemoryPoolStream compressedData = new MemoryPoolStream(1024);
             using MemoryPoolStream uncompressedData = new MemoryPoolStream(1024);
             using MemoryPoolStream flagData = new MemoryPoolStream(512);
-            CompressHeaderless(source, compressedData, uncompressedData, flagData, LookAhead, settings);
+            CompressHeaderless(source, compressedData, uncompressedData, flagData, settings);
 
             uint startPosition = (uint)destination.Position;
             destination.Write(_identifier);
@@ -146,16 +143,16 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, Stream flagData, CompressionSettings settings = default)
         {
             using FlagWriter flag = new FlagWriter(flagData, Endian.Big);
-            CompressHeaderless(source, compressedData, uncompressedData, flag, lookAhead, settings);
+            CompressHeaderless(source, compressedData, uncompressedData, flag, settings);
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream compressedData, Stream uncompressedData, FlagWriter flag, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             while (true)
             {
                 LzMatch match = matchFinder.FindNextBestMatch(source);

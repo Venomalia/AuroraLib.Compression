@@ -15,7 +15,7 @@ namespace AuroraLib.Compression.Formats.Specialized
     /// <summary>
     /// High Impact Games WAD compression, similar to LZO.
     /// </summary>
-    public sealed class HIG : ICompressionAlgorithm, IProvidesDecompressedSize, ILzSettings
+    public sealed class HIG : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("HIG!".AsSpan());
 
@@ -26,9 +26,6 @@ namespace AuroraLib.Compression.Formats.Specialized
 
 
         private static readonly LzProperties _lz = new LzProperties(0x7FFF, ushort.MaxValue, 4);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// v5 == Ratchet and Clank: Size Matters (PS2)
@@ -116,7 +113,7 @@ namespace AuroraLib.Compression.Formats.Specialized
             }
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             if (header[14] == 5 || header[14] == 6)
@@ -214,9 +211,9 @@ namespace AuroraLib.Compression.Formats.Specialized
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
 
             LzMatch next, match = matchFinder.FindNextBestMatch(source);
             // --- Initial RAW block ---

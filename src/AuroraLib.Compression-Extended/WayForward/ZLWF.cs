@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.WayForward
     /// <summary>
     /// WayForward's LZ chunk header.
     /// </summary>
-    public sealed class ZLWF : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IEndianDependentFormat
+    public sealed class ZLWF : ICompressionAlgorithm, IProvidesDecompressedSize, IEndianDependentFormat
     {
 
         private static readonly Identifier32 _identifier = new Identifier32("ZLWF".AsSpan());
@@ -22,8 +22,6 @@ namespace AuroraLib.Compression.Formats.WayForward
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<ZLWF>("WayForward Chunk LZ", new MediaType(MIMEType.Application, "x-wflz+chunk"), string.Empty, _identifier);
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
@@ -115,7 +113,7 @@ namespace AuroraLib.Compression.Formats.WayForward
             destination.Write<int>(offsets); // Offsets (will be filled in later)
 
             // Perform the compression
-            WFLZ encoder = new WFLZ() { FormatByteOrder = FormatByteOrder, LookAhead = LookAhead };
+            WFLZ encoder = new WFLZ() { FormatByteOrder = FormatByteOrder };
             for (int i = 0; i < chunks; i++)
             {
                 int blockStart = (int)BlockSize * i;

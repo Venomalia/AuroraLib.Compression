@@ -1,3 +1,4 @@
+using AuroraLib.Compression;
 using AuroraLib.Compression.CLI;
 using AuroraLib.Compression.CLI.Commands;
 using AuroraLib.Compression.Formats.Common;
@@ -66,10 +67,12 @@ class Program
                     bool? lookAhead = argsDict.TryGetValue(Flags.LookAhead, out var laStr) ? bool.Parse(laStr) : null;
                     Endian? order = argsDict.TryGetValue(Flags.Endian, out var ordStr) && Enum.TryParse(ordStr, true, out Endian ord) ? ord : null;
 
+                    CompressionSettings settings = level;
+                    settings = new CompressionSettings(settings.Quality, settings.MaxWindowBits, lookAhead == false ? CompresionStrategy.CompatibilityMode : CompresionStrategy.Default);
                     Console.WriteLine($"Compressing '{input}' to '{output}' using algorithm '{encoder.FullName}'.");
                     Console.WriteLine($"  Compression Level: {level}{(lookAhead == null ? null : $" LookAhead: {lookAhead}")}{(order == null ? null : $" Byte order: {order}")}.");
                     Console.WriteLine();
-                    if (!CompressCommand.Execute(input, output, encoder, level, lookAhead, order))
+                    if (!CompressCommand.Execute(input, output, encoder, level, order))
                     {
                         throw new ArgumentException($"Unknown encoder: '{algo}'.");
                     }

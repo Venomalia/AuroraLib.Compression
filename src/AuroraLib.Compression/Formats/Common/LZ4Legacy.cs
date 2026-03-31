@@ -10,7 +10,7 @@ namespace AuroraLib.Compression.Formats.Common
     /// <summary>
     /// <see cref="LZ4"/> initial versions of “LZ4Demo”, known as LZ4Legacy.
     /// </summary>
-    public sealed class LZ4Legacy : ICompressionAlgorithm, ILzSettings
+    public sealed class LZ4Legacy : ICompressionAlgorithm
     {
 
         private static readonly Identifier32 _identifier = new Identifier32((uint)LZ4.FrameTypes.Legacy);
@@ -19,9 +19,6 @@ namespace AuroraLib.Compression.Formats.Common
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ4Legacy>("LZ4 Legacy Compression", new MediaType(MIMEType.Application, "x-lz4demo"), ".lz4", _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         private LZ4 algorithmlZ4 = new LZ4();
 
@@ -42,7 +39,6 @@ namespace AuroraLib.Compression.Formats.Common
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             algorithmlZ4.FrameType = LZ4.FrameTypes.Legacy;
-            algorithmlZ4.LookAhead = LookAhead;
             algorithmlZ4.Compress(source, destination, settings);
         }
     }

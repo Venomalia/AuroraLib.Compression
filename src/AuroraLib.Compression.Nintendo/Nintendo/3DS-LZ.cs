@@ -10,7 +10,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// 3DS-LZ is a header for LZ10 compressed files in some games on the 3DS.
     /// </summary>
-    public sealed class LZ_3DS : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZ_3DS : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier64 _identifier = new Identifier64("3DS-LZ\r\n".AsSpan());
 
@@ -19,8 +19,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ_3DS>("3DS-LZ", new MediaType(MIMEType.Application, "x-nintendo-lz10+3DS-LZ"), string.Empty, _identifier);
 
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
@@ -48,7 +46,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            new LZ10() { LookAhead = LookAhead }.Compress(source, destination, settings);
+            new LZ10().Compress(source, destination, settings);
         }
     }
 }

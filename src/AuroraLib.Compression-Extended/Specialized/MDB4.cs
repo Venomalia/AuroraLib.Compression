@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Formats.Specialized
     /// <summary>
     /// WOW Entertainment MDB4 base on LZSS, used in Typing of the Dead for the PlayStation 2
     /// </summary>
-    public class MDB4 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public class MDB4 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly Identifier32 _identifier = new Identifier32("MDB4".AsSpan());
 
@@ -19,9 +19,6 @@ namespace AuroraLib.Compression.Formats.Specialized
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<MDB4>("WOW Entertainment MDB4", new MediaType(MIMEType.Application, "x-lzss+MDB4"), ".MDB", _identifier);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -75,7 +72,7 @@ namespace AuroraLib.Compression.Formats.Specialized
             destination.Write(0, 4); //4*4 byte
 
             // Perform the compression
-            LZSS.CompressHeaderless(source, destination, LZSS.DefaultProperties, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, LZSS.DefaultProperties, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 0x10);

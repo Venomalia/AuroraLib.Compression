@@ -14,7 +14,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo BLZ compression algorithm similar to LZ77 but compresses data backwards, mainly used on the 3ds.
     /// </summary>
-    public sealed class BLZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class BLZ : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -22,9 +22,6 @@ namespace AuroraLib.Compression.Formats.Nintendo
         private static readonly IFormatInfo _info = new FormatInfo<BLZ>("Nintendo BLZ", new MediaType(MIMEType.Application, "x-blz"), string.Empty);
 
         private static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3, 0, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -76,7 +73,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length + (int)(source.Length * 0.1));
             try
             {
-                int compressedSize = CompressHeaderless(source, buffer, LookAhead, settings);
+                int compressedSize = CompressHeaderless(source, buffer, settings);
                 destination.Write(buffer, buffer.Length - compressedSize, (int)compressedSize);
 
                 // Write Header + optional padding
@@ -137,12 +134,12 @@ namespace AuroraLib.Compression.Formats.Nintendo
             }
         }
 
-        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static int CompressHeaderless(ReadOnlySpan<byte> source, byte[] destination, CompressionSettings settings = default)
         {
             // Destination start from end (because data is reversed)
             int src = 0x0, dst = destination.Length - 2, flag = 1, flagPos = destination.Length - 1, lzCode;
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, 8, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             byte[] reverseSourceBuffer = ArrayPool<byte>.Shared.Rent(source.Length);
             try
             {

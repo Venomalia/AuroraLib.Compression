@@ -9,7 +9,7 @@ namespace AuroraLib.Compression
     /// </summary>
     public readonly struct CompressionSettings
     {
-        private readonly byte _quality, _maxWindowBits;
+        private readonly byte _quality, _maxWindowBits, _strategy;
 
         /// <summary>
         /// Compression quality (0–15).
@@ -26,20 +26,27 @@ namespace AuroraLib.Compression
         public readonly int MaxWindowBits => _maxWindowBits; // 0 = auto
 
         /// <summary>
+        /// Compression strategy and flags.
+        /// </summary>
+        public readonly CompresionStrategy Strategy => (CompresionStrategy)_strategy;
+
+        /// <summary>
         /// Creates CompressionSettings.
         /// </summary>
         /// <param name="quality">0–15, higher = slower but better compression (default = 8)</param>
         /// <param name="maxWindowBits">0 or 7-28, Max sliding window (0 = auto)</param>
-        private CompressionSettings(int quality = 8, int maxWindowBits = 0)
+        public CompressionSettings(int quality = 8, int maxWindowBits = 0, CompresionStrategy strategy = CompresionStrategy.Default)
         {
             ThrowIf.Negative(quality);
             ThrowIf.GreaterThan(quality, 15);
             ThrowIf.Negative(maxWindowBits);
             ThrowIf.GreaterThan(maxWindowBits, 28);
+            ThrowIf.InvalidEnum(strategy);
             if (maxWindowBits != 0) ThrowIf.LessThan(maxWindowBits, 7);
 
             _quality = (byte)(quality + 1);
             _maxWindowBits = (byte)maxWindowBits;
+            _strategy = (byte)strategy;
         }
 
         public static implicit operator CompressionSettings(int value) => new CompressionSettings(value);

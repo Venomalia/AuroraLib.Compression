@@ -17,7 +17,7 @@ namespace AuroraLib.Compression.Formats.WayForward
     /// <summary>
     /// WayForward's LZ algorithm, focused on decompression speed.
     /// </summary>
-    public sealed class WFLZ : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize, IEndianDependentFormat
+    public sealed class WFLZ : ICompressionAlgorithm, IProvidesDecompressedSize, IEndianDependentFormat
     {
         private static readonly LzProperties _lz = new LzProperties(ushort.MaxValue, byte.MaxValue, 4 + 1);
 
@@ -30,8 +30,6 @@ namespace AuroraLib.Compression.Formats.WayForward
         public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<WFLZ>("WayForward LZ", new MediaType(MIMEType.Application, "x-wflz"), string.Empty, _identifier);
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Little;
@@ -99,7 +97,7 @@ namespace AuroraLib.Compression.Formats.WayForward
             destination.Write(source.Length, FormatByteOrder);
 
             // Perform the compression
-            CompressHeaderless(source, destination, FormatByteOrder, LookAhead, settings);
+            CompressHeaderless(source, destination, FormatByteOrder, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition - 12);
@@ -160,12 +158,12 @@ namespace AuroraLib.Compression.Formats.WayForward
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, CompressionSettings settings = default)
         {
 
             int sourcePointer = 0x0;
 
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
 
             LzMatch match = default, next = matchFinder.FindNextBestMatch(source);
             int plain = next.Offset;

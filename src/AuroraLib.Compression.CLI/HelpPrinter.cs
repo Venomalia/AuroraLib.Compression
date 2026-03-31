@@ -53,9 +53,6 @@ namespace AuroraLib.Compression.CLI
                 {
                     List<string> supported = new List<string>();
 
-                    if (instance is ILzSettings)
-                        supported.Add("LookAhead");
-
                     if (instance is IEndianDependentFormat)
                         supported.Add("ByteOrder");
 

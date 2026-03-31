@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Specialized
     /// <summary>
     /// CNS compression algorithm, used in Games from Red Entertainment.
     /// </summary>
-    public sealed class CNS : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class CNS : ICompressionAlgorithm, IProvidesDecompressedSize
     {
 
         private static readonly Identifier32 _identifier = new Identifier32("@CNS".AsSpan());
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.Specialized
         private static readonly IFormatInfo _info = new FormatInfo<CNS>("Red Entertainmen CNS", new MediaType(MIMEType.Application, "x-red-cns"), string.Empty, _identifier);
 
         internal static readonly LzProperties _lz = new LzProperties(0x100, 130, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// The extension string that is set when writing and reading.
@@ -80,7 +77,7 @@ namespace AuroraLib.Compression.Formats.Specialized
             destination.Write(0);
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
@@ -116,10 +113,10 @@ namespace AuroraLib.Compression.Formats.Specialized
         }
 
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Big);
             while (true)
             {

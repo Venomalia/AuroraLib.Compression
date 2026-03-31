@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Marvelous
     /// <summary>
     /// CLZ0 compression algorithm, used in Games from Victor Interactive Software.
     /// </summary>
-    public sealed class CLZ0 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class CLZ0 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
 
         private static readonly Identifier32 _identifier = new Identifier32((byte)'C', (byte)'L', (byte)'Z', 0);
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.Marvelous
         private static readonly IFormatInfo _info = new FormatInfo<CLZ0>("Victor Interactive CLZ0", new MediaType(MIMEType.Application, "x-clz0"), string.Empty, _identifier);
 
         internal static readonly LzProperties _lz = new LzProperties(0x1000, 18, 3);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -68,7 +65,7 @@ namespace AuroraLib.Compression.Formats.Marvelous
             destination.Write(source.Length, Endian.Big);
 
             // Perform the compression
-            CompressHeaderless(source, destination, LookAhead, settings);
+            CompressHeaderless(source, destination, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Stream destination, int decomLength)
@@ -105,10 +102,10 @@ namespace AuroraLib.Compression.Formats.Marvelous
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
             while (true)
             {

@@ -82,7 +82,7 @@ namespace AuroraLib.Compression.Formats.Specialized
             destination.Write(source.Length);
 
             // Perform the compression
-            CompressHeaderless(source, destination, flags, true, settings);
+            CompressHeaderless(source, destination, flags, settings);
         }
 
         public static void DecompressHeaderless(Stream source, Span<byte> destination, ReadOnlySpan<byte> flags)
@@ -124,11 +124,11 @@ namespace AuroraLib.Compression.Formats.Specialized
             }
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, ReadOnlySpan<byte> flags, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0, plainSize = 0;
             LzMatch match;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(lzProperties, settings);
             using FlagWriter flag = new FlagWriter(destination, Endian.Little);
             while (true)
             {

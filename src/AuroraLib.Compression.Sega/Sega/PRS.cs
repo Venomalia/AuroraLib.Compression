@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// SEGA PRS is an LZ based compression algorithm.
     /// </summary>
-    public sealed class PRS : ICompressionAlgorithm, ILzSettings, IEndianDependentFormat
+    public sealed class PRS : ICompressionAlgorithm, IEndianDependentFormat
     {
         /// <inheritdoc/>
         public IFormatInfo Info => _info;
@@ -19,9 +19,6 @@ namespace AuroraLib.Compression.Formats.Sega
         private static readonly IFormatInfo _info = new FormatInfo<PRS>("SEGA PRS", new MediaType(MIMEType.Application, "x-sega-prs"), ".prs");
 
         private static readonly LzProperties _lz = new LzProperties(0x1FFF, 0x100, 2);
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public Endian FormatByteOrder { get; set; } = Endian.Big;
@@ -40,7 +37,7 @@ namespace AuroraLib.Compression.Formats.Sega
 
         /// <inheritdoc/>
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
-            => CompressHeaderless(source, destination, FormatByteOrder, LookAhead, settings);
+            => CompressHeaderless(source, destination, FormatByteOrder, settings);
 
         public static void DecompressHeaderless(Stream source, Stream destination)
         {
@@ -104,10 +101,10 @@ namespace AuroraLib.Compression.Formats.Sega
             throw new EndOfStreamException();
         }
 
-        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, bool lookAhead = true, CompressionSettings settings = default)
+        public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, Endian order = Endian.Little, CompressionSettings settings = default)
         {
             int sourcePointer = 0x0;
-            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings, !lookAhead);
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using FlagWriter flag = new FlagWriter(destination, order);
             while (true)
             {

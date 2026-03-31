@@ -11,7 +11,7 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// LZ01 implementation based on LZSS algorithm used in Skies of Arcadia Legends.
     /// </summary>
-    public sealed class LZ01 : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class LZ01 : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         /// <inheritdoc/>
         public IIdentifier Identifier => _identifier;
@@ -24,9 +24,6 @@ namespace AuroraLib.Compression.Formats.Sega
         private static readonly IFormatInfo _info = new FormatInfo<LZ01>("Sega LZ01", new MediaType(MIMEType.Application, "x-lzss+lz01"), string.Empty, _identifier);
 
         private static readonly LzProperties _lz = LZSS.Lzss0Properties;
-
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <inheritdoc/>
         public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
@@ -77,7 +74,7 @@ namespace AuroraLib.Compression.Formats.Sega
             destination.Write(0);
 
             // Perform the compression
-            LZSS.CompressHeaderless(source, destination, _lz, LookAhead, settings);
+            LZSS.CompressHeaderless(source, destination, _lz, settings);
 
             // Go back to the beginning of the file and write out the compressed length
             int destinationLength = (int)(destination.Position - destinationStartPosition);

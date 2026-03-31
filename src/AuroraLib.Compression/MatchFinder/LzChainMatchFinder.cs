@@ -105,7 +105,7 @@ namespace AuroraLib.Compression.MatchFinder
             Reset();
         }
 
-        public LzChainMatchFinder(LzProperties[] properties, CompressionSettings settings, bool noSelfOverlap = false) : this(properties, GetMaxChain(settings.Quality), 3 + (settings.Quality / 3), 15 + (int)Math.Sqrt(2 * settings.Quality), 17 + (int)Math.Sqrt(2 * settings.Quality), settings.MaxWindowBits, noSelfOverlap, settings.Quality >= 10)
+        public LzChainMatchFinder(LzProperties[] properties, CompressionSettings settings) : this(properties, GetMaxChain(settings.Quality), 3 + (settings.Quality / 3), 15 + (int)Math.Sqrt(2 * settings.Quality), 17 + (int)Math.Sqrt(2 * settings.Quality), settings.MaxWindowBits, settings.Strategy == CompresionStrategy.CompatibilityMode, settings.Quality >= 10)
         { }
 
         static int GetMaxChain(int Quality)
@@ -118,7 +118,7 @@ namespace AuroraLib.Compression.MatchFinder
             return baseVal | (baseVal >> (Quality & 1));
         }
 
-        public LzChainMatchFinder(LzProperties propertie, CompressionSettings settings, bool noSelfOverlap = false) : this(new LzProperties[] { propertie }, settings, noSelfOverlap)
+        public LzChainMatchFinder(LzProperties propertie, CompressionSettings settings) : this(new LzProperties[] { propertie }, settings)
         {
         }
 

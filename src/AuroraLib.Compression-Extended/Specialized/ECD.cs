@@ -13,7 +13,7 @@ namespace AuroraLib.Compression.Formats.Specialized
     /// Rocket Company Ltd ECD algorithm base on LZSS, used in Kanken Training 2.
     /// </summary>
     // https://github.com/FanTranslatorsInternational/Kuriimu2/blob/8cc3c310a597fdf78209d693c7333009d772c15f/src/Kompression/Implementations/Decoders/LzEcdDecoder.cs
-    public sealed class ECD : ICompressionAlgorithm, ILzSettings, IProvidesDecompressedSize
+    public sealed class ECD : ICompressionAlgorithm, IProvidesDecompressedSize
     {
         private static readonly LzProperties LZPropertie = new LzProperties(0x400, 0x42, 3, 0x3BE);
 
@@ -24,8 +24,6 @@ namespace AuroraLib.Compression.Formats.Specialized
 
         private static readonly IFormatInfo _info = new FormatInfo<ECD>("ECD lzss", new MediaType(MIMEType.Application, "x-lzss+ecd"), string.Empty, _identifier);
 
-        /// <inheritdoc/>
-        public bool LookAhead { get; set; } = true;
 
         /// <summary>
         /// 
@@ -103,7 +101,7 @@ namespace AuroraLib.Compression.Formats.Specialized
                 // Copy plain bytes
                 destination.Write(source.Slice(0, plainSize));
 
-                LZSS.CompressHeaderless(source.Slice(plainSize), destination, LZPropertie, LookAhead, settings);
+                LZSS.CompressHeaderless(source.Slice(plainSize), destination, LZPropertie, settings);
 
                 uint compressedSize = (uint)(destination.Length - startpos - 0x10);
                 destination.At(startpos + 0x8, s => s.Write(compressedSize, Endian.Big));
