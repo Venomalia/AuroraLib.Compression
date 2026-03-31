@@ -56,14 +56,14 @@ namespace AuroraLib.Compression.Formats.Common
             using LzWindows buffer = new LzWindows(destination, _lz.WindowsBits);
 
             // Read the first flage.
-            flag = source.ReadInt8();
+            flag = source.ReadByte();
 
             // special case if the first flag is greater than 17
             if (flag > 17)
             {
                 length = flag - 17;
                 buffer.CopyFrom(source, length);
-                flag = source.ReadInt8();
+                flag = source.ReadByte();
             }
 
             do
