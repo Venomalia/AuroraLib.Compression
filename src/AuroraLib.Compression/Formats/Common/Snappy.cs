@@ -73,6 +73,7 @@ namespace AuroraLib.Compression.Formats.Common
             // Stream identifier Chunk
             destination.Write(_streamIdentifierChunk);
 
+            using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
             using MemoryPoolStream buffer = new MemoryPoolStream(0x1000);
             int pos = 0;
             while (pos < source.Length)
@@ -81,7 +82,8 @@ namespace AuroraLib.Compression.Formats.Common
                 int chunkSize = Math.Min(MaxChunkSize, source.Length - pos);
                 ReadOnlySpan<byte> chunk = source.Slice(pos, chunkSize);
 
-                CompressHeaderless(chunk, buffer, settings);
+                CompressHeaderless(chunk, buffer, settings, matchFinder);
+                matchFinder.Reset();
                 uint crc = CRCMask(Crc32C.Compute(chunk));
 
                 if (buffer.Length >= chunkSize)
@@ -121,9 +123,12 @@ namespace AuroraLib.Compression.Formats.Common
 
         public static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            int sourcePointer = 0x0;
             using LzChainMatchFinder matchFinder = new LzChainMatchFinder(_lz, settings);
+            CompressHeaderless(source, destination, settings, matchFinder);
+        }
 
+        private static void CompressHeaderless(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings, LzChainMatchFinder matchFinder)
+        {
             // Write DecompressedSize
             int v = source.Length;
             while (v >= 0x80)
@@ -133,6 +138,7 @@ namespace AuroraLib.Compression.Formats.Common
             }
             destination.WriteByte((byte)v);
 
+            int sourcePointer = 0x0;
             while (true)
             {
                 LzMatch match = matchFinder.FindNextBestMatch(source);
