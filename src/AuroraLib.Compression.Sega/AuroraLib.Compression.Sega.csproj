@@ -5,8 +5,8 @@
     <Title>AuroraLib.Compression.Sega</Title>
     <Version>2.0.0.0</Version>
     <Authors>Venomalia</Authors>
-    <Description>Sega-specific compression formats like LZ10, LZ11, Yaz0, Yay0, MIO0 and more.</Description>
-    <PackageTags>compression;Sega;yaz0;Yay0,lz10;</PackageTags>
+    <Description>Sega-specific compression formats like PRS, LZSega and AKLZ.</Description>
+    <PackageTags>compression;sega;prs;</PackageTags>
 
     <AssemblyName>$(Title)</AssemblyName>
     <AssemblyVersion>$(Version)</AssemblyVersion>

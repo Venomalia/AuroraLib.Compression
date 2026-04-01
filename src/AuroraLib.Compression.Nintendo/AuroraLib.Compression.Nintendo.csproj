@@ -5,8 +5,8 @@
     <Title>AuroraLib.Compression.Nintendo</Title>
     <Version>2.0.0.0</Version>
     <Authors>Venomalia</Authors>
-    <Description>Nintendo-specific compression formats like PRS, LZSega and AKLZ.</Description>
-    <PackageTags>compression;sega;prs;Yay0,lz10;</PackageTags>
+    <Description>Nintendo-specific compression formats like LZ10, LZ11, Yaz0, Yay0, MIO0 and more.</Description>
+    <PackageTags>compression;nintendo;yaz0;yay0,lz10;</PackageTags>
     
     <AssemblyName>$(Title)</AssemblyName>
     <AssemblyVersion>$(Version)</AssemblyVersion>

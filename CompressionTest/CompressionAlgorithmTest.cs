@@ -1,6 +1,9 @@
 using AuroraLib.Compression;
 using AuroraLib.Compression.Formats.Common;
 using AuroraLib.Compression.Formats.CRI;
+using AuroraLib.Compression.Formats.Nintendo;
+using AuroraLib.Compression.Formats.Sega;
+using AuroraLib.Compression.Formats.Specialized;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
@@ -12,6 +15,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 
 namespace CompressionTest
 {
@@ -43,13 +47,15 @@ namespace CompressionTest
             }
         }
 
+        private static Assembly[] Assemblies = new Assembly[] { typeof(LZO).Assembly, typeof(LZ10).Assembly, typeof(PRS).Assembly, typeof(ALLZ).Assembly };
+
         public static IEnumerable<object[]> GetAvailableAlgorithms()
         {
-            IEnumerable<Type> availableAlgorithmTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes().Where(s => typeof(ICompressionAlgorithm).IsAssignableFrom(s) && !s.IsInterface && !s.IsAbstract));
+            IEnumerable<Type> availableAlgorithmTypes = Assemblies.SelectMany(x => x.GetTypes().Where(s => typeof(ICompressionAlgorithm).IsAssignableFrom(s) && !s.IsInterface && !s.IsAbstract));
             return availableAlgorithmTypes.Select(x => new object[] { (ICompressionAlgorithm)Activator.CreateInstance(x)! });
         }
 
-        private static FormatDictionary Formats = new FormatDictionary(AppDomain.CurrentDomain.GetAssemblies());
+        private static FormatDictionary Formats = new FormatDictionary(Assemblies);
 
         [TestMethod]
         [DynamicData(nameof(GetAvailableAlgorithms), DynamicDataSourceType.Method)]
