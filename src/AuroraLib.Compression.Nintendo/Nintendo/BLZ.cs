@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x6 <= stream.Length && stream.At(stream.Length - 8, s => s.ReadUInt24LittleEndian() == stream.Length && s.ReadByte() >= 8 && s.ReadInt32LittleEndian() >= 0);
+            => stream.Position + 0x6 <= stream.Length && stream.At(stream.Length - 8, s => s.ReadUInt24LittleEndian() == stream.Length && s.ReadByte() >= 8);
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
@@ -70,7 +70,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length + (int)(source.Length * 0.1));
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(source.Length + (int)(source.Length * 0.2));
             try
             {
                 int compressedSize = CompressHeaderless(source, buffer, settings);
@@ -86,7 +86,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
                 destination.Write((byte)0xff, padding);
                 destination.Write((UInt24)totalSize);                    // compressed size (24-bit)
                 destination.WriteByte(headerSize);                       // header size = 8 + padding
-                destination.Write((uint)(source.Length - totalSize));  // decompressed size delta
+                destination.Write((int)(source.Length - totalSize));  // decompressed size delta
             }
             finally
             {
