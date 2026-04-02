@@ -13,12 +13,12 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ11 compression algorithm extension of the <see cref="LZ10"/> algorithm, mainly used in DS and WII games.
     /// </summary>
-    public class LZ11 : ICompressionAlgorithm, IProvidesDecompressedSize, IGbaRamMode
+    public sealed class LZ11 : ICompressionAlgorithm, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x11;
 
         /// <inheritdoc/>
-        public virtual IFormatInfo Info => _info;
+        public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ11>("Nintendo LZ11", new MediaType(MIMEType.Application, "x-nintendo-lz11"), ".lz");
 
@@ -29,7 +29,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
         public bool GbaVramCompatibilityMode { get; set; } = false;
 
         /// <inheritdoc/>
-        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
@@ -37,7 +37,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             => stream.Position + 0x8 < stream.Length && stream.Peek(Validate);
 
         /// <inheritdoc/>
-        public virtual uint GetDecompressedSize(Stream source)
+        public uint GetDecompressedSize(Stream source)
             => source.Peek(InternalGetDecompressedSize);
 
         protected static uint InternalGetDecompressedSize(Stream source)
@@ -53,7 +53,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
         }
 
         /// <inheritdoc/>
-        public virtual void Decompress(Stream source, Stream destination)
+        public void Decompress(Stream source, Stream destination)
         {
             // Read Header
             uint decompressedSize = InternalGetDecompressedSize(source);
@@ -63,7 +63,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
         }
 
         /// <inheritdoc/>
-        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             // Write Header
             if (source.Length <= 0xFFFFFF)

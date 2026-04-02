@@ -10,42 +10,44 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// GCLZ extension header based on LZ10 algorithm used in Pandora's Tower.
     /// </summary>
-    public sealed class GCLZ : LZ10, ICompressionAlgorithm
+    public sealed class GCLZ : ICompressionAlgorithm
     {
+        private readonly static LZ10 lz10 = new LZ10();
+
         private static readonly Identifier32 _identifier = new Identifier32("GCLZ".AsSpan());
 
         /// <inheritdoc/>
-        public override IFormatInfo Info => _info;
+        public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<GCLZ>("GCLZ", new MediaType(MIMEType.Application, "x-nintendo-lz10+gclz"), string.Empty, _identifier);
         /// <inheritdoc/>
-        public override bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public new static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && LZ10.IsMatchStatic(s));
 
         /// <inheritdoc/>
-        public override uint GetDecompressedSize(Stream source)
+        public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
                 s.MatchThrow(_identifier);
-                return InternalGetDecompressedSize(s);
+                return lz10.GetDecompressedSize(s);
             });
 
         /// <inheritdoc/>
-        public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            base.Compress(source, destination, settings);
+            lz10.Compress(source, destination, settings);
         }
 
         /// <inheritdoc/>
-        public override void Decompress(Stream source, Stream destination)
+        public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            base.Decompress(source, destination);
+            lz10.Decompress(source, destination);
         }
 
     }

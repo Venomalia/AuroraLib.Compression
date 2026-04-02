@@ -13,12 +13,12 @@ namespace AuroraLib.Compression.Formats.Nintendo
     /// <summary>
     /// Nintendo LZ10 compression algorithm based on LZ77, mainly used in GBA, DS and WII games.
     /// </summary>
-    public class LZ10 : ICompressionAlgorithm, IProvidesDecompressedSize, IGbaRamMode
+    public sealed class LZ10 : ICompressionAlgorithm, IProvidesDecompressedSize, IGbaRamMode
     {
         private const byte Identifier = 0x10;
 
         /// <inheritdoc/>
-        public virtual IFormatInfo Info => _info;
+        public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<LZ10>("Nintendo LZ10", new MediaType(MIMEType.Application, "x-nintendo-lz10"), ".lz");
 
@@ -33,7 +33,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
         public bool GbaVramCompatibilityMode { get; set; } = true;
 
         /// <inheritdoc/>
-        public virtual bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
@@ -41,7 +41,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => Validate(s));
 
         /// <inheritdoc/>
-        public virtual uint GetDecompressedSize(Stream source)
+        public uint GetDecompressedSize(Stream source)
             => source.Peek(InternalGetDecompressedSize);
 
         protected static uint InternalGetDecompressedSize(Stream source)
@@ -57,14 +57,14 @@ namespace AuroraLib.Compression.Formats.Nintendo
         }
 
         /// <inheritdoc/>
-        public virtual void Decompress(Stream source, Stream destination)
+        public void Decompress(Stream source, Stream destination)
         {
             uint decompressedSize = InternalGetDecompressedSize(source);
             DecompressHeaderless(source, destination, decompressedSize);
         }
 
         /// <inheritdoc/>
-        public virtual void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             if (source.Length <= 0xFFFFFF)
             {

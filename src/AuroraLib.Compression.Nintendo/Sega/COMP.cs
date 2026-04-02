@@ -11,43 +11,44 @@ namespace AuroraLib.Compression.Formats.Sega
     /// <summary>
     /// COMP extension header based on LZ11 algorithm used in Puyo Puyo Chronicle.
     /// </summary>
-    public sealed class COMP : LZ11, ICompressionAlgorithm
+    public sealed class COMP : ICompressionAlgorithm
     {
+        private readonly static LZ11 lz11 = new LZ11();
         private static readonly Identifier32 _identifier = new Identifier32("COMP".AsSpan());
 
         /// <inheritdoc/>
-        public override IFormatInfo Info => _info;
+        public IFormatInfo Info => _info;
 
         private static readonly IFormatInfo _info = new FormatInfo<COMP>("COMP", new MediaType(MIMEType.Application, "x-nintendo-lz11+comp"), string.Empty, _identifier);
 
         /// <inheritdoc/>
-        public override bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public bool IsMatch(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => IsMatchStatic(stream, fileNameAndExtension);
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
-        public new static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
+        public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
             => stream.Position + 0x8 < stream.Length && stream.Peek(s => s.Match(_identifier) && LZ11.IsMatchStatic(s));
 
         /// <inheritdoc/>
-        public override uint GetDecompressedSize(Stream source)
+        public uint GetDecompressedSize(Stream source)
             => source.Peek(s =>
             {
                 s.MatchThrow(_identifier);
-                return InternalGetDecompressedSize(s);
+                return lz11.GetDecompressedSize(s);
             });
 
         /// <inheritdoc/>
-        public override void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
+        public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
             destination.Write(_identifier);
-            base.Compress(source, destination, settings);
+            lz11.Compress(source, destination, settings);
         }
 
         /// <inheritdoc/>
-        public override void Decompress(Stream source, Stream destination)
+        public void Decompress(Stream source, Stream destination)
         {
             source.MatchThrow(_identifier);
-            base.Decompress(source, destination);
+            lz11.Decompress(source, destination);
         }
     }
 }
