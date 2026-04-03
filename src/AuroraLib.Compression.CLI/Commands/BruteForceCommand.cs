@@ -1,4 +1,4 @@
-using AuroraLib.Compression.CLI.Algorithms;
+using AuroraLib.Compression.CLI.Formats.Common;
 using AuroraLib.Compression.Formats.Activision;
 using AuroraLib.Compression.Formats.Camelot;
 using AuroraLib.Compression.Formats.Common;
@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using static AuroraLib.Compression.CLI.ArgumentParser;
 
 namespace AuroraLib.Compression.CLI.Commands
 {
@@ -22,6 +23,7 @@ namespace AuroraLib.Compression.CLI.Commands
     {
         public static void Execute(string sourceFile, string destinationFolder, long offset, long expectedSize)
         {
+            HelpPrinter.PrintOperation(nameof(Modes.BruteForce), sourceFile, destinationFolder);
             using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             var RawData = new byte[source.Length - offset];
             var destination = new byte[expectedSize];

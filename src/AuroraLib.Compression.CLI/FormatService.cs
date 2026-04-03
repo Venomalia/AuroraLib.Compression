@@ -1,4 +1,4 @@
-using AuroraLib.Compression.CLI.Algorithms;
+using AuroraLib.Compression.CLI.Formats.Common;
 using AuroraLib.Compression.Formats.Common;
 using AuroraLib.Compression.Formats.EA;
 using AuroraLib.Compression.Formats.Level5;

@@ -22,13 +22,15 @@ namespace AuroraLib.Compression.CLI
             OUt,
             Algo,
             Level,
-            LookAhead,
+            LegacyMode,
             Endian,
             Overwrite,
             Quiet,
             SCan,
             Size,
-            OFfset
+            OFfset,
+            MaxWindow,
+            WRam
         }
 
         private static readonly Dictionary<string, Modes> _modeMap;

@@ -64,16 +64,27 @@ class Program
                 case Modes.Compress:
                     algo = GetRequiredArg(argsDict, Flags.Algo);
                     var encoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown encoder: '{algo}'.");
-                    var level = argsDict.TryGetValue(Flags.Level, out var lvlStr) && Enum.TryParse(lvlStr, out CompressionLevel lvl) ? lvl : CompressionLevel.Optimal;
-                    bool? lookAhead = argsDict.TryGetValue(Flags.LookAhead, out var laStr) ? bool.Parse(laStr) : null;
-                    Endian? order = argsDict.TryGetValue(Flags.Endian, out var ordStr) && Enum.TryParse(ordStr, true, out Endian ord) ? ord : null;
 
-                    CompressionSettings settings = level;
-                    settings = new CompressionSettings(settings.Quality, settings.MaxWindowBits, lookAhead == false ? CompresionStrategy.CompatibilityMode : CompresionStrategy.Default);
-                    Console.WriteLine($"Compressing '{input}' to '{output}' using algorithm '{encoder.FullName}'.");
-                    Console.WriteLine($"  Compression Level: {level}{(lookAhead == null ? null : $" LookAhead: {lookAhead}")}{(order == null ? null : $" Byte order: {order}")}.");
-                    Console.WriteLine();
-                    if (!CompressCommand.Execute(input, output, encoder, level, order))
+                    CompressionSettings settings = default;
+                    if (argsDict.TryGetValue(Flags.Level, out var lvlStr))
+                    {
+                        if (int.TryParse(lvlStr, out int quality))
+                        {
+                            settings = quality;
+                        }
+                        else if (Enum.TryParse(lvlStr, out CompressionLevel lvl))
+                        {
+                            settings = lvl;
+                        }
+                    }
+                    bool useLegacyMode = argsDict.ContainsKey(Flags.LegacyMode);
+                    int MaxWindowBits = argsDict.TryGetValue(Flags.MaxWindow, out var winStr) ? int.Parse(winStr!) : 0;
+                    Endian? order = argsDict.TryGetValue(Flags.Endian, out var ordStr) && Enum.TryParse(ordStr, true, out Endian ord) ? ord : null;
+                    bool useWram = argsDict.ContainsKey(Flags.WRam);
+
+                    settings = new CompressionSettings(settings.Quality, MaxWindowBits, useLegacyMode ? CompresionStrategy.CompatibilityMode : CompresionStrategy.Default);
+
+                    if (!CompressCommand.Execute(input, output, encoder, settings, order, useWram))
                     {
                         throw new ArgumentException($"Unknown encoder: '{algo}'.");
                     }
@@ -86,15 +97,11 @@ class Program
                         if (isFixAlgo)
                         {
                             var decoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown decoder: '{algo}'.");
-                            Console.WriteLine($"Scanning '{input}' for compressed streams using '{decoder.FullName}'...\n");
                             if (!ScanDecompressCommand.Execute(input, output, decoder))
-                            {
-                                Console.Error.WriteLine($"{decoder.FullName} is not a valid decoder!");
-                            }
+                                return;
                         }
                         else
                         {
-                            Console.WriteLine($"Scanning '{input}' for compressed streams...\n");
                             ScanDecompressCommand.Execute(input, output);
                         }
                     }
@@ -103,28 +110,19 @@ class Program
                         if (isFixAlgo)
                         {
                             var decoder = FormatService.GetFormatInfo(algo) ?? throw new ArgumentException($"Unknown decoder: '{algo}'.");
-                            Console.WriteLine($"Decompressing '{input}' to '{output}' using '{decoder.FullName}'...\n");
                             if (!DecompressCommand.Execute(input, output, decoder))
-                            {
-                                Console.Error.WriteLine($"{decoder.FullName} failed to unpack this file!");
                                 return;
-                            }
                         }
                         else
                         {
-                            Console.WriteLine($"Decompressing '{input}' to '{output}'...\n");
                             if (!DecompressCommand.Execute(input, output))
-                            {
-                                Console.Error.WriteLine("No suitable decoder found for the file format!");
                                 return;
-                            }
                         }
                         HelpPrinter.PrintSaveFile(output);
                     }
-                    Console.WriteLine("Decompression completed successfully.");
                     break;
                 case Modes.Mime:
-                    Console.WriteLine($"Trying to recognize format of '{input}'.\n");
+                    HelpPrinter.PrintOperation(mode.ToString(), input, null);
                     var format = DetectedMimeCommand.Execute(input);
                     if (format != null)
                     {
@@ -147,13 +145,12 @@ class Program
                     if (expectedSize <= 0)
                         throw new ArgumentException("Invalid decompressed size value, cannot be negative or 0.");
 
-                    Console.WriteLine($"Brute-force compression algorithm for '{input}' at offset {offset}...\n");
-
                     BruteForceCommand.Execute(input, output, offset, expectedSize);
                     break;
                 default:
                     throw new ArgumentException($"Unknown command. Use -help for usage.");
             }
+            Console.WriteLine();
             Console.WriteLine("Completed successfully.");
         }
 #if !DEBUG

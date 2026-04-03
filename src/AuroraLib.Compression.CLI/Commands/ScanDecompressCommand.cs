@@ -3,6 +3,7 @@ using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
 using System;
 using System.IO;
+using static AuroraLib.Compression.CLI.ArgumentParser;
 
 namespace AuroraLib.Compression.CLI.Commands
 {
@@ -10,6 +11,8 @@ namespace AuroraLib.Compression.CLI.Commands
     {
         public static bool Execute(string sourceFile, string destinationFolder, IFormatInfo format)
         {
+            HelpPrinter.PrintOperation(nameof(Modes.Decompress), sourceFile, destinationFolder);
+
             int found = 0;
             using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             using MemoryPoolStream destination = new MemoryPoolStream();
@@ -36,10 +39,13 @@ namespace AuroraLib.Compression.CLI.Commands
                 }
                 return true;
             }
+            Console.Error.WriteLine($"{format.FullName} is not a valid decoder!");
             return false;
         }
         public static void Execute(string sourceFile, string destinationFolder)
         {
+            HelpPrinter.PrintOperation(nameof(Modes.Decompress), sourceFile, destinationFolder);
+
             int found = 0;
             using FileStream source = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             ReadOnlySpan<char> fileName = Path.GetFileName(sourceFile).AsSpan();

@@ -1,3 +1,4 @@
+using AuroraLib.Compression.Formats.Nintendo;
 using AuroraLib.Compression.Interfaces;
 using AuroraLib.Core.Format;
 using AuroraLib.Core.IO;
@@ -12,11 +13,59 @@ namespace AuroraLib.Compression.CLI
 {
     internal static class HelpPrinter
     {
+        public static void PrintOperationStart(DateTime startTime)
+        {
+            Console.WriteLine($"[Operation Start] {startTime:yyyy-MM-dd HH:mm:ss}");
+        }
+        public static void PrintOperationEnd(DateTime startTime)
+        {
+            DateTime endTime = DateTime.Now;
+            Console.WriteLine($"[Operation Complete] {endTime:yyyy-MM-dd HH:mm:ss} (Duration: {(endTime - startTime).TotalSeconds:F2}s)");
+            Console.WriteLine();
+        }
+
+        public static void PrintStats(long sourceLength, long destinationLength)
+        {
+            double inputMB = sourceLength / (1024.0 * 1024);
+            double outputMB = destinationLength / (1024.0 * 1024);
+            double savedMB = inputMB - outputMB;
+            double ratio = 100.0 * outputMB / inputMB;
+
+            Console.WriteLine("[Stats]");
+            Console.WriteLine($" Input:  {inputMB:F2} MB");
+            Console.WriteLine($" Output: {outputMB:F2} MB");
+            Console.WriteLine($" Saved:  {savedMB:F2} MB");
+            Console.WriteLine($" Ratio:  {ratio:F2}%");
+            Console.WriteLine();
+        }
+
+        public static void PrintOperation(string operation, string input, string? output)
+        {
+            Console.WriteLine($"[Operation] {operation}");
+            Console.WriteLine($" Input: \"{input}\"");
+            if (output != null)
+                Console.WriteLine($" Output: \"{output}\"");
+            Console.WriteLine();
+        }
+        public static void PrintCompressionSettings(CompressionSettings settings, ICompressionEncoder encoder)
+        {
+            Console.WriteLine($"[Compression Settings]");
+            Console.WriteLine($" Quality: {settings.Quality}");
+            Console.WriteLine($" Strategy: {settings.Strategy}");
+            if (settings.MaxWindowBits != 0)
+                Console.WriteLine($" MaxWindow: 0x{1 << settings.MaxWindowBits:x}");
+
+            if (encoder is IEndianDependentFormat encoderEndianSettings)
+                Console.WriteLine($" ByteOrder: {encoderEndianSettings.FormatByteOrder}");
+            if (encoder is IGbaRamMode gbaRamMode)
+                Console.WriteLine($" GbaRamMode: {(gbaRamMode.GbaVramCompatibilityMode ? "Vram" : "Wram")}");
+            Console.WriteLine();
+        }
         public static void PrintSaveFile(string outputFile)
-            => Console.WriteLine($"[SAVED] {outputFile}");
+            => Console.WriteLine($"[Saved] to \"{outputFile}\"");
 
         public static void PrintFoundStream(long start, long end)
-            => Console.WriteLine($"[FOUND] Offset 0x{start:X} - 0x{end:X} ({end - start} bytes)");
+            => Console.WriteLine($"[Found] Offset 0x{start:X} - 0x{end:X} ({end - start} bytes)");
 
         public static void PrintRemainingDataNote(string sourceFile, FileStream source)
         {
@@ -29,19 +78,20 @@ namespace AuroraLib.Compression.CLI
 
         public static void PrintFormatInfo(IFormatInfo format)
         {
-            Console.WriteLine($"Format: {format.FullName}");
-            Console.WriteLine($"MIME: {format.MIMEType}");
+            Console.WriteLine($"[Format] {format.FullName}");
+            Console.WriteLine($" MIME: {format.MIMEType}");
 
             if (format.FileExtensions.Any() && !string.IsNullOrEmpty(format.FileExtensions.First()))
-                Console.WriteLine($"Extensions: {string.Join(", ", format.FileExtensions)}");
+                Console.WriteLine($" Extensions: {string.Join(", ", format.FileExtensions)}");
 
             if (format.Identifier != null)
-                Console.WriteLine($"Identifier: {format.Identifier}");
+                Console.WriteLine($" Identifier: {format.Identifier}");
+            Console.WriteLine();
         }
 
         public static void PrintSupportedFormats()
         {
-            Console.WriteLine("List of supported Algorithms/formats:");
+            Console.WriteLine($"List of supported Algorithms/formats: [{FormatService.Formats.Count}]");
             Console.WriteLine(new string('-', 100));
             Console.WriteLine("{0,-30} {1,-10} {2,-35} {3}", "Name", "Class", "MIME Type", "Options");
             Console.WriteLine(new string('-', 100));
@@ -54,7 +104,10 @@ namespace AuroraLib.Compression.CLI
                     List<string> supported = new List<string>();
 
                     if (instance is IEndianDependentFormat)
-                        supported.Add("ByteOrder");
+                        supported.Add(nameof(Flags.Endian));
+
+                    if (instance is IGbaRamMode)
+                        supported.Add(nameof(Flags.WRam));
 
                     Console.WriteLine("{0,-30} {1,-10} {2,-35} {3}", formatInfo.FullName, formatInfo.Class?.Name ?? "—", formatInfo.MIMEType, string.Join(", ", supported));
                 }
@@ -77,11 +130,13 @@ namespace AuroraLib.Compression.CLI
             ConsoleFlag(Flags.In, "file path", "Input file path.");
             ConsoleFlag(Flags.OUt, "file path", "Output file path. [optional]");
             ConsoleFlag(Flags.Algo, "name", "Algorithm/format name or MIME Type");
-            ConsoleFlag(Flags.Level, "level", $"CompressionLevel <{string.Join(", ", Enum.GetNames(typeof(CompressionLevel)))}> [optional]");
-            ConsoleFlag(Flags.LookAhead, "true|false", "Use LookAhead [optional, format-specific]");
-            ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
+            ConsoleFlag(Flags.Level, "0-15 or level", $"CompressionLevel <{string.Join(", ", Enum.GetNames(typeof(CompressionLevel)))}> [optional]");
+            ConsoleFlag(Flags.MaxWindow, "1-28", "sets the largest window the encoder is allowed to use. [optional]");
+            ConsoleFlag(Flags.LegacyMode, string.Empty, "Use compatibility features for older or simpler decoders [optional]");
             ConsoleFlag(Flags.Overwrite, string.Empty, "Overwrite output file if already exists. [optional]");
             ConsoleFlag(Flags.Quiet, string.Empty, "Suppress all output except errors. [optional]");
+            ConsoleFlag(Flags.Endian, $"{Endian.Little}|{Endian.Big}", "Byte order [optional, format-specific]");
+            ConsoleFlag(Flags.WRam, string.Empty, "Use WRam mode [optional, format-specific]");
 
             ConsoleFlag(Modes.Mime, null, "Try to recognize the file format used.");
             ConsoleFlag(Flags.In, "file path", "Input file path.");
