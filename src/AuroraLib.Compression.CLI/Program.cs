@@ -17,6 +17,7 @@ class Program
 
     static void Main(string[] args)
     {
+        LZ4.HashAlgorithm = K4os.Hash.xxHash.XXH32.DigestOf;
 
         // Display program header with version, OS, and runtime info
         var ALC = AuroraLib_Compression.GetName();
