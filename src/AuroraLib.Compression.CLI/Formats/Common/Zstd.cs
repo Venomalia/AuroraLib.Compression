@@ -6,7 +6,7 @@ using System;
 using System.IO;
 using ZstdSharp;
 
-namespace AuroraLib.Compression.CLI.Algorithms
+namespace AuroraLib.Compression.CLI.Formats.Common
 {
     public class Zstd : ICompressionAlgorithm
     {
@@ -24,7 +24,7 @@ namespace AuroraLib.Compression.CLI.Algorithms
 
         public void Compress(ReadOnlySpan<byte> source, Stream destination, CompressionSettings settings = default)
         {
-            using var compressionStream = new CompressionStream(destination, settings.Quality);
+            using var compressionStream = new CompressionStream(destination, settings.Quality * 22 / 15);
             compressionStream.SetPledgedSrcSize((ulong)source.Length);
             compressionStream.Write(source);
         }
