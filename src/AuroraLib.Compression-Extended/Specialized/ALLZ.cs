@@ -24,9 +24,11 @@ namespace AuroraLib.Compression.Formats.Specialized
 
         private static readonly LzProperties[] lzProperties = new LzProperties[]
         {
-            new LzProperties(0x20000, 0x40000, 7),
-            new LzProperties(0x2000, 0x40000, 3),
+            new LzProperties(0x1000, 0x40000, 3),
+            new LzProperties(0x4000, 0x40000, 4),
             new LzProperties(0x8000, 0x40000, 5),
+            new LzProperties(0x20000, 0x40000, 6),
+            new LzProperties(0x80000, 0x40000, 8),
         };
 
         public byte LzCopyBits = 0;

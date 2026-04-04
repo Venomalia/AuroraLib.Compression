@@ -26,12 +26,13 @@ namespace AuroraLib.Compression.Formats.Common
 
         private static readonly LzProperties[] lzProperties = new LzProperties[]
         {
-            new LzProperties(0x200000, int.MaxValue, 8, 0, 2),
-            new LzProperties(0x500, int.MaxValue, 3, 0, 2),
+            new LzProperties(0x1000, int.MaxValue, 3),
             new LzProperties(0x80, 3, 2),
-            new LzProperties(0x800, int.MaxValue, 4, 0, 2),
-            new LzProperties(0x2000, int.MaxValue, 5, 0, 2),
-            new LzProperties(0x7800, int.MaxValue, 7, 0, 2),
+            new LzProperties(0x4000, int.MaxValue, 4),
+            new LzProperties(0x10000, int.MaxValue, 5),
+            new LzProperties(0x40000, int.MaxValue, 6),
+            new LzProperties(0x100000, int.MaxValue, 7),
+            new LzProperties(0x200000, int.MaxValue, 8),
         };
 
         /// <inheritdoc/>
@@ -107,7 +108,7 @@ namespace AuroraLib.Compression.Formats.Common
             bool lwm = false;
 
             FlagReader flag = new FlagReader(source, Endian.Big);
-            using var buffer = new LzWindows(destination, lzProperties[0].WindowsBits);
+            using var buffer = new LzWindows(destination, lzProperties[lzProperties.Length-1].WindowsBits);
 
             buffer.WriteByte(source.ReadUInt8());
             while (true)
