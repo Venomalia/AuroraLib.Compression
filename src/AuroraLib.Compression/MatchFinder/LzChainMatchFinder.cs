@@ -178,7 +178,7 @@ namespace AuroraLib.Compression.MatchFinder
                 {
                     int nextPos = Position + 1;
                     MatchSearch(data, length, nextPos, maxChain, out int nextDistance, out int nextLength);
-                    if (nextLength - 1 > bestLength)
+                    if (nextLength > bestLength)
                     {
                         bestLength = nextLength;
                         bestDistance = nextDistance;
