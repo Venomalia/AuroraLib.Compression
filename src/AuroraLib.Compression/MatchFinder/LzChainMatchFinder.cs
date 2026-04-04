@@ -139,7 +139,6 @@ namespace AuroraLib.Compression.MatchFinder
             _headTable[h4] = pos;
             if (_minTable != null)
             {
-                _chainTable[pos & _chainMask] = _minTable[hm];
                 _minTable[hm] = pos;
             }
         }
