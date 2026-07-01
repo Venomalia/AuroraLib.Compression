@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Title>AuroraLib.Compression-Extended</Title>
-    <Version>2.0.0.0</Version>
+    <Version>2.0.1.0</Version>
     <Authors>Venomalia</Authors>
     <Description>Has additional compression algorithms that are rarely used like ALLZ, CRILAYLA, RefPack, WFLZ and more.</Description>
     <PackageTags>compression;</PackageTags>

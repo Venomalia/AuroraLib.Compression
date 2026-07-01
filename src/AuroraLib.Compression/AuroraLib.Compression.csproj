@@ -3,7 +3,7 @@
   <PropertyGroup>
 
     <Title>AuroraLib.Compression</Title>
-    <Version>2.0.0.0</Version>
+    <Version>2.0.1.0</Version>
     <Authors>Venomalia</Authors>
     <Description>Supports a wide range of compression algorithms, like LZSS, LZO, LZ4, ZLib and more.</Description>
     <PackageTags>compression;nintendo;yaz0;Yay0,lz10;</PackageTags>
@@ -48,7 +48,7 @@
 
   <ItemGroup>
     <PackageReference Include="AuroraLib.Core" Version="1.7.0" />
-    <PackageReference Include="AuroraLib.Core.Format" Version="1.0.3" />
+    <PackageReference Include="AuroraLib.Core.Format" Version="1.0.4" />
   </ItemGroup>
 
 </Project>

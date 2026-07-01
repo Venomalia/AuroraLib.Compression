@@ -199,8 +199,7 @@ namespace AuroraLib.Compression.MatchFinder
                 while (Position < end && Position <= limit)
                 {
                     ComputeHash(data + Position, out int h4, out int hm);
-                    Insert(Position, h4, hm);
-                    Position++;
+                    Insert(Position++, h4, hm);
                 }
 
                 return match;
@@ -217,11 +216,41 @@ namespace AuroraLib.Compression.MatchFinder
             byte* dataPos = data + pos;
             ComputeHash(dataPos, out int h4, out int hm);
             int cur = _headTable[h4];
+            int bestPossibleMatch = Math.Min(dataLength - pos, _maxMatchLength);
+
+            // ===== Chain matches =====
+            ChainMatches(data, bestPossibleMatch, pos, cur, attempts, out bestDistance, out bestLength);
+
+            // ===== fallback for small matches =====
+            // Used when chain search fails 
+            if (bestLength == 0 && _minTable != null)
+            {
+                cur = _minTable[hm];
+                //ChainMatches(data, bestPossibleMatch, pos, cur, 1, out bestDistance, out bestLength);
+                if (cur != -1)
+                {
+                    int distance = pos - cur;
+                    if (distance < _minDistance)
+                        distance = _minDistance;
+
+                    if (distance <= _maxDistance)
+                    {
+                        bestLength = GetMatchLength(dataPos, data + pos - distance, bestPossibleMatch);
+                        _ = ScoreMatch(ref bestLength, distance);
+                        bestDistance = distance;
+                    }
+                }
+            }
+
+            Insert(pos, h4, hm);
+        }
+
+        private void ChainMatches(byte* data, int bestPossibleMatch, int pos, int cur, int attempts, out int bestDistance, out int bestLength)
+        {
+            byte* dataPos = data + pos;
 
             bestDistance = bestLength = 0;
             int bestScore = -1;
-
-            int bestPossibleMatch = Math.Min(dataLength - pos, _maxMatchLength);
 
             // ===== Chain matches =====
             while (cur != -1 && attempts-- > 0)
@@ -250,27 +279,6 @@ namespace AuroraLib.Compression.MatchFinder
 
                 cur = GetNext(cur);
             }
-
-            // ===== fallback for small matches =====
-            // Used when chain search fails 
-            if (bestLength == 0 && _minTable != null)
-            {
-                cur = _minTable[hm];
-
-                if (cur != -1)
-                {
-                    int distance = pos - cur;
-
-                    if (distance >= _minDistance && distance <= _maxDistance)
-                    {
-                        bestLength = GetMatchLength(dataPos, data + cur, bestPossibleMatch);
-                        _ = ScoreMatch(ref bestLength, distance);
-                        bestDistance = distance;
-                    }
-                }
-            }
-
-            Insert(pos, h4, hm);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
