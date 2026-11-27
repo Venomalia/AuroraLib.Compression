@@ -29,42 +29,53 @@ namespace AuroraLib.Compression.Formats.Nintendo
 
         /// <inheritdoc cref="IsMatch(Stream, ReadOnlySpan{char})"/>
         public static bool IsMatchStatic(Stream stream, ReadOnlySpan<char> fileNameAndExtension = default)
-            => stream.Position + 0x6 <= stream.Length && stream.At(stream.Length - 8, s => s.ReadUInt24LittleEndian() == stream.Length && s.ReadByte() >= 8);
+            => stream.Position + 0x6 <= stream.Length && stream.At(stream.Length - 8, s => ReadHeader(s, out int _, out int _, out int _));
 
         /// <inheritdoc/>
         public uint GetDecompressedSize(Stream source)
             => source.At(source.Length - 8, s =>
             {
-                uint compressedSize = s.ReadUInt24();
-                byte headerSize = s.ReadUInt8();
-                if (headerSize < 8)
+
+                if (!ReadHeader(source, out int _, out int decompressedSize, out int _))
                     throw new Exception("Invalid BLZ header.");
-                return s.ReadUInt32() + compressedSize;
+                return (uint)decompressedSize;
             });
+
+
+        private static bool ReadHeader(Stream source, out int CompressedSize, out int DecompressedSize, out int RawDataSize)
+        {
+            CompressedSize = source.ReadUInt24LittleEndian();
+            byte headerAndPaddingSize = source.ReadUInt8();
+            DecompressedSize = source.ReadInt32LittleEndian();
+            RawDataSize = (int)(source.Length - CompressedSize);
+
+            if (CompressedSize <= headerAndPaddingSize || headerAndPaddingSize < 8 || RawDataSize < 0 || RawDataSize > 0xf)
+                return false;
+
+            DecompressedSize += CompressedSize + RawDataSize;
+            CompressedSize -= headerAndPaddingSize;
+            return true;
+        }
 
         public void Decompress(Stream source, Stream destination)
         {
             source.Position = source.Length - 8;
-            UInt24 compressedSize = source.ReadUInt24();
-            byte headerAndPaddingSize = source.ReadUInt8();
-            int decompressedSize = (source.ReadInt32() + compressedSize);
-            int codeSize = compressedSize - headerAndPaddingSize;
-            if (headerAndPaddingSize < 8)
+            if (!ReadHeader(source, out int compressedSize, out int decompressedSize, out int rawDataSize))
                 throw new Exception("Invalid BLZ header.");
 
-            source.Position = source.Length - compressedSize;
-            byte[] inBuffer = ArrayPool<byte>.Shared.Rent(codeSize);
-            byte[] outBuffer = ArrayPool<byte>.Shared.Rent(decompressedSize);
+            source.Position = 0;
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(decompressedSize + compressedSize);
             try
             {
-                source.Read(inBuffer, 0, codeSize);
-                DecompressHeaderless(inBuffer.AsSpan(0, codeSize), outBuffer.AsSpan(0, decompressedSize));
-                destination.Write(outBuffer, 0, decompressedSize);
+                source.ReadExactly(buffer, 0, rawDataSize);
+                source.ReadExactly(buffer, decompressedSize, compressedSize);
+
+                DecompressHeaderless(buffer.AsSpan(decompressedSize, compressedSize), buffer.AsSpan(rawDataSize, decompressedSize - rawDataSize));
+                destination.Write(buffer, 0, decompressedSize);
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(inBuffer);
-                ArrayPool<byte>.Shared.Return(outBuffer);
+                ArrayPool<byte>.Shared.Return(buffer);
             }
         }
 
@@ -79,7 +90,7 @@ namespace AuroraLib.Compression.Formats.Nintendo
                 // Write Header + optional padding
                 byte headerSize = 8;
                 int totalSize = ((int)compressedSize + headerSize);
-                int padding = (16 - (totalSize % 16)) % 16;
+                int padding = (4 - (totalSize % 4)) % 4;
                 totalSize += padding;
                 headerSize += (byte)padding;
 
